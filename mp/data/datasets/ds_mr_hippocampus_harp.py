@@ -128,9 +128,9 @@ def _extract_images(source_path, target_path, subset):
             rmin, rmax, cmin, cmax, zmin, zmax = bbox_3D(y)
 
             # Compute the start idx for each dim
-            dr = (rmax - rmin - target_shape[0]) // 2
-            dc = (cmax - cmin - target_shape[1]) // 2
-            dz = (zmax - zmin - target_shape[2]) // 2
+            dr = (target_shape[0] - rmax + rmin) // 2
+            dc = (target_shape[1] - cmax + cmin) // 2
+            dz = (target_shape[2] - zmax + zmin) // 2
 
             # Reshaping
             y = y[rmin - dr: rmin - dr + target_shape[0],
