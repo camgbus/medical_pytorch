@@ -17,6 +17,9 @@ paths.py
 # C extensions
 *.so
 
+# MacOS files
+.DS_Store
+
 # Distribution / packaging
 .Python
 build/

@@ -1,17 +1,11 @@
-
-# ------------------------------------------------------------------------------
-# The same code as in example_training.ipynp but as a python module instead of 
-# jupyter notebook. See that file for more detailed explainations.
-# ------------------------------------------------------------------------------
-
-# 1. Imports
+# 1. Import needed libraries
 
 import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
-from mp.data.datasets.ds_mr_prostate_decathlon import DecathlonProstateT2
+from mp.data.datasets.ds_mr_heart_decathlon import DecathlonLeftAtrium
 import mp.visualization.visualize_imgs as vis
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.models.segmentation.unet_fepegar import UNet2D
@@ -20,9 +14,9 @@ from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.result import Result
 from mp.utils.load_restore import nifty_dump
 
-# 2. Define configuration
+# 2. Define configuration dict
 
-config = {'experiment_name':'test_exp', 'device':'cuda:4',
+config = {'experiment_name':'test_exp_heart', 'device':'cuda:4',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
@@ -37,16 +31,16 @@ exp = Experiment(config=config, name=config['experiment_name'], notes='', reload
 
 # 4. Define data
 data = Data()
-data.add_dataset(DecathlonProstateT2(merge_labels=True))
+data.add_dataset(DecathlonLeftAtrium())
 nr_labels = data.nr_labels
 label_names = data.label_names
-train_ds = ('DecathlonProstateT2', 'train')
-test_ds = ('DecathlonProstateT2', 'test')
+train_ds = ('DecathlonLeftAtrium', 'train')
+test_ds = ('DecathlonLeftAtrium', 'test')
 
 # 5. Create data splits for each repetition
 exp.set_data_splits(data)
 
-# Now repeat for each repetition
+# Repeat for each repetition
 for run_ix in range(config['nr_runs']):
     exp_run = exp.get_run(run_ix=0)
 
@@ -84,10 +78,10 @@ for run_ix in range(config['nr_runs']):
         save_path=exp_run.paths['states'], save_interval=5)
 
     # 11. Save and print results for this experiment run
-    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[prostate]'])
+    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[left atrium]'])
     test_ds_key = '_'.join(test_ds)
-    metric = 'Mean_ScoreDice[prostate]'
+    metric = 'Mean_ScoreDice[left atrium]'
     last_dice = results.get_epoch_metric(
         results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    print('Last Dice score for prostate class: {}'.format(last_dice))
+    print('Last Dice score for left atrium class: {}'.format(last_dice))
 
