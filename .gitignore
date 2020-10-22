@@ -19,6 +19,7 @@ paths.py
 
 # MacOS files
 .DS_Store
+._*
 
 # Distribution / packaging
 .Python
