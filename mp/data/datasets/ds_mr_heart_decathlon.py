@@ -16,7 +16,7 @@ class DecathlonLeftAtrium(SegmentationDataset):
     r"""Class for the Left Atrium segmentation decathlon challenge, contains only
     MRI, found at http://medicaldecathlon.com/.
     """
-    def __init__(self, subset=None, hold_out_ixs=[], merge_labels=True):
+    def __init__(self, subset=None, hold_out_ixs=[]):
         assert subset is None, "No subsets for this dataset."
 
         # Extract necessary paths    
@@ -26,7 +26,7 @@ class DecathlonLeftAtrium(SegmentationDataset):
 
         # Extract all images, if not already done
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
-            _extract_images(original_data_path, dataset_path)#, merge_labels)
+            _extract_images(original_data_path, dataset_path)
 
         # Fetch all patient/study names
         study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
