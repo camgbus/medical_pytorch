@@ -58,7 +58,7 @@ def random_downsample(axes=(0, 1, 2), downsampling=(1.5, 5), p=1,
     return downsample
 
 def random_elastic_deformation(num_control_points=7, max_displacement=7.5,
-                               locked_borders=2, image_interpolation:='linear',
+                               locked_borders=2, image_interpolation='linear',
                                p=1, seed=None, keys=None):
     r"""Apply dense random elastic deformation. A random displacement is
     assigned to a coarse grid of control points around and inside the image.
