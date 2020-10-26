@@ -75,8 +75,8 @@ class Experiment:
             lr.save_json(self.splits, path=self.path, name='splits')
             print('\n')
 
-    def get_run(self, run_ix):
-        return ExperimentRun(run_ix, self.path)
+    def get_run(self, run_ix, reload_exp_run=False):
+        return ExperimentRun(run_ix, self.path, reload_exp_run)
 
     def finish(self, results=None):
         r"""After running all runs, finish expeirment by recording averages"""
@@ -85,21 +85,25 @@ class Experiment:
 
 class ExperimentRun:
     r"""Experiment runs with different indexes for train, val, test. """
-    def __init__(self, run_ix, exp_path):
+    def __init__(self, run_ix, exp_path, reload_exp_run):
         self.run_ix = run_ix
-        self.paths = self._set_paths(exp_path)
+        self.paths = self._set_paths(exp_path, reload_exp_run)
         self.time_start = time.time()
         self.review = {'time_str': get_time_string()}
 
-    def _set_paths(self, exp_path):
+    def _set_paths(self, exp_path, reload_exp_run):
         paths = dict()
         paths['root'] = os.path.join(exp_path, str(self.run_ix))
-        if os.path.exists(paths['root']):
+        if os.path.exists(paths['root']) and not reload_exp_run:
             shutil.rmtree(paths['root'])
-        os.mkdir(paths['root'])
-        for subpath in ['results', 'states', 'obj', 'tmp']:
-            paths[subpath] = os.path.join(paths['root'], subpath)
-            os.mkdir(paths[subpath])
+        if not os.path.exists(paths['root']):
+            os.mkdir(paths['root'])
+            for subpath in ['results', 'states', 'obj', 'tmp']:
+                paths[subpath] = os.path.join(paths['root'], subpath)
+                os.mkdir(paths[subpath])
+        else:
+            for subpath in ['results', 'states', 'obj', 'tmp']:
+                paths[subpath] = os.path.join(paths['root'], subpath)
         return paths
 
     def finish(self, results=None, exception=None, plot_metrics=None):
@@ -137,14 +141,14 @@ class ExperimentRun:
         for key, value in pkl_dict.items():
             lr.pkl_dump(value, key, path=self.paths['states'])
 
-    def restore_state(self, state_name, pytorch_dict, np_dict, pkl_dict):
+    def restore_state(self, state_name, pytorch_dict, np_dict, pkl_dict, device='cuda:0'):
         success = True
         if 'model' in pytorch_dict:
-            success = success and ptlr.load_model_state(pytorch_dict['model'], name=state_name+'_model', path=self.paths['states'])
+            success = success and ptlr.load_model_state(pytorch_dict['model'], name=state_name+'_model', path=self.paths['states'], device=device)
         if 'optimizer' in pytorch_dict:
-            success = success and ptlr.load_optimizer_state(pytorch_dict['optimizer'], name=state_name+'_optimizer', path=self.paths['states'])
+            success = success and ptlr.load_optimizer_state(pytorch_dict['optimizer'], name=state_name+'_optimizer', path=self.paths['states'], device=device)
         if 'scheduler' in pytorch_dict:
-            success = success and ptlr.load_scheduler_state(pytorch_dict['scheduler'], name=state_name+'_scheduler', path=self.paths['states'])
+            success = success and ptlr.load_scheduler_state(pytorch_dict['scheduler'], name=state_name+'_scheduler', path=self.paths['states'], device=device)
         for key in np_dict.keys():
             np_dict[key] = lr.np_load(key, path=self.paths['states'])
         for key in pkl_dict.keys():
