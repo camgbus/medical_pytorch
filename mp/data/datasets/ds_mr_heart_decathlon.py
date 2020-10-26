@@ -28,9 +28,9 @@ class DecathlonLeftAtrium(SegmentationDataset):
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
             _extract_images(original_data_path, dataset_path)
 
-        # Fetch all patient/study names
+        # Fetch all patient/study names that do not begin with '._'
         study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
-            in os.listdir(dataset_path))
+            in os.listdir(dataset_path) if '._' not in file_name)
 
         # Build instances
         instances = []

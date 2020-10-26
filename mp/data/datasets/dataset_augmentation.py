@@ -5,6 +5,56 @@
 
 # Imports
 import torchio as tio
+from mp.data.data import Data
+from mp.paths import storage_data_path
+import os
+import SimpleITK as sitk
+from mp.utils.load_restore import join_path
+
+# Load Data function
+def load_dataset(data, label_included=False):
+    r""" This function loads data in form of SimpleITK images and returns
+    them in form of a list. If label_included is true, the segmentation,
+    i.e. label images will also be returned. Parallel, the image names will be
+    transmitted in form of a second list."""
+    itk_images = list()
+    image_names = list()
+    for ds_name, ds in data.datasets.items():
+        for idx in range(ds.size):
+            # Transform string to path
+            label_str_path = str(ds.instances[idx].y.path)
+            # Get image path
+            img_str_path = label_str_path.replace('_gt', '')
+            img_path = os.path.normpath(img_str_path)
+            # Load Image in form of SimpleITK
+            image = sitk.ReadImage(img_path)
+            itk_images.append(image)
+            image_names.append(img_str_path.split('.nii')[0].split('/')[-1])
+            # Check if label is also needed
+            if label_included:
+                # Load label in form of SimpleITK
+                label_path = os.path.normpath(label_str_path)
+                label = sitk.ReadImage(label_path)
+                itk_images.append(label)
+                image_names.append(label_str_path.split('.nii')[0].split('/')[-1])
+
+    return itk_images, image_names
+
+# Save Data function
+def save_dataset(itk_images, image_names, data_label, folder_name, storage_data_path=storage_data_path):
+    r""" This function saves data in form of SimpleITK images at the specified
+    location and folder based on the image names."""
+    # Set target path
+    target_path = os.path.join(storage_data_path, 'Augmentation', data_label, folder_name)
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
+    if os.listdir(target_path):
+        assert "Desired path (folder) already contains files!"
+
+    # Save images
+    for idx, image in enumerate(itk_images):
+        sitk.WriteImage(image, 
+            join_path([target_path, image_names[idx]+".nii.gz"]))
 
 # Spatial Functions for data Augmentation
 def random_affine(scales=(0.9, 1.1), degrees=10, translation=0,
