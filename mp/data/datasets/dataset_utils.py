@@ -39,7 +39,7 @@ def get_mean_std_shape(instances):
     return tuple(int(x) for x in mean), tuple(int(x) for x in std)
 
 def get_mask_labels(instances):
-    r"""Returns a set of integer labels which appear in segmentation masks in 
+    r"""Returns a set of integer labels which appear in segmentation masks in
     a list of instances.
 
     Args:

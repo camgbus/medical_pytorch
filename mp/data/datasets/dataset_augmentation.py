@@ -5,11 +5,14 @@
 
 # Imports
 import torchio as tio
+import torch
 from mp.data.data import Data
 from mp.paths import storage_data_path
 import os
 import SimpleITK as sitk
 from mp.utils.load_restore import join_path
+import random
+import mp.visualization.visualize_imgs as vis
 
 # Load Data function
 def load_dataset(data, label_included=False):
@@ -56,9 +59,87 @@ def save_dataset(itk_images, image_names, data_label, folder_name, storage_data_
         sitk.WriteImage(image, 
             join_path([target_path, image_names[idx]+".nii.gz"]))
 
+# Perfom augmentation on dataset
+def augment_data_in_four_intensities(data, dataset_name, ):
+r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
+    - Downsampling
+    - Blurring
+    - Ghosting
+    - Motion
+    - (Gaussian) Noise
+    - Spike
+    It saves the data based on transmitted information and returns the data in form of lists
+    with its labels."""
+
+    # 1. Load data as SimpleITK images
+    itk_images, image_names = load_dataset(data,
+                                           label_included=False)
+
+
+    # 2. Define augmentation methods
+    downsample = random_downsample(seed=42)
+    blur = random_blur(seed=0)
+    ghosting = random_ghosting(intensity=1.5,
+                               seed=42)
+    motion = random_motion(num_transforms=6,
+                           image_interpolation='nearest',
+                           seed=42)
+    noise = random_noise(std=0.5,
+                         seed=42)
+    spike = random_spike(seed=42)
+
+
+    # 3. Define output lists
+    downsampled_images = list()
+    blurred_images = list()
+    ghosted_images = list()
+    motioned_images = list()
+    noised_images = list()
+    spiked_images = list()
+
+
+    # 4. Apply augmentation methods to extracted data
+    for image in itk_images:
+        downsampled_images.append(downsample(image))
+        blurred_images.append(blur(image))
+        ghosted_images.append(ghosting(image))
+        motioned_images.append(motion(image))
+        noised_images.append(noise(image))
+        spiked_images.append(spike(image))
+
+
+    # 5. Save new images so they can be loaded directly
+    save_dataset(downsampled_images,
+                 image_names,
+                 dataset_name,
+                 'Downsampled Images')
+    save_dataset(blurred_images,
+                 image_names,
+                 dataset_name,
+                 'Blurred Images')
+    save_dataset(ghosted_images,
+                 image_names,
+                 dataset_name,
+                 'Ghosted Images')
+    save_dataset(motioned_images,
+                 image_names,
+                 dataset_name,
+                 'Motioned Images')
+    save_dataset(noised_images,
+                 image_names,
+                 dataset_name,
+                 'Noised Images')
+    save_dataset(spiked_images,
+                 image_names,
+                 dataset_name,
+                 'Spiked Images')
+
+    # 6. Return augmented and labeled data
+    return None
+    
 # Spatial Functions for data Augmentation
-def random_affine(scales=(0.9, 1.1), degrees=10, translation=0,
-                  isotropic='image', default_pad_value='otsu',
+def random_affine(scales=(0.9, 1.1), degrees=10, translation=0, isotropic=False,
+                  center='image', default_pad_value='otsu',
                   image_interpolation='linear', p=1, seed=None, keys=None):
     r"""Random affine transformation.
     - scales: Tuple (a,b) defining the scaling magnitude. For example, using
