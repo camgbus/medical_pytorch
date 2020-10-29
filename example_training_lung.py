@@ -17,8 +17,8 @@ from mp.utils.load_restore import nifty_dump
 
 config = {'experiment_name':'test_exp_lung', 'device':'cuda:4',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
-    'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8, 'output_shape': 1
+    'input_shape': 3, 'resize': False, 'augmentation': 'none', 
+    'lr': 0.0001, 'batch_size': 8, 'output_shape': 1
     }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
@@ -27,14 +27,18 @@ input_shape = config['input_shape']
 output_shape = config['output_shape'] 
 
 # 3. Create experiment directories
-exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
+#exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
 
 # 4. Define data
 data = Data()
-data.add_dataset(DecathlonLung())
+data.add_dataset(DecathlonLung(augmented=True))
 train_ds = ('DecathlonLung', 'train')
 test_ds = ('DecathlonLung', 'test')
 
+model = LinReg(input_shape, output_shape)
+#print("The parameters: ", model.state_dict())
+
+"""
 # 5. Create data splits for each repetition
 exp.set_data_splits(data)
 
@@ -60,28 +64,24 @@ for run_ix in range(config['nr_runs']):
     # 8. Initialize model
     model = LinReg(input_shape, output_shape)
     model.to(device)
-    print(model)
-    """
+    
     # 9. Define loss and optimizer
-    loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
-    loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], 
-        device=device)
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    loss = LossMSE(device=device)
+    optimizer = optim.SGD(model.parameters(), lr=config['lr'])
 
     # 10. Train model
     results = Result(name='training_trajectory')   
-    agent = SegmentationAgent(model=model, label_names=label_names, device=device)
-    agent.train(results, optimizer, loss_f, train_dataloader=dl,
+    agent = RegressionAgent(model=model, device=device)
+    agent.train(results, optimizer, loss, train_dataloader=dl,
         init_epoch=0, nr_epochs=10, run_loss_print_interval=5,
         eval_datasets=datasets, eval_interval=5, 
         save_path=exp_run.paths['states'], save_interval=5)
 
     # 11. Save and print results for this experiment run
-    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[left atrium]'])
-    test_ds_key = '_'.join(test_ds)
-    metric = 'Mean_ScoreDice[left atrium]'
-    last_dice = results.get_epoch_metric(
-        results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
-    print('Last Dice score for left atrium class: {}'.format(last_dice))
-
-"""
+    #exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[left atrium]'])
+    #test_ds_key = '_'.join(test_ds)
+    #metric = 'Mean_ScoreDice[left atrium]'
+    #last_dice = results.get_epoch_metric(
+    #    results.get_max_epoch(metric, data=test_ds_key), metric, data=test_ds_key)
+    #print('Last Dice score for left atrium class: {}'.format(last_dice))
+    """

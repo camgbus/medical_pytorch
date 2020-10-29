@@ -23,9 +23,9 @@ data.add_dataset(DecathlonLeftAtrium())
 
 
 # 4. Load data as SimpleITK images where labels do not need to be augmented
-itk_images, image_names = augmentation.load_dataset(data,
-                                                    label_included=False)
-itk_images_labels, image_label_names = augmentation.load_dataset(data,
+itk_images, image_names = augmentation.load_dataset(data, is_list=False,
+                                                        label_included=False)
+itk_images_labels, image_label_names = augmentation.load_dataset_seg(data, is_list=False,
                                                     label_included=True)
 
 
@@ -133,66 +133,3 @@ augmentation.save_dataset(swapped_images,
                           image_names,
                           'DecathlonLeftAtrium',
                           'Swapped Images')
-
-
-# 8. Save image slices so they can be compared to check if everything worked fine
-"""augmentation.save_random_vis_slice(itk_images,
-                                   affined_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Affined Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   downsampled_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Downsampled Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   deformed_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Deformed Images')
-augmentation.save_random_vis_slice(itk_images_labels,
-                                   flipped_images,
-                                   image_label_names,
-                                   'DecathlonLeftAtrium',
-                                   'Flipped Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   biased_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Biased Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   blurred_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Blurred Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   gamma_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Gamma Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   ghosted_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Ghosted Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   motioned_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Motioned Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   noised_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Noised Images')
-augmentation.save_random_vis_slice(itk_images,
-                                   spiked_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Spiked Images')
-augmentation.save_random_vis_slice(sitk_images,
-                                   swapped_images,
-                                   image_names,
-                                   'DecathlonLeftAtrium',
-                                   'Swapped Images') """

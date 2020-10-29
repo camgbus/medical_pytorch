@@ -10,14 +10,15 @@ import torch
 import SimpleITK as sitk
 from mp.utils.load_restore import join_path
 from mp.data.datasets.dataset_regression import RegressionDataset, RegressionInstance
-from mp.paths import storage_data_path
+from mp.paths import storage_data_path, tmp_storage_data_path
 import mp.data.datasets.dataset_utils as du
+from mp.data.datasets.dataset_augmentation import augment_data_in_four_intensities as augment_data
 
 class DecathlonLung(RegressionDataset):
     r"""Class for the Lung decathlon challenge, contains only
     CT, found at http://medicaldecathlon.com/.
     """
-    def __init__(self, subset=None, hold_out_ixs=[]):
+    def __init__(self, subset=None, hold_out_ixs=[], augmented=False):
         assert subset is None, "No subsets for this dataset."
 
         # Extract necessary paths    
@@ -43,6 +44,20 @@ class DecathlonLung(RegressionDataset):
                 group_id=None
                 ))
         
+        # Create augmented images and add them if it is desired
+        if augmented:
+            aug_data, labels, names = augment_data(instances, 'DecathlonLungAugmented',
+                                                   True, False, tmp_storage_data_path)
+
+        # Add to instances
+        for name in names:
+            instances.append(RegressionInstance(
+                x_path=os.path.join(tmp_storage_data_path, name+'.nii.gz'),
+                y_label=labels[name],
+                name=name,
+                group_id=None
+                ))
+
         super().__init__(instances, name=global_name,
             modality='CT', nr_channels=1, hold_out_ixs=[])
 

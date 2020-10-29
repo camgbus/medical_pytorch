@@ -11,15 +11,16 @@ from mp.paths import storage_data_path
 import os
 import SimpleITK as sitk
 from mp.utils.load_restore import join_path
-import random
-import mp.visualization.visualize_imgs as vis
+import json
+
 
 # Load Data function
-def load_dataset(data, label_included=False):
+def load_dataset_seg(data, label_included=False):
     r""" This function loads data in form of SimpleITK images and returns
     them in form of a list. If label_included is true, the segmentation,
     i.e. label images will also be returned. Parallel, the image names will be
-    transmitted in form of a second list."""
+    transmitted in form of a second list. It takes a Dataset for segmentation,
+    since the label path will be extracted."""
     itk_images = list()
     image_names = list()
     for ds_name, ds in data.datasets.items():
@@ -43,8 +44,39 @@ def load_dataset(data, label_included=False):
 
     return itk_images, image_names
 
+def load_dataset(data, is_list=False, label_included=False):
+    r""" This function loads data in form of SimpleITK images and returns
+    them in form of a list. If label_included is true, the segmentation,
+    i.e. label images will also be returned. Parallel, the image names will be
+    transmitted in form of a second list."""
+    itk_images = list()
+    image_names = list()
+    if is_list:
+        for idx in range(len(data)):
+            # Load Image in form of SimpleITK
+            image = data[idx].x.as_sitk()
+            itk_images.append(image)
+            name = data[idx].name
+            image_names.append(name)
+    else:
+        for ds_name, ds in data.datasets.items():
+            for idx in range(ds.size):
+                # Load Image in form of SimpleITK
+                image = ds.instances[idx].x.as_sitk()
+                itk_images.append(image)
+                image_names.append(ds.instances[idx].name)
+                # Check if label is also needed
+                if label_included:
+                    # Load label in form of SimpleITK
+                    label = ds.instances[idx].y.as_sitk()
+                    itk_images.append(label)
+                    image_names.append(ds.instances[idx].name + '_gt')
+
+    return itk_images, image_names
+
 # Save Data function
-def save_dataset(itk_images, image_names, data_label, folder_name, storage_data_path=storage_data_path):
+def save_dataset(itk_images, image_names, data_label, folder_name,
+                 storage_data_path=storage_data_path):
     r""" This function saves data in form of SimpleITK images at the specified
     location and folder based on the image names."""
     # Set target path
@@ -60,82 +92,201 @@ def save_dataset(itk_images, image_names, data_label, folder_name, storage_data_
             join_path([target_path, image_names[idx]+".nii.gz"]))
 
 # Perfom augmentation on dataset
-def augment_data_in_four_intensities(data, dataset_name, ):
-r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
-    - Downsampling
-    - Blurring
-    - Ghosting
-    - Motion
-    - (Gaussian) Noise
-    - Spike
-    It saves the data based on transmitted information and returns the data in form of lists
-    with its labels."""
+def augment_data_in_four_intensities(data, dataset_name, is_list=False,
+                                     label_included=False, storage_data_path=storage_data_path):
+    r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
+        - Downsampling
+        - Blurring
+        - Ghosting
+        - Motion
+        - (Gaussian) Noise
+        - Spike
+        It saves the data based on transmitted information and returns the data in form of a list
+        with its labels as a dictionary."""
 
-    # 1. Load data as SimpleITK images
-    itk_images, image_names = load_dataset(data,
-                                           label_included=False)
+    # 0. Initialize variables
+    aug_data = list()
+    labels = dict()
+
+    # 1. Check if data has been generated already:
+    print('Check if data {} has been generated and can be retrieved from {}.'.format(dataset_name,
+                                                                   os.path.join(storage_data_path,
+                                                                            dataset_name, 'augmented_data')))
+    if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'data'))\
+        and os.listdir(dataset_path):
+        # Check if labels are present
+        if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'labels'))\
+        and os.listdir(dataset_path):
+            # Load data
+            (_, _, filenames) = os.walk(os.path.join(storage_data_path,
+                                        dataset_name, 'data')).next()
+            for num, filename in enumerate(filenames):
+                msg = "Loading SimpleITK images: "
+                msg += str(num + 1) + " of " + str(len(filenames)) + "."
+                print (msg, end = "\r")
+                aug_data.append(sitk.ReadImage(img_path))
+            
+            # Load labels
+            (_, _, filenames) = os.walk(os.path.join(storage_data_path,
+                                        dataset_name, 'labels')).next()
+            with open(os.path.join(storage_data_path,
+            dataset_name, 'labels', filenames[0]), 'r') as fp:
+                labels = json.load(fp)
+            return aug_data, labels
+        else:
+            print('The labels are missing, i.e. data needs to be generated.')
+
+    else:
+        print('The directories do not exist or are empty, i.e. data needs to be generated.')      
+
+    # 2. Load data as SimpleITK images
+    itk_images, image_names = load_dataset(data, is_list, label_included)
+
+    # 3. Define image names based on augmentation method and intensity:
+    updated_image_names = list()
+    updated_image_names.append([name + 'downsample_2' for name in image_names])
+    updated_image_names.append([name + 'downsample_3' for name in image_names])
+    updated_image_names.append([name + 'downsample_4' for name in image_names])
+    updated_image_names.append([name + 'downsample_5' for name in image_names])
+    updated_image_names.append([name + 'blur_2' for name in image_names])
+    updated_image_names.append([name + 'blur_3' for name in image_names])
+    updated_image_names.append([name + 'blur_4' for name in image_names])
+    updated_image_names.append([name + 'blur_5' for name in image_names])
+    updated_image_names.append([name + 'ghosting_2' for name in image_names])
+    updated_image_names.append([name + 'ghosting_3' for name in image_names])
+    updated_image_names.append([name + 'ghosting_4' for name in image_names])
+    updated_image_names.append([name + 'ghosting_5' for name in image_names])
+    updated_image_names.append([name + 'motion_2' for name in image_names])
+    updated_image_names.append([name + 'motion_3' for name in image_names])
+    updated_image_names.append([name + 'motion_4' for name in image_names])
+    updated_image_names.append([name + 'motion_5' for name in image_names])
+    updated_image_names.append([name + 'noise_2' for name in image_names])
+    updated_image_names.append([name + 'noise_3' for name in image_names])
+    updated_image_names.append([name + 'noise_4' for name in image_names])
+    updated_image_names.append([name + 'noise_5' for name in image_names])
+    updated_image_names.append([name + 'spike_2' for name in image_names])
+    updated_image_names.append([name + 'spike_3' for name in image_names])
+    updated_image_names.append([name + 'spike_4' for name in image_names])
+    updated_image_names.append([name + 'spike_5' for name in image_names])
+
+    # 4. Define labels based on augmentation method and intensity:
+    for name in image_names:
+        labels[name + 'downsample_2'] = torch.tensor([2.])
+        labels[name + 'downsample_3'] = torch.tensor([3.])
+        labels[name + 'downsample_4'] = torch.tensor([4.])
+        labels[name + 'downsample_5'] = torch.tensor([5.])
+        labels[name + 'blur_2'] = torch.tensor([2.])
+        labels[name + 'blur_3'] = torch.tensor([3.])
+        labels[name + 'blur_4'] = torch.tensor([4.])
+        labels[name + 'blur_5'] = torch.tensor([5.])
+        labels[name + 'ghosting_2'] = torch.tensor([2.])
+        labels[name + 'ghosting_3'] = torch.tensor([3.])
+        labels[name + 'ghosting_4'] = torch.tensor([4.])
+        labels[name + 'ghosting_5'] = torch.tensor([5.])
+        labels[name + 'motion_2'] = torch.tensor([2.])
+        labels[name + 'motion_3'] = torch.tensor([3.])
+        labels[name + 'motion_4'] = torch.tensor([4.])
+        labels[name + 'motion_5'] = torch.tensor([5.])
+        labels[name + 'noise_2'] = torch.tensor([2.])
+        labels[name + 'noise_3'] = torch.tensor([3.])
+        labels[name + 'noise_4'] = torch.tensor([4.])
+        labels[name + 'noise_5'] = torch.tensor([5.])
+        labels[name + 'spike_2'] = torch.tensor([2.])
+        labels[name + 'spike_3'] = torch.tensor([3.])
+        labels[name + 'spike_4'] = torch.tensor([4.])
+        labels[name + 'spike_5'] = torch.tensor([5.])
+
+    # 5. Define augmentation methods
+    downsample2 = random_downsample(seed=42)
+    downsample3 = random_downsample(seed=52)
+    downsample4 = random_downsample(seed=62)
+    downsample5 = random_downsample(seed=72)
+    blur2 = random_blur(seed=0)
+    blur3 = random_blur(seed=10)
+    blur4 = random_blur(seed=20)
+    blur5 = random_blur(seed=30)
+    ghosting2 = random_ghosting(intensity=1.5,
+                                seed=42)
+    ghosting3 = random_ghosting(intensity=2.5,
+                                seed=62)
+    ghosting4 = random_ghosting(intensity=3.5,
+                                seed=72)
+    ghosting5 = random_ghosting(intensity=4.5,
+                                seed=82)
+    motion2 = random_motion(num_transforms=6,
+                            image_interpolation='nearest',
+                            seed=42)
+    motion3 = random_motion(num_transforms=7,
+                            image_interpolation='nearest',
+                            seed=52)
+    motion4 = random_motion(num_transforms=8,
+                            image_interpolation='nearest',
+                            seed=62)
+    motion5 = random_motion(num_transforms=9,
+                            image_interpolation='nearest',
+                            seed=72)
+    noise2 = random_noise(std=0.5,
+                          seed=42)
+    noise3 = random_noise(std=0.75,
+                          seed=52)
+    noise4 = random_noise(std=1.5,
+                          seed=62)
+    noise5 = random_noise(std=1.25,
+                          seed=72)
+    spike2 = random_spike(seed=42)
+    spike3 = random_spike(seed=52)
+    spike4 = random_spike(seed=62)
+    spike5 = random_spike(seed=72)
 
 
-    # 2. Define augmentation methods
-    downsample = random_downsample(seed=42)
-    blur = random_blur(seed=0)
-    ghosting = random_ghosting(intensity=1.5,
-                               seed=42)
-    motion = random_motion(num_transforms=6,
-                           image_interpolation='nearest',
-                           seed=42)
-    noise = random_noise(std=0.5,
-                         seed=42)
-    spike = random_spike(seed=42)
+    # 6. Apply augmentation methods to extracted data
+    for num, image in enumerate(itk_images):
+        msg = "Transforming SimpleITK images: "
+        msg += str(num + 1) + " of " + str(len(itk_images)) + "."
+        print (msg, end = "\r")
+        aug_data.append(downsample2(image))
+        aug_data.append(downsample3(image))
+        aug_data.append(downsample4(image))
+        aug_data.append(downsample5(image))
+        aug_data.append(blur2(image))
+        aug_data.append(blur3(image))
+        aug_data.append(blur4(image))
+        aug_data.append(blur5(image))
+        aug_data.append(ghosting2(image))
+        aug_data.append(ghosting3(image))
+        aug_data.append(ghosting4(image))
+        aug_data.append(ghosting5(image))
+        aug_data.append(motion2(image))
+        aug_data.append(motion3(image))
+        aug_data.append(motion4(image))
+        aug_data.append(motion5(image))
+        aug_data.append(noise2(image))
+        aug_data.append(noise3(image))
+        aug_data.append(noise4(image))
+        aug_data.append(noise5(image))
+        aug_data.append(spike2(image))
+        aug_data.append(spike3(image))
+        aug_data.append(spike4(image))
+        aug_data.append(spike5(image))
 
 
-    # 3. Define output lists
-    downsampled_images = list()
-    blurred_images = list()
-    ghosted_images = list()
-    motioned_images = list()
-    noised_images = list()
-    spiked_images = list()
-
-
-    # 4. Apply augmentation methods to extracted data
-    for image in itk_images:
-        downsampled_images.append(downsample(image))
-        blurred_images.append(blur(image))
-        ghosted_images.append(ghosting(image))
-        motioned_images.append(motion(image))
-        noised_images.append(noise(image))
-        spiked_images.append(spike(image))
-
-
-    # 5. Save new images so they can be loaded directly
-    save_dataset(downsampled_images,
-                 image_names,
+    # 7. Save new images so they can be loaded directly
+    print("Saving augmented images..")
+    save_dataset(aug_data,
+                 updated_image_names,
                  dataset_name,
-                 'Downsampled Images')
-    save_dataset(blurred_images,
-                 image_names,
-                 dataset_name,
-                 'Blurred Images')
-    save_dataset(ghosted_images,
-                 image_names,
-                 dataset_name,
-                 'Ghosted Images')
-    save_dataset(motioned_images,
-                 image_names,
-                 dataset_name,
-                 'Motioned Images')
-    save_dataset(noised_images,
-                 image_names,
-                 dataset_name,
-                 'Noised Images')
-    save_dataset(spiked_images,
-                 image_names,
-                 dataset_name,
-                 'Spiked Images')
+                 'augmented_data',
+                 storage_data_path)
 
-    # 6. Return augmented and labeled data
-    return None
+    # 8. Save label dict
+    print("Saving labels file..")
+    with open(os.path.join(storage_data_path, dataset_name, 'labels',
+    'labels.json', 'w')) as fp:
+        json.dump(labels, fp, sort_keys=True, indent=4)
+
+    # 9. Return augmented and labeled data
+    print("Augmentation done.")
+    return aug_data, labels
     
 # Spatial Functions for data Augmentation
 def random_affine(scales=(0.9, 1.1), degrees=10, translation=0, isotropic=False,
