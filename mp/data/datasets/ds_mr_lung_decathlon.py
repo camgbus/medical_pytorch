@@ -49,14 +49,14 @@ class DecathlonLung(RegressionDataset):
             aug_data, labels, names = augment_data(instances, 'DecathlonLungAugmented',
                                                    True, False, tmp_storage_data_path)
 
-        # Add to instances
-        for name in names:
-            instances.append(RegressionInstance(
-                x_path=os.path.join(tmp_storage_data_path, name+'.nii.gz'),
-                y_label=labels[name],
-                name=name,
-                group_id=None
-                ))
+            # Add to instances
+            for name in names:
+                instances.append(RegressionInstance(
+                    x_path=os.path.join(tmp_storage_data_path, name+'.nii.gz'),
+                    y_label=labels[name],
+                    name=name,
+                    group_id=None
+                    ))
 
         super().__init__(instances, name=global_name,
             modality='CT', nr_channels=1, hold_out_ixs=[])

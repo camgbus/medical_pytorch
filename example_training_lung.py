@@ -18,13 +18,14 @@ from mp.utils.load_restore import nifty_dump
 config = {'experiment_name':'test_exp_lung', 'device':'cuda:4',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
     'input_shape': 3, 'resize': False, 'augmentation': 'none', 
-    'lr': 0.0001, 'batch_size': 8, 'output_shape': 1
+    'lr': 0.0001, 'batch_size': 1, 'output_shape': 1
     }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
 print('Device name: {}'.format(device_name))
 input_shape = config['input_shape']  
 output_shape = config['output_shape'] 
+batch_size = config['batch_size'] 
 
 # 3. Create experiment directories
 #exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
@@ -34,6 +35,9 @@ data = Data()
 data.add_dataset(DecathlonLung(augmented=True))
 train_ds = ('DecathlonLung', 'train')
 test_ds = ('DecathlonLung', 'test')
+
+# Get input shape and flatten 3d image using view as described in
+# https://towardsdatascience.com/pytorch-layer-dimensions-what-sizes-should-they-be-and-why-4265a41e01fd
 
 model = LinReg(input_shape, output_shape)
 #print("The parameters: ", model.state_dict())
