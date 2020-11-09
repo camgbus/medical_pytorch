@@ -1,12 +1,15 @@
+import os
+from itertools import zip_longest
+
 import torch
 
 from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.accumulator import Accumulator
 from mp.eval.inference.predict import softmax
 from mp.eval.losses.loss_abstract import LossAbstract
+from mp.utils.pytorch.pytorch_load_restore import save_optimizer_state, load_optimizer_state
 
 
-# FIXME refactor agents for IRM and IRM Games
 class SegmentationIRMGamesAgent(SegmentationAgent):
     r"""An Agent for segmentation models using IRM Games models."""
 
@@ -25,26 +28,27 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
                 printed.
         """
         acc = Accumulator('loss')
-        # FIXME for now assume that there are as many batches in each dataloader
-        for data_list in zip(*train_dataloaders):
+        for data_list in zip_longest(*train_dataloaders):
             losses = []
 
-            for opt in optimizers:
-                opt.zero_grad()
+            for data_idx, (opt, data) in enumerate(zip(optimizers, data_list)):
+                if data is None:
+                    # The Dataloader corresponding to this data is has less examples than the others
+                    continue
 
-            for data_idx, data in enumerate(data_list):
                 # Get data
                 inputs, targets = self.get_inputs_targets(data)
 
                 # Forward pass
                 outputs = self.get_outputs(inputs, data_idx)
 
-                losses.append(loss_f(outputs, targets))
-
-            # Optimization step
-            for opt, loss in zip(optimizers, losses):
+                opt.zero_grad()
+                loss = loss_f(outputs, targets)
+                # Optimization step
                 loss.backward()
                 opt.step()
+
+                losses.append(loss)
 
             acc.add('loss', float(torch.stack(losses).detach().cpu().mean()))
 
@@ -64,6 +68,11 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
             loss_f (LossAbstract): the loss
             train_dataloaders (list): a list of Dataloaders
         """
+
+        # Model must be an IRMGamesModel and the nb of optimizers / Dataloaders must match the number of sub-models
+        assert len(train_dataloaders) == len(self.model.models), "Nb of Dataloaders doe not match nb of sub-models"
+        assert len(optimizers) == len(self.model.models), "Nb of optimizers doe not match nb of sub-models"
+
         if eval_datasets is None:
             eval_datasets = dict()
 
@@ -81,5 +90,40 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
 
             # Save agent and optimizer state
             if (epoch + 1) % save_interval == 0 and save_path is not None:
-                # FIXME add the possibility to save a list of optimizers
-                self.save_state(save_path, 'epoch_{}'.format(epoch + 1))
+                self.save_state(save_path, 'epoch_{}'.format(epoch + 1), optimizers)
+
+    def save_state(self, states_path, state_name, optimizers=None, overwrite=False):
+        r"""Saves an agent state. Raises an error if the directory exists and
+        overwrite=False.
+        """
+        if states_path is not None:
+            # We take care of saving the optimizers ourselves
+            super().save_state(states_path, state_name)
+            if optimizers is not None:
+                state_full_path = os.path.join(states_path, state_name)
+                for idx, optimizer in enumerate(optimizers):
+                    save_optimizer_state(optimizer, f'optimizer{idx}', state_full_path)
+
+    def restore_state(self, states_path, state_name, optimizers=None):
+        r"""Tries to restore a previous agent state, consisting of a model
+        state and the content of agent_state_dict. Returns whether the restore
+        operation  was successful.
+        """
+        try:
+            # We take care of saving the optimizers ourselves
+            if not super().restore_state(states_path, state_name):
+                return False
+
+            if self.verbose:
+                print('Trying to restore optimizer states...'.format(state_name))
+
+            if optimizers is not None:
+                state_full_path = os.path.join(states_path, state_name)
+                for idx, optimizer in enumerate(optimizers):
+                    load_optimizer_state(optimizer, f'optimizer{idx}', state_full_path, device=self.device)
+            if self.verbose:
+                print('Optimizer states {} were restored'.format(state_name))
+            return True
+        except:
+            print('Complete state {} could not be restored'.format(state_name))
+            return False
