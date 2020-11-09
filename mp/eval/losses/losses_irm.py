@@ -33,7 +33,6 @@ class IRMLossAbstract(LossAbstract):
         raise NotImplementedError
 
     def get_evaluation_dict(self, output, target):
-        # FIXME This will only hold the penalty value and not the true loss value
         eval_dict = super().get_evaluation_dict(output, target)
         # Just need to add the ERM term
         eval_dict.update(self.erm_loss.get_evaluation_dict(output, target))
@@ -65,7 +64,6 @@ class LossClassWeightedIRM(IRMLossAbstract):
         return self.irm_loss.finalize_loss(nlls, penalties)
 
     def get_evaluation_dict(self, output, target):
-        # FIXME This will only hold the penalty value and not the true loss value
         eval_dict = self.weighted_irm_loss.get_evaluation_dict(output, target)
         # Just need to add the ERM term
         eval_dict.update(self.weighted_erm_loss.get_evaluation_dict(output, target))
@@ -98,7 +96,7 @@ class VRexLoss(IRMLossAbstract):
     """
 
     def forward(self, output, target):
-        return torch.tensor(0, device=self.device, dtype=output.dtype)
+        return torch.tensor(0., device=self.device, dtype=output.dtype)
 
     def finalize_loss(self, nlls, penalties):
         loss = torch.stack(nlls, dim=0).sum() + self.penalty_weight * torch.stack(nlls, dim=0).var()
@@ -114,7 +112,7 @@ class MMRexLoss(IRMLossAbstract):
     """
 
     def forward(self, output, target):
-        return torch.tensor(0, device=self.device, dtype=output.dtype)
+        return torch.tensor(0., device=self.device, dtype=output.dtype)
 
     def finalize_loss(self, nlls, penalties):
         nlls_tensor = torch.stack(nlls, dim=0)
