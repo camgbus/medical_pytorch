@@ -26,8 +26,12 @@ class DryadHippocampus(SegmentationDataset):
         # Modality is either: "T1w" or "T2w"
         # Resolution is either: "Standard" or "Hires"
         # If you want to use different resolutions or modalities, please create another object with a different subset
-        if subset is None:
-            subset = {"Modality": "T1w", "Resolution": "Standard"}
+        default = {"Modality": "T1w", "Resolution": "Standard"}
+        if subset is not None:
+            default.update(subset)
+            subset = default
+        else:
+            subset = default
 
         # Hires T2w is not available
         assert not (subset["Resolution"] == "Standard" and subset["Modality"] == "T2w"), \
@@ -90,11 +94,6 @@ def _extract_images(source_path, target_path, merge_labels, subset):
     # Create directories
     os.makedirs(os.path.join(target_path))
 
-    # Target shape (T1w, standard): (48, 51, 40)
-    # Target shape (T1w, hires): (120, 120, 90)
-    # Target shape (T2w, hires): (120, 120, 90)
-    target_shape = (48, 51, 40) if subset["Resolution"] == "Standard" else (120, 120, 90)
-
     # Patient folders s01, s02, ...
     for patient_folder in filter(lambda s: re.match(r"^s[0-9]+.*", s), os.listdir(source_path)):
 
@@ -130,21 +129,21 @@ def _extract_images(source_path, target_path, merge_labels, subset):
             rmin, rmax, cmin, cmax, zmin, zmax = bbox_3D(y)
 
             # Compute the start idx for each dim
-            dr = (target_shape[0] - rmax + rmin) // 2
-            dc = (target_shape[1] - cmax + cmin) // 2
-            dz = (target_shape[2] - zmax + zmin) // 2
+            dr = (rmax - rmin) // 4
+            dc = (cmax - cmin) // 4
+            dz = (zmax - zmin) // 4
 
             # Reshaping
-            y = y[rmin - dr: rmin - dr + target_shape[0],
-                cmin - dc: cmin - dc + target_shape[1],
-                zmin - dr: zmin - dz + target_shape[2]]
+            y = y[rmin - dr: rmax + dr,
+                cmin - dc: cmax + dc,
+                zmin - dz: zmax + dz]
 
             if merge_labels:
                 y[y > 1] = 1
 
-            x_cropped = x[rmin - dr: rmin - dr + target_shape[0],
-                        cmin - dc: cmin - dc + target_shape[1],
-                        zmin - dr: zmin - dz + target_shape[2]]
+            x_cropped = x[rmin - dr: rmax + dr,
+                        cmin - dc: cmax + dc,
+                        zmin - dz: zmax + dz]
 
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),

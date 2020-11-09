@@ -18,13 +18,18 @@ from mp.utils.load_restore import join_path
 
 class HarP(SegmentationDataset):
     r"""Class for the segmentation of the HarP dataset,
-    found at http://www.hippocampal-protocol.net/SOPs/index.php.
+    found at http://www.hippocampal-protocol.net/SOPs/index.php
+    with the masks as .nii files and the scans as .mnc files.
     """
 
     def __init__(self, subset=None, hold_out_ixs=None, merge_labels=True):
         # Part is either: "Training", "Validation" or "All"
-        if subset is None:
-            subset = {"Part": "Training"}
+        default = {"Part": "All"}
+        if subset is not None:
+            default.update(subset)
+            subset = default
+        else:
+            subset = default
 
         if hold_out_ixs is None:
             hold_out_ixs = []
@@ -118,8 +123,6 @@ def _extract_images(source_path, target_path, subset):
             # Average label shape (Training): (27.1, 36.7, 22.0)
             # Average label shape (Validation): (27.7, 35.2, 21.8)
             assert x.shape == y.shape
-            target_shape = (38, 51, 35)
-
             # Disclaimer: next part is ugly and not many checks are made
             # BUGFIX: Some segmentation have some weird values eg {26896.988, 26897.988} instead of {0, 1}
             y = (y - np.min(y.flat)).astype(np.uint32)
@@ -128,18 +131,18 @@ def _extract_images(source_path, target_path, subset):
             rmin, rmax, cmin, cmax, zmin, zmax = bbox_3D(y)
 
             # Compute the start idx for each dim
-            dr = (target_shape[0] - rmax + rmin) // 2
-            dc = (target_shape[1] - cmax + cmin) // 2
-            dz = (target_shape[2] - zmax + zmin) // 2
+            dr = (rmax - rmin) // 4
+            dc = (cmax - cmin) // 4
+            dz = (zmax - zmin) // 4
 
             # Reshaping
-            y = y[rmin - dr: rmin - dr + target_shape[0],
-                cmin - dc: cmin - dc + target_shape[1],
-                zmin - dr: zmin - dz + target_shape[2]]
+            y = y[rmin - dr: rmax + dr,
+                cmin - dc: cmax + dc,
+                zmin - dz: zmax + dz]
 
-            x_cropped = x.get_data()[rmin - dr: rmin - dr + target_shape[0],
-                        cmin - dc: cmin - dc + target_shape[1],
-                        zmin - dr: zmin - dz + target_shape[2]]
+            x_cropped = x.get_data()[rmin - dr: rmax + dr,
+                        cmin - dc: cmax + dc,
+                        zmin - dz: zmax + dz]
 
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),
