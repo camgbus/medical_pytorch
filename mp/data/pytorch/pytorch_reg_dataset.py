@@ -22,10 +22,10 @@ import mp.eval.inference.predictor as pred
 
 class PytorchRegressionDataset(PytorchDataset):
     def __init__(self, dataset, ix_lst=None, size=None, norm_key='rescaling', 
-        aug_key='standard', channel_labels=True):
+        aug_key='standard'):
         r"""A torch.utils.data.Dataset for regression data.
         Args:
-            dataset (RegressionSegmentationDataset): a RegressionDataset
+            dataset (RegressionDataset): a RegressionDataset
             ix_lst (list[int)]): list specifying the instances of the dataset. 
                 If 'None', all not in the hold-out dataset are incuded.
             size (tuple[int]): size as (channels, width, height, Opt(depth))
@@ -38,8 +38,6 @@ class PytorchRegressionDataset(PytorchDataset):
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size)
         self.norm = trans.NORMALIZATION_STRATEGIES[norm_key]
         self.aug = trans.AUGMENTATION_STRATEGIES[aug_key]
-        self.nr_labels = dataset.nr_labels
-        self.channel_labels = channel_labels
         self.predictor = None
 
     def get_instance(self, ix=None, name=None):
@@ -69,11 +67,11 @@ class PytorchReg2DDataset(PytorchRegressionDataset):
     the specified size, otherwise they are center-cropped and padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
-        norm_key='rescaling', aug_key='standard', channel_labels=True, resize=False):
+        norm_key='rescaling', aug_key='standard', resize=False):
         if isinstance(size, int):
             size = (1, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
-            norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels)
+            norm_key=norm_key, aug_key=aug_key)
         assert len(self.size)==3, "Size should be 2D"
         self.resize = resize
         self.predictor = pred.Predictor2D(self.instances, size=self.size, 
@@ -97,17 +95,12 @@ class PytorchReg2DDataset(PytorchRegressionDataset):
         subject = self.transform_subject(subject)
 
         x = subject.x.tensor.permute(3, 0, 1, 2)[slice_idx]
-        y = subject.y#.tensor.permute(3, 0, 1, 2)[slice_idx]
+        y = subject.y
 
         if self.resize:
             x = trans.resize_2d(x, size=self.size)
-            #y = trans.resize_2d(y, size=self.size, label=True)
         else:
             x = trans.centre_crop_pad_2d(x, size=self.size)
-            #y = trans.centre_crop_pad_2d(y, size=self.size)
-
-        #if self.channel_labels:
-           #y = trans.per_label_channel(y, self.nr_labels)
 
         return x, y
 
@@ -126,11 +119,11 @@ class PytorchReg3DDataset(PytorchRegressionDataset):
     padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), 
-        norm_key='rescaling', aug_key='standard', channel_labels=True, resize=False):
+        norm_key='rescaling', aug_key='standard', resize=False):
         if isinstance(size, int):
             size = (1, size, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
-            norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels)
+            norm_key=norm_key, aug_key=aug_key)
         assert len(self.size)==4, "Size should be 3D"
         self.resize=resize
         self.predictor = pred.Predictor3D(self.instances, size=self.size, 
@@ -149,13 +142,8 @@ class PytorchReg3DDataset(PytorchRegressionDataset):
 
         if self.resize:
             x = trans.resize_3d(x, size=self.size)
-            #y = trans.resize_3d(y, size=self.size, label=True)
         else:
             x = trans.centre_crop_pad_3d(x, size=self.size)
-            #y = trans.centre_crop_pad_3d(y, size=self.size)
-
-        #if self.channel_labels:
-            #y = trans.per_label_channel(y, self.nr_labels)
 
         return x, y
 
@@ -169,12 +157,12 @@ class Pytorch3DQueue(PytorchRegressionDataset):
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), sampler=None,
         max_length=300, samples_per_volume=10, norm_key='rescaling', 
-        aug_key='standard', channel_labels=True):
+        aug_key='standard'):
         r"""The number of patches is determined by samples_per_volume """
         if isinstance(size, int):
             size = (1, size, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
-            norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels)
+            norm_key=norm_key, aug_key=aug_key)
         assert len(self.size)==4, "Size should be 3D"
         self.predictor = pred.GridPredictor(self.instances, size=self.size, norm=self.norm)
 
@@ -214,9 +202,6 @@ class Pytorch3DQueue(PytorchRegressionDataset):
 
         x = subject['x'].data
         y = subject['y'].data
-
-        #if self.channel_labels:
-        #    y = trans.per_label_channel(y, self.nr_labels)
 
         return x, y
 

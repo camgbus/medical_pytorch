@@ -6,6 +6,7 @@
 
 from mp.eval.accumulator import Accumulator
 from mp.eval.metrics.mean_scores import get_mean_scores
+import torch
 
 def dl_losses(dl, agent, loss_f):
     r"""Calculate components of the given loss for a Dataloader"""

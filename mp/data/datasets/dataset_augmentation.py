@@ -4,8 +4,8 @@
 # ------------------------------------------------------------------------------
 
 # Imports
-import torchio as tio
 import torch
+import torchio as tio
 from mp.data.data import Data
 from mp.paths import storage_data_path
 import os
@@ -54,7 +54,7 @@ def save_dataset(itk_images, image_names, data_label, folder_name,
     the images will be transformed into numpy arrays and saved in form of a .npy
     file."""
     # Set target path
-    target_path = os.path.join(storage_data_path, 'Augmentation', data_label, folder_name)
+    target_path = os.path.join(storage_data_path, data_label, folder_name)
     if not os.path.isdir(target_path):
         os.makedirs(target_path)
     if os.listdir(target_path):
@@ -64,7 +64,7 @@ def save_dataset(itk_images, image_names, data_label, folder_name,
     if simpleITK:
         for idx, image in enumerate(itk_images):
             sitk.WriteImage(image, 
-                join_path([target_path, image_names[idx]+".nii.gz"]))
+                join_path([target_path, str(image_names[idx])+".nii.gz"]))
     else:
         images_np = list()
         for image in itk_images:
@@ -75,7 +75,8 @@ def save_dataset(itk_images, image_names, data_label, folder_name,
 
 # Perfom augmentation on dataset
 def augment_data_in_four_intensities(data, dataset_name, is_list=False,
-                                     label_included=False, storage_data_path=storage_data_path):
+                                     label_included=False, storage_data_path=storage_data_path,
+                                     max_likert_value=1):
     r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
         - Downsampling
         - Blurring
@@ -95,57 +96,38 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
     print('Check if data {} has been generated and can be retrieved from {}.'.format(dataset_name,
                                                                    os.path.join(storage_data_path,
                                                                  dataset_name, 'augmented_data')))
-    if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'data'))\
-        and os.listdir(dataset_path):
+    if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'augmented_data'))\
+        and os.listdir(os.path.join(storage_data_path, dataset_name, 'augmented_data')):
         # Check if labels are present
         if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'labels'))\
-        and os.listdir(dataset_path):
-            # Check if numpy files are present
-            (_, _, filenames) = os.walk(os.path.join(storage_data_path,
-                                        dataset_name, 'data')).next()
-            num_npy_files = 0
-            npy_files = list()
-            for filename in filenames:
-                if filename.endswith('.npy'):
-                    num_npy_files +=1
-                    npy_files.append(filename)
-                    print('Found file {}.')
-            if num_npy_files != 2:
-                print('Cannot use .npy files, since the number of files does not match:\
-                       Exactly two files are needed:\
-                       - One containing the images\
-                       - One containing the corresponding image names\
-                       Data needs to be loaded in form of SimpleITK images..')
-                # Load data
-                for num, filename in enumerate(filenames):
-                    msg = 'Loading SimpleITK images: '
-                    msg += str(num + 1) + ' of ' + str(len(filenames)) + '.'
-                    print (msg, end = '\r')
-                    image = sitk.ReadImage(img_path)
-                    aug_data.append(image)
-                    image_names.append(img_path.split('/')[-1].split('.nii')[0])
-            else:
-                aug_data_np = np.load(os.path.join(storage_data_path,
-                                   dataset_name, 'data', npy_files[0]),
-                                   allow_pickle = True)
-                image_names = np.load(os.path.join(storage_data_path,
-                                      dataset_name, 'data', npy_files[1]),
-                                      allow_pickle = True)
-                # Check if aug_data and image_names are not switched
-                if not isinstance(image_names[0], str):
-                    aug_data_real = image_names
-                    image_names = aug_data_np
-                    aug_data_np = aug_data_real
-                # Transform image arrays into Simple ITK images
-                for img_array in aug_data_np:
-                    aug_data.append(sitk.GetImageFromArray(img_array))
+        and os.listdir(os.path.join(storage_data_path, dataset_name, 'labels')):
+            filenames = list(file_name for file_name in
+            os.listdir(os.path.join(storage_data_path,
+                                   dataset_name, 'augmented_data'))
+                                   if '._' not in file_name)
+            
+            # Load data
+            path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
+            for num, filename in enumerate(filenames):
+                msg = 'Loading augmented images as SimpleITK: '
+                msg += str(num + 1) + ' of ' + str(len(filenames)) + '.'
+                print (msg, end = '\r')
+                if not '.nii.gz' in filename:
+                    continue
+                image = sitk.ReadImage(os.path.join(path, filename))
+                aug_data.append(image)
+                image_names.append(filename.split('/')[-1].split('.nii')[0])
 
             # Load labels
-            (_, _, filenames) = os.walk(os.path.join(storage_data_path,
-                                        dataset_name, 'labels')).next()
+            filenames = os.listdir(os.path.join(storage_data_path,
+                                   dataset_name, 'labels'))
             with open(os.path.join(storage_data_path,
             dataset_name, 'labels', filenames[0]), 'r') as fp:
                 labels = json.load(fp)
+
+            # Transform label integers into torch.tensors
+            for key, value in labels.items():
+                labels[key] = torch.tensor([value])
             return aug_data, labels, image_names
         else:
             print('The labels are missing, i.e. data needs to be generated.')
@@ -158,57 +140,58 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
 
     # 3. Define image names based on augmentation method and intensity:
     updated_image_names = list()
-    updated_image_names.append([name + 'downsample_2' for name in image_names])
-    updated_image_names.append([name + 'downsample_3' for name in image_names])
-    updated_image_names.append([name + 'downsample_4' for name in image_names])
-    updated_image_names.append([name + 'downsample_5' for name in image_names])
-    updated_image_names.append([name + 'blur_2' for name in image_names])
-    updated_image_names.append([name + 'blur_3' for name in image_names])
-    updated_image_names.append([name + 'blur_4' for name in image_names])
-    updated_image_names.append([name + 'blur_5' for name in image_names])
-    updated_image_names.append([name + 'ghosting_2' for name in image_names])
-    updated_image_names.append([name + 'ghosting_3' for name in image_names])
-    updated_image_names.append([name + 'ghosting_4' for name in image_names])
-    updated_image_names.append([name + 'ghosting_5' for name in image_names])
-    updated_image_names.append([name + 'motion_2' for name in image_names])
-    updated_image_names.append([name + 'motion_3' for name in image_names])
-    updated_image_names.append([name + 'motion_4' for name in image_names])
-    updated_image_names.append([name + 'motion_5' for name in image_names])
-    updated_image_names.append([name + 'noise_2' for name in image_names])
-    updated_image_names.append([name + 'noise_3' for name in image_names])
-    updated_image_names.append([name + 'noise_4' for name in image_names])
-    updated_image_names.append([name + 'noise_5' for name in image_names])
-    updated_image_names.append([name + 'spike_2' for name in image_names])
-    updated_image_names.append([name + 'spike_3' for name in image_names])
-    updated_image_names.append([name + 'spike_4' for name in image_names])
-    updated_image_names.append([name + 'spike_5' for name in image_names])
+    for name in image_names:
+        updated_image_names.append(str(name) + 'downsample_2')
+        updated_image_names.append(str(name) + 'downsample_3')
+        updated_image_names.append(str(name) + 'downsample_4')
+        updated_image_names.append(str(name) + 'downsample_5')
+        updated_image_names.append(str(name) + 'blur_2')
+        updated_image_names.append(str(name) + 'blur_3')
+        updated_image_names.append(str(name) + 'blur_4')
+        updated_image_names.append(str(name) + 'blur_5')
+        updated_image_names.append(str(name) + 'ghosting_2')
+        updated_image_names.append(str(name) + 'ghosting_3')
+        updated_image_names.append(str(name) + 'ghosting_4')
+        updated_image_names.append(str(name) + 'ghosting_5')
+        updated_image_names.append(str(name) + 'motion_2')
+        updated_image_names.append(str(name) + 'motion_3')
+        updated_image_names.append(str(name) + 'motion_4')
+        updated_image_names.append(str(name) + 'motion_5')
+        updated_image_names.append(str(name) + 'noise_2')
+        updated_image_names.append(str(name) + 'noise_3')
+        updated_image_names.append(str(name) + 'noise_4')
+        updated_image_names.append(str(name) + 'noise_5')
+        updated_image_names.append(str(name) + 'spike_2')
+        updated_image_names.append(str(name) + 'spike_3')
+        updated_image_names.append(str(name) + 'spike_4')
+        updated_image_names.append(str(name) + 'spike_5')
 
     # 4. Define labels based on augmentation method and intensity:
     for name in image_names:
-        labels[name + 'downsample_2'] = torch.tensor([2.])
-        labels[name + 'downsample_3'] = torch.tensor([3.])
-        labels[name + 'downsample_4'] = torch.tensor([4.])
-        labels[name + 'downsample_5'] = torch.tensor([5.])
-        labels[name + 'blur_2'] = torch.tensor([2.])
-        labels[name + 'blur_3'] = torch.tensor([3.])
-        labels[name + 'blur_4'] = torch.tensor([4.])
-        labels[name + 'blur_5'] = torch.tensor([5.])
-        labels[name + 'ghosting_2'] = torch.tensor([2.])
-        labels[name + 'ghosting_3'] = torch.tensor([3.])
-        labels[name + 'ghosting_4'] = torch.tensor([4.])
-        labels[name + 'ghosting_5'] = torch.tensor([5.])
-        labels[name + 'motion_2'] = torch.tensor([2.])
-        labels[name + 'motion_3'] = torch.tensor([3.])
-        labels[name + 'motion_4'] = torch.tensor([4.])
-        labels[name + 'motion_5'] = torch.tensor([5.])
-        labels[name + 'noise_2'] = torch.tensor([2.])
-        labels[name + 'noise_3'] = torch.tensor([3.])
-        labels[name + 'noise_4'] = torch.tensor([4.])
-        labels[name + 'noise_5'] = torch.tensor([5.])
-        labels[name + 'spike_2'] = torch.tensor([2.])
-        labels[name + 'spike_3'] = torch.tensor([3.])
-        labels[name + 'spike_4'] = torch.tensor([4.])
-        labels[name + 'spike_5'] = torch.tensor([5.])
+        labels[str(name) + 'downsample_2'] = 2/max_likert_value
+        labels[str(name) + 'downsample_3'] = 3/max_likert_value
+        labels[str(name) + 'downsample_4'] = 4/max_likert_value
+        labels[str(name) + 'downsample_5'] = 5/max_likert_value
+        labels[str(name) + 'blur_2'] = 2/max_likert_value
+        labels[str(name) + 'blur_3'] = 3/max_likert_value
+        labels[str(name) + 'blur_4'] = 4/max_likert_value
+        labels[str(name) + 'blur_5'] = 5/max_likert_value
+        labels[str(name) + 'ghosting_2'] = 2/max_likert_value
+        labels[str(name) + 'ghosting_3'] = 3/max_likert_value
+        labels[str(name) + 'ghosting_4'] = 4/max_likert_value
+        labels[str(name) + 'ghosting_5'] = 5/max_likert_value
+        labels[str(name) + 'motion_2'] = 2/max_likert_value
+        labels[str(name) + 'motion_3'] = 3/max_likert_value
+        labels[str(name) + 'motion_4'] = 4/max_likert_value
+        labels[str(name) + 'motion_5'] = 5/max_likert_value
+        labels[str(name) + 'noise_2'] = 2/max_likert_value
+        labels[str(name) + 'noise_3'] = 3/max_likert_value
+        labels[str(name) + 'noise_4'] = 4/max_likert_value
+        labels[str(name) + 'noise_5'] = 5/max_likert_value
+        labels[str(name) + 'spike_2'] = 2/max_likert_value
+        labels[str(name) + 'spike_3'] = 3/max_likert_value
+        labels[str(name) + 'spike_4'] = 4/max_likert_value
+        labels[str(name) + 'spike_5'] = 5/max_likert_value
 
     # 5. Define augmentation methods
     downsample2 = random_downsample(axes=(0, 1, 2),
@@ -304,24 +287,22 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
                  'augmented_data',
                  storage_data_path,
                  simpleITK=True)
-
-    print("Saving augmented images as .npy file..")
-    save_dataset(aug_data,
-                 updated_image_names,
-                 dataset_name,
-                 'augmented_data',
-                 storage_data_path,
-                 simpleITK=False)
-
+                 
     # 8. Save label dict
     print("Saving labels file..")
-    with open(os.path.join(storage_data_path, dataset_name, 'labels',
-    'labels.json', 'w')) as fp:
+    file_path = os.path.join(storage_data_path, dataset_name, 'labels')
+    if not os.path.isdir(file_path):
+        os.makedirs(file_path)
+
+    with open(os.path.join(file_path, 'labels.json'), 'w') as fp:
         json.dump(labels, fp, sort_keys=True, indent=4)
 
     # 9. Return augmented and labeled data
     print("Augmentation done.")
-    return aug_data, labels, image_names
+    # Transform label integers into torch.tensors
+    for key, value in labels.items():
+        labels[key] = torch.tensor([value])
+    return aug_data, labels, updated_image_names
     
 # Spatial Functions for data Augmentation
 def random_affine(scales=(0.9, 1.1), degrees=10, translation=0, isotropic=False,

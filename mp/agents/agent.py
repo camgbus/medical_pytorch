@@ -86,7 +86,7 @@ class Agent:
         r"""Perform a training epoch
         
         Args:
-            print_run_loss (bool): whether a runing loss should be tracked and
+            print_run_loss (bool): whether a running loss should be tracked and
                 printed.
         """
         acc = Accumulator('loss')

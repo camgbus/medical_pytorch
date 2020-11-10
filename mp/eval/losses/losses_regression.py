@@ -22,6 +22,9 @@ class LossMSE(LossAbstract):
         super().__init__(device=device)
         self.mse = nn.MSELoss(reduction='mean')
 
+    def forward(self, output, target):
+        return self.mse(output, target)
+
 class LossHuber(LossAbstract):
     r"""Huber loss."""
     def __init__(self, device='cuda:0'):

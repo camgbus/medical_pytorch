@@ -59,6 +59,8 @@ class Predictor2D(Predictor):
         # Get original size
         original_size = subject['y'].data.shape
         original_size_2d = original_size[:3]
+        print(original_size)
+        print(original_size_2d)
 
         pred = []
         with torch.no_grad():
