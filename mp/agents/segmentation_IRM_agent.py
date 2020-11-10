@@ -1,5 +1,3 @@
-from itertools import zip_longest
-
 from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.accumulator import Accumulator
 from mp.eval.losses.losses_irm import IRMLossAbstract
