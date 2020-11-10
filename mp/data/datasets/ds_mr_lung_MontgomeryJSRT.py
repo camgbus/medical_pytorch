@@ -77,11 +77,10 @@ def _extract_images(source_path, target_path, file_prefix):
     for filename in filenames:
         # No specific processing
         x = sitk.ReadImage(os.path.join(images_path, filename))
-        x = sitk.GetArrayFromImage(x)
+        x = sitk.GetArrayFromImage(x)[..., None]
         y = sitk.ReadImage(os.path.join(labels_path, filename))
-        y = sitk.GetArrayFromImage(y)
-
-        # Shape expected: (2048, 2048)
+        y = sitk.GetArrayFromImage(y)[..., None]
+        # Shape expected: (2048, 2048, 1)
         # Images are front facing
         assert x.shape == y.shape
 
