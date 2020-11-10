@@ -31,8 +31,6 @@ class Shenzhen(SegmentationDataset):
         original_data_path = du.get_original_data_path(global_name)
 
         # Copy the images if not done already
-        import shutil
-        shutil.rmtree(dataset_path)
         if not os.path.isdir(dataset_path):
             _extract_images(original_data_path, dataset_path, merge_labels)
 
@@ -72,13 +70,12 @@ def _extract_images(source_path, target_path, merge_labels):
     for filename in filenames:
         # Extract only T2-weighted
         # pyplot reads the scan as RGB but not the label, and we just need to add a channel axis
-        x = plt.imread(os.path.join(images_path, filename.replace("_mask", "")))[..., 0][..., None]
-        y = plt.imread(os.path.join(labels_path, filename))[..., None]
-        print(x.shape)
+        x = plt.imread(os.path.join(images_path, filename.replace("_mask", "")))[..., 0]
+        y = plt.imread(os.path.join(labels_path, filename))
+        # Shape expected: ~(3000, 3000)
         assert x.shape == y.shape
 
         # Save new images so they can be loaded directly
         study_name = filename.replace("_mask", "").split('.png')[0]
         sitk.WriteImage(sitk.GetImageFromArray(x), join_path([target_path, study_name + ".nii.gz"]))
         sitk.WriteImage(sitk.GetImageFromArray(y), join_path([target_path, study_name + "_gt.nii.gz"]))
-        break
