@@ -13,6 +13,7 @@ import numpy as np
 import mp.data.datasets.dataset_utils as du
 from mp.data.datasets.dataset_segmentation import SegmentationDataset, SegmentationInstance
 from mp.paths import storage_data_path
+from mp.utils.mask_bounding_box import mask_bbox_3D
 from mp.utils.load_restore import join_path
 
 
@@ -22,7 +23,7 @@ class HarP(SegmentationDataset):
     with the masks as .nii files and the scans as .mnc files.
     """
 
-    def __init__(self, subset=None, hold_out_ixs=None, merge_labels=True):
+    def __init__(self, subset=None, hold_out_ixs=None):
         # Part is either: "Training", "Validation" or "All"
         default = {"Part": "All"}
         if subset is not None:
@@ -78,17 +79,6 @@ def _extract_images(source_path, target_path, subset):
     modified images.
     """
 
-    def bbox_3D(img):
-        r = np.any(img, axis=(1, 2))
-        c = np.any(img, axis=(0, 2))
-        z = np.any(img, axis=(0, 1))
-
-        rmin, rmax = np.where(r)[0][[0, -1]]
-        cmin, cmax = np.where(c)[0][[0, -1]]
-        zmin, zmax = np.where(z)[0][[0, -1]]
-
-        return rmin, rmax, cmin, cmax, zmin, zmax
-
     # Folder 100 is for training (100 subjects), 35 subjects are left over for validation
     affine = np.array([[1, 0, 0, 0],
                        [0, 1, 0, 0],
@@ -99,13 +89,19 @@ def _extract_images(source_path, target_path, subset):
     labels_path = os.path.join(source_path, f'Labels_{subset}_NIFTI')
 
     # Create directories
-    os.makedirs(os.path.join(target_path))
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
+
+    files_with_swapped_masks = {"ADNI_007_S_1304_74384_ACPC.mnc",
+                                "ADNI_016_S_4121_280306_ACPC.mnc",
+                                "ADNI_029_S_4279_265980_ACPC.mnc",
+                                "ADNI_136_S_0429_109839_ACPC.mnc"}
 
     # For each MRI, there are 2 segmentation (left and right hippocampus)
     for filename in os.listdir(images_path):
         # Loading the .mnc file and converting it to a .nii.gz file
         minc = nib.load(os.path.join(images_path, filename))
-        x = nib.Nifti1Image(minc.get_data(), affine=affine)
+        x = nib.Nifti1Image(np.asarray(minc.dataobj), affine=affine).get_data()
 
         # We need to recover the study name of the image name to construct the name of the segmentation files
         match = re.match(r"ADNI_[0-9]+_S_[0-9]+_[0-9]+", filename)
@@ -113,39 +109,51 @@ def _extract_images(source_path, target_path, subset):
             raise Exception(f"A file ({filename}) does not match the expected file naming format")
 
         # For each side of the brain
-        for side in ["_L", "_R"]:
+        for side in ("_L", "_R"):
             study_name = match[0] + side
 
             y = sitk.ReadImage(os.path.join(labels_path, study_name + ".nii"))
             y = sitk.GetArrayFromImage(y)
 
             # Shape expected: (189, 233, 197)
-            # Average label shape (Training): (27.1, 36.7, 22.0)
-            # Average label shape (Validation): (27.7, 35.2, 21.8)
             assert x.shape == y.shape
-            # Disclaimer: next part is ugly and not many checks are made
             # BUGFIX: Some segmentation have some weird values eg {26896.988, 26897.988} instead of {0, 1}
             y = (y - np.min(y.flat)).astype(np.uint32)
 
-            # So we first compute the bounding box
-            rmin, rmax, cmin, cmax, zmin, zmax = bbox_3D(y)
+            # Cropping bounds computed to fit the
+            if (side == "_L") ^ (filename in files_with_swapped_masks):
+                y = y[40: 104, 78: 142, 49: 97]
+                x_cropped = x[40: 104, 78: 142, 49: 97]
+            else:
+                y = y[40: 104, 78: 142, 97: 145]
+                x_cropped = x[40: 104, 78: 142, 97: 145]
 
-            # Compute the start idx for each dim
-            dr = (rmax - rmin) // 4
-            dc = (cmax - cmin) // 4
-            dz = (zmax - zmin) // 4
-
-            # Reshaping
-            y = y[rmin - dr: rmax + dr,
-                cmin - dc: cmax + dc,
-                zmin - dz: zmax + dz]
-
-            x_cropped = x.get_data()[rmin - dr: rmax + dr,
-                        cmin - dc: cmax + dc,
-                        zmin - dz: zmax + dz]
+            # Changing the study name if needed
+            if filename in files_with_swapped_masks:
+                study_name = match[0] + ("_R" if side == "_L" else "_L")
 
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),
                             join_path([target_path, study_name + "_gt.nii.gz"]))
             sitk.WriteImage(sitk.GetImageFromArray(x_cropped),
                             join_path([target_path, study_name + ".nii.gz"]))
+
+# FIXME remove cropping debug code when implem is finalized
+# (189, 233, 197)
+# l_bbox = [[999, 0], [999, 0], [999, 0]]
+# r_bbox = [[999, 0], [999, 0], [999, 0]]
+# _extract_images("D:\\Hippocampus\\HarP", ".", "100")
+# _extract_images("D:\\Hippocampus\\HarP", ".", "35")
+#
+# for bbox in (l_bbox, r_bbox):
+#     print(bbox)
+#     print([[e[1] - e[0]] for e in bbox])
+
+# [[41, 104], [75, 138], [56, 94]]
+# [[63], [63], [38]]
+# [[43, 105], [80, 136], [104, 138]]
+# [[62], [56], [34]]
+
+# So overall min shape: (63, 63, 38)
+# axis 0 and 1 around same place (41 to 105, 75 to 138)
+# axis 2 left (56 to 94) and right (104 to 138)

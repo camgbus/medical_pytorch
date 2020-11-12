@@ -21,14 +21,12 @@ class VESSEL12(SegmentationDataset):
     as provided on kaggle https://www.kaggle.com/andrewmvd/lung-vessel-segmentation
     """
 
-    def __init__(self, subset=None, hold_out_ixs=None, merge_labels=True):
-        assert subset is None, "No subsets for this dataset."
-
+    def __init__(self, hold_out_ixs=None):
         if hold_out_ixs is None:
             hold_out_ixs = []
 
         global_name = "VESSEL12"
-        name = du.get_dataset_name(global_name, subset)
+        name = du.get_dataset_name(global_name)
         dataset_path = os.path.join(storage_data_path, global_name)
         original_data_path = du.get_original_data_path(global_name)
 
@@ -65,7 +63,8 @@ def _extract_images(source_path, target_path):
     filenames = [x for x in os.listdir(images_path) if x.endswith(".mhd")]
 
     # Create directories
-    # os.makedirs(target_path)
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
 
     for filename in filenames:
         # No specific processing

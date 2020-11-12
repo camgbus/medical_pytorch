@@ -4,6 +4,7 @@
 # ------------------------------------------------------------------------------
 
 import os
+import re
 
 import SimpleITK as sitk
 
@@ -11,10 +12,6 @@ import mp.data.datasets.dataset_utils as du
 from mp.data.datasets.dataset_segmentation import SegmentationDataset, SegmentationInstance
 from mp.paths import storage_data_path
 from mp.utils.load_restore import join_path
-import re
-import nibabel as nib
-import numpy as np
-import re
 
 
 class DryadHippocampus(SegmentationDataset):
@@ -26,12 +23,15 @@ class DryadHippocampus(SegmentationDataset):
         # Modality is either: "T1w" or "T2w"
         # Resolution is either: "Standard" or "Hires"
         # If you want to use different resolutions or modalities, please create another object with a different subset
+        # Currently only standard resolution is implemented
         default = {"Modality": "T1w", "Resolution": "Standard"}
         if subset is not None:
             default.update(subset)
             subset = default
         else:
             subset = default
+
+        assert subset["Resolution"] == "Standard", "Only standard resolution is currently implemented"
 
         # Hires T2w is not available
         assert not (subset["Resolution"] == "Standard" and subset["Modality"] == "T2w"), \
@@ -80,19 +80,9 @@ def _extract_images(source_path, target_path, merge_labels, subset):
     modified images.
     """
 
-    def bbox_3D(img):
-        r = np.any(img, axis=(1, 2))
-        c = np.any(img, axis=(0, 2))
-        z = np.any(img, axis=(0, 1))
-
-        rmin, rmax = np.where(r)[0][[0, -1]]
-        cmin, cmax = np.where(c)[0][[0, -1]]
-        zmin, zmax = np.where(z)[0][[0, -1]]
-
-        return rmin, rmax, cmin, cmax, zmin, zmax
-
     # Create directories
-    os.makedirs(os.path.join(target_path))
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
 
     # Patient folders s01, s02, ...
     for patient_folder in filter(lambda s: re.match(r"^s[0-9]+.*", s), os.listdir(source_path)):
@@ -105,7 +95,7 @@ def _extract_images(source_path, target_path, merge_labels, subset):
         x = sitk.GetArrayFromImage(x)
 
         # For each MRI, there are 2 segmentation (left and right hippocampus)
-        for side in ["L", "R"]:
+        for side in ("L", "R"):
             # Loading the label
             label_path = os.path.join(source_path, patient_folder,
                                       f"{patient_folder}_hippolabels_"
@@ -118,35 +108,38 @@ def _extract_images(source_path, target_path, merge_labels, subset):
             # We need to recover the study name of the image name to construct the name of the segmentation files
             study_name = f"{patient_folder}_{side}"
 
-            # Average label shape (T1w, standard): (37.0, 36.3, 26.7)
-            # Average label shape (T1w, hires): (94.1, 92.1, 68.5)
-            # Average label shape (T2w, hires): (94.1, 92.1, 68.5)
+            # Shape expected: (189, 233, 197)
             assert x.shape == y.shape
 
-            # Disclaimer: next part is ugly and not many checks are made
-
-            # So we first compute the bounding box
-            rmin, rmax, cmin, cmax, zmin, zmax = bbox_3D(y)
-
-            # Compute the start idx for each dim
-            dr = (rmax - rmin) // 4
-            dc = (cmax - cmin) // 4
-            dz = (zmax - zmin) // 4
-
-            # Reshaping
-            y = y[rmin - dr: rmax + dr,
-                cmin - dc: cmax + dc,
-                zmin - dz: zmax + dz]
+            # Cropping bounds computed to fit the
+            if side == "_L":
+                y = y[40: 104, 78: 142, 49: 97]
+                x_cropped = x[40: 104, 78: 142, 49: 97]
+            else:
+                y = y[40: 104, 78: 142, 97: 145]
+                x_cropped = x[40: 104, 78: 142, 97: 145]
 
             if merge_labels:
                 y[y > 1] = 1
-
-            x_cropped = x[rmin - dr: rmax + dr,
-                        cmin - dc: cmax + dc,
-                        zmin - dz: zmax + dz]
 
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),
                             join_path([target_path, study_name + "_gt.nii.gz"]))
             sitk.WriteImage(sitk.GetImageFromArray(x_cropped),
                             join_path([target_path, study_name + ".nii.gz"]))
+
+# FIXME remove cropping debug code when implem is finalized
+# (189, 233, 197)
+# l_bbox = [[999, 0], [999, 0], [999, 0]]
+# r_bbox = [[999, 0], [999, 0], [999, 0]]
+# _extract_images("D:\\Hippocampus\\Dryad\\mri_dataset", ".", merge_labels=True, subset={"Modality": "T1w", "Resolution": "Standard"})
+
+# [[40, 83], [86, 133], [58, 90]]
+# [[43], [47], [32]]
+# [[39, 83], [90, 132], [103, 138]]
+# [[44], [42], [35]]
+
+# So overall min shape: (44, 47, 35)
+# axis 0 and 1 around same place (39 to 83, 86 to 133)
+# axis 2 left (58 to 90) and right (100 to 138)
+

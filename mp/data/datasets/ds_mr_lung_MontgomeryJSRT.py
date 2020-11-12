@@ -4,11 +4,9 @@
 # ------------------------------------------------------------------------------
 
 import os
-import re
 
 import SimpleITK as sitk
-import nibabel as nib
-import numpy as np
+import skimage.transform as transform
 
 import mp.data.datasets.dataset_utils as du
 from mp.data.datasets.dataset_segmentation import SegmentationDataset, SegmentationInstance
@@ -22,7 +20,7 @@ class MontgomeryJSRT(SegmentationDataset):
     The Montgomery datset has been augmented to match the image size of the JSRT dataset
     """
 
-    def __init__(self, subset=None, hold_out_ixs=None, merge_labels=True):
+    def __init__(self, subset=None, hold_out_ixs=None, resize=True):
         # Part is either: "Montgomery" or "JSRT"
         default = {"Dataset": "Montgomery"}
         if subset is not None:
@@ -36,12 +34,15 @@ class MontgomeryJSRT(SegmentationDataset):
 
         global_name = subset["Dataset"]
         name = du.get_dataset_name(global_name, subset)
-        dataset_path = os.path.join(storage_data_path, global_name)
+        dataset_path = os.path.join(storage_data_path, global_name, "Resized" if resize else "Original")
         original_data_path = du.get_original_data_path("MontgomeryJSRT")
 
         # Copy the images if not done already
         if not os.path.isdir(dataset_path):
-            _extract_images(original_data_path, dataset_path, "JPCNN" if subset["Dataset"] == "JSRT" else "MCUCXR_")
+            _extract_images(original_data_path,
+                            dataset_path,
+                            "JPCNN" if subset["Dataset"] == "JSRT" else "MCUCXR_",
+                            resize)
 
         # Fetch all patient/study names
         study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name in os.listdir(dataset_path))
@@ -62,7 +63,7 @@ class MontgomeryJSRT(SegmentationDataset):
                          modality='CXR', nr_channels=1, hold_out_ixs=hold_out_ixs)
 
 
-def _extract_images(source_path, target_path, file_prefix):
+def _extract_images(source_path, target_path, file_prefix, resize):
     r"""Extracts images, merges mask labels (if specified) and saves the
     modified images.
     """
@@ -72,7 +73,8 @@ def _extract_images(source_path, target_path, file_prefix):
     filenames = [x for x in os.listdir(labels_path) if x.startswith(file_prefix)]
 
     # Create directories
-    os.makedirs(target_path)
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
 
     for filename in filenames:
         # No specific processing
@@ -82,6 +84,10 @@ def _extract_images(source_path, target_path, file_prefix):
         y = sitk.GetArrayFromImage(y)
         # Shape expected: (2048, 2048)
         assert x.shape == y.shape
+
+        if resize:
+            x = transform.resize(x, (512, 512), anti_aliasing=True)
+            y = transform.resize(y, (512, 512), anti_aliasing=False)
 
         # Save new images so they can be loaded directly
         study_name = filename.replace(file_prefix, '').split('.tif')[0]

@@ -18,9 +18,7 @@ class DecathlonHippocampus(SegmentationDataset):
     found at http://medicaldecathlon.com/.
     """
 
-    def __init__(self, subset=None, hold_out_ixs=None, merge_labels=True):
-        assert subset is None, "No subsets for this dataset."
-
+    def __init__(self, hold_out_ixs=None, merge_labels=True):
         if hold_out_ixs is None:
             hold_out_ixs = []
 
@@ -66,7 +64,8 @@ def _extract_images(source_path, target_path, merge_labels):
     filenames = [x for x in os.listdir(images_path) if x[:5] == 'hippo']
 
     # Create directories
-    os.makedirs(target_path)
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
 
     for filename in filenames:
 
