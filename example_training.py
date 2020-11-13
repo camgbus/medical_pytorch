@@ -16,17 +16,16 @@ from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.eval.result import Result
 from mp.experiments.experiment import Experiment
 from mp.models.segmentation.unet_fepegar import UNet3D
-from mp.models.segmentation.segmentation_model import CRFWrapperModel
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 
 # 2. Define configuration
 
-config = {'experiment_name': 'test_exp_dryad3_crf', 'device': 'cuda:0',
+config = {'experiment_name': 'test_exp_decath4', 'device': 'cuda:0',
           'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-          'input_shape': (1, 64, 64, 64), 'resize': False, 'augmentation': 'none',
-          'class_weights': (0., 1.), 'lr': 1e-4, 'batch_size': 24,
+          'input_shape': (1, 64, 64, 48), 'resize': False, 'augmentation': 'none',
+          'class_weights': (0., 1.), 'lr': 1e-4, 'batch_size': 32,
           "nr_epochs": 201,
           "save_interval": 20
           }
@@ -42,14 +41,14 @@ exp = Experiment(config=config, name=config['experiment_name'], notes='', reload
 data = Data()
 decath = DecathlonHippocampus(merge_labels=True)
 data.add_dataset(decath)
-harp = HarP(merge_labels=True)
+harp = HarP()
 data.add_dataset(harp)
 dryad = DryadHippocampus(merge_labels=True)
 data.add_dataset(dryad)
 nr_labels = data.nr_labels
 label_names = data.label_names
-train_ds = (dryad.name, 'train')
-test_ds = (dryad.name, 'test')
+train_ds = (decath.name, 'train')
+test_ds = (decath.name, 'test')
 
 # 5. Create data splits for each repetition
 exp.set_data_splits(data)
@@ -74,9 +73,6 @@ for run_ix in range(config['nr_runs']):
 
     # 8. Initialize model
     model = UNet3D(input_shape, nr_labels)
-    crf_model = CRFWrapperModel(model=model)
-    # model.to(device)
-    crf_model.to(device)
 
     # 9. Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
@@ -86,7 +82,7 @@ for run_ix in range(config['nr_runs']):
 
     # 10. Train model
     results = Result(name='training_trajectory')
-    agent = SegmentationAgent(model=crf_model, label_names=label_names, device=device)
+    agent = SegmentationAgent(model=model, label_names=label_names, device=device)
     agent.train(results, optimizer, loss_g, train_dataloader=dl,
                 init_epoch=0, nr_epochs=config["nr_epochs"], run_loss_print_interval=config["save_interval"] // 4,
                 eval_datasets=datasets, eval_interval=config["save_interval"],
