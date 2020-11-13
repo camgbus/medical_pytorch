@@ -24,7 +24,7 @@ from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 
 config = {'experiment_name': 'test_exp_decath4', 'device': 'cuda:0',
           'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-          'input_shape': (1, 64, 64, 48), 'resize': False, 'augmentation': 'none',
+          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
           'class_weights': (0., 1.), 'lr': 1e-4, 'batch_size': 32,
           "nr_epochs": 201,
           "save_interval": 20
@@ -73,6 +73,7 @@ for run_ix in range(config['nr_runs']):
 
     # 8. Initialize model
     model = UNet3D(input_shape, nr_labels)
+    model.to(device)
 
     # 9. Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)

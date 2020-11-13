@@ -112,7 +112,7 @@ def _extract_images(source_path, target_path, merge_labels, subset):
             assert x.shape == y.shape
 
             # Cropping bounds computed to fit the
-            if side == "_L":
+            if side == "L":
                 y = y[40: 104, 78: 142, 49: 97]
                 x_cropped = x[40: 104, 78: 142, 49: 97]
             else:
