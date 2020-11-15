@@ -8,6 +8,8 @@ import torch
 import torchio as tio
 from mp.data.data import Data
 from mp.paths import storage_data_path
+import random
+import numpy as np
 import os
 import SimpleITK as sitk
 from mp.utils.load_restore import join_path
@@ -48,15 +50,22 @@ def load_dataset(data, is_list=False, label_included=False):
 
 # Save Data function
 def save_dataset(itk_images, image_names, data_label, folder_name,
-                 storage_data_path=storage_data_path, simpleITK=True):
+                 storage_data_path=storage_data_path, simpleITK=True,
+                 empty_dir=False):
     r""" This function saves data in form of SimpleITK images at the specified
     location and folder based on the image names. If simpleITK is set to false,
     the images will be transformed into numpy arrays and saved in form of a .npy
-    file."""
+    file. empty_dir indicates if the directory should be emptied --> only
+    necessary for random images for training, since each training should have new
+    images."""
     # Set target path
     target_path = os.path.join(storage_data_path, data_label, folder_name)
     if not os.path.isdir(target_path):
         os.makedirs(target_path)
+    if empty_dir and os.listdir(target_path):
+        # Delete files in directory
+        for f in os.listdir(target_path):
+            os.remove(os.path.join(target_path, f))
     if os.listdir(target_path):
         assert "Desired path (folder) already contains files!"
 
@@ -70,13 +79,63 @@ def save_dataset(itk_images, image_names, data_label, folder_name,
         for image in itk_images:
             image_np = sitk.GetArrayFromImage(image)
             images_np.append(image_np)
-        np.save(join_path([target_path, data_label+'-augmented_data_without_names.npy']), np.array(images_np))
-        np.save(join_path([target_path, data_label+'-names_for_augmented_data.npy']), np.array(image_names))
+        np.save(join_path([target_path, data_label+'-trans_data_without_names.npy']), np.array(images_np))
+        np.save(join_path([target_path, data_label+'-names_for_trans_data.npy']), np.array(image_names))
+
+
+# Select randomly slices of images 
+def select_random_images_slices(path, filenames, noise, nr_images, nr_slices):
+    r""" This function selects randomly based on the number of images and noise type images
+         from a path and filenames. The length of the filenames represents the number of instances,
+         i.e. 3D volumes. If the number of images is greater than the actual images, then all images
+         will be considered. From the loaded images randomly slices will be stacked and returned."""
+    # Select only filenames based on noise type
+    filenames = [filename for filename in filenames if noise in filename]
+
+    # Reset nr_images if needed
+    nr_images = len(filenames) if nr_images > len(filenames) else nr_images
+
+    # Select random filenames from list based on nr_images
+    if nr_images != len(filenames):
+        filenames = random.sample(filenames, nr_images)
+
+    # Loop through selected filenames and load images with defined nr_slices
+    aug_data = list()
+    image_names = list()
+    for num, filename in enumerate(filenames):
+        msg = 'Loading random (augmented) images as SimpleITK and extracting slices: '
+        msg += str(num + 1) + ' of ' + str(len(filenames)) + '.'
+        print (msg, end = '\r')
+        if not '.nii.gz' in filename:
+            continue
+        image = sitk.ReadImage(os.path.join(path, filename))
+        image = sitk.GetArrayFromImage(image)
+        # If slices are greater than all possible slices in the image,
+        # add the whole image
+        if image.shape[0] < nr_slices:
+            aug_data.append(image)
+            image_names.append(filename.split('/')[-1].split('.nii')[0])
+            continue
+        # Select random indexes based on image depth
+        slice_idx = random.sample(range(image.shape[0]), nr_slices)
+        slice_idx.sort()
+        img = list()
+        # Loop through sorted index list and save the slices in list
+        for idx in slice_idx:
+            img.append(image[idx,:,:])
+        image = np.array(img)
+        image = sitk.GetImageFromArray(image)
+        aug_data.append(image)
+        image_names.append(filename.split('/')[-1].split('.nii')[0])
+
+    return aug_data, image_names
+
 
 # Perfom augmentation on dataset
 def augment_data_in_four_intensities(data, dataset_name, is_list=False,
                                      label_included=False, storage_data_path=storage_data_path,
-                                     max_likert_value=1):
+                                     max_likert_value=1, random=False, noise='blur', nr_images=100,
+                                     nr_slices=50):
     r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
         - Downsampling
         - Blurring
@@ -91,6 +150,7 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
     aug_data = list()
     image_names = list()
     labels = dict()
+    folder_name = 'randomised_data_' + str(noise)
 
     # 1. Check if data has been generated already:
     print('Check if data {} has been generated and can be retrieved from {}.'.format(dataset_name,
@@ -108,15 +168,26 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
             
             # Load data
             path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
-            for num, filename in enumerate(filenames):
-                msg = 'Loading augmented images as SimpleITK: '
-                msg += str(num + 1) + ' of ' + str(len(filenames)) + '.'
-                print (msg, end = '\r')
-                if not '.nii.gz' in filename:
-                    continue
-                image = sitk.ReadImage(os.path.join(path, filename))
-                aug_data.append(image)
-                image_names.append(filename.split('/')[-1].split('.nii')[0])
+            if random:
+                aug_data, image_names = select_random_images_slices(path, filenames, noise,
+                nr_images, nr_slices)
+                # Save random images so they can be loaded
+                print("Saving random images and image slices as SimpleITK for training and testing..")
+                save_dataset(aug_data,
+                             image_names,
+                             dataset_name,
+                             folder_name,
+                             storage_data_path,
+                             simpleITK=True,
+                             empty_dir=True)
+            else:
+                for num, filename in enumerate(filenames):
+                    msg = 'Loading augmented images as SimpleITK: '
+                    msg += str(num + 1) + ' of ' + str(len(filenames)) + '.'
+                    print (msg, end = '\r')
+                    if not '.nii.gz' in filename:
+                        continue
+                    image_names.append(filename.split('/')[-1].split('.nii')[0])
 
             # Load labels
             filenames = os.listdir(os.path.join(storage_data_path,
@@ -128,7 +199,8 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
             # Transform label integers into torch.tensors
             for key, value in labels.items():
                 labels[key] = torch.tensor([value])
-            return aug_data, labels, image_names
+            return labels, image_names
+
         else:
             print('The labels are missing, i.e. data needs to be generated.')
 
@@ -280,7 +352,7 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
 
 
     # 7. Save new images so they can be loaded directly
-    print("Saving augmented images as SimpleITK..")
+    print('Saving augmented images as SimpleITK..')
     save_dataset(aug_data,
                  updated_image_names,
                  dataset_name,
@@ -297,12 +369,28 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
     with open(os.path.join(file_path, 'labels.json'), 'w') as fp:
         json.dump(labels, fp, sort_keys=True, indent=4)
 
-    # 9. Return augmented and labeled data
+    # 9. Return labeled data
     print("Augmentation done.")
     # Transform label integers into torch.tensors
     for key, value in labels.items():
         labels[key] = torch.tensor([value])
-    return aug_data, labels, updated_image_names
+
+    if random:
+        path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
+        aug_data, image_names = select_random_images_slices(path, updated_image_names,
+                                                            noise, nr_images,
+                                                            nr_slices)
+        # Save random images so they can be loaded
+        print("Saving random images and image slices as SimpleITK for training and testing..")
+        save_dataset(aug_data,
+                     image_names,
+                     dataset_name,
+                     folder_name,
+                     storage_data_path,
+                     simpleITK=True,
+                     empty_dir=True)
+        return labels, image_names
+    return labels, updated_image_names
     
 # Spatial Functions for data Augmentation
 def random_affine(scales=(0.9, 1.1), degrees=10, translation=0, isotropic=False,

@@ -67,7 +67,8 @@ class PytorchReg2DDataset(PytorchRegressionDataset):
     the specified size, otherwise they are center-cropped and padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
-        norm_key='rescaling', aug_key='standard', resize=False):
+        norm_key='rescaling', aug_key='standard', resize=False, random_slices=False,
+        nr_slices=2000):
         if isinstance(size, int):
             size = (1, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
@@ -112,6 +113,7 @@ class PytorchReg2DDataset(PytorchRegressionDataset):
             x, y = self.__getitem__(idx)
             dl_items.append((x.unsqueeze_(0), y.unsqueeze_(0)))
         return dl_items
+        
 
 class PytorchReg3DDataset(PytorchRegressionDataset):
     r"""Each 3D image is an item in the dataloader. If resize=True, the volumes
