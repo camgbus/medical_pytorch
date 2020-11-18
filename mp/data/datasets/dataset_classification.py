@@ -5,7 +5,6 @@
 import os
 from mp.data.datasets.dataset import Dataset, Instance
 import mp.data.datasets.dataset_utils as du
-from mp.paths import original_data_paths
 
 class ClassificationPathInstance(Instance):
     r"""Instance class where x is a path and y is an integer label corr. to

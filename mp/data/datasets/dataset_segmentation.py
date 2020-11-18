@@ -3,8 +3,6 @@
 # instances.
 # ------------------------------------------------------------------------------
 
-import os
-import sys
 from mp.data.datasets.dataset import Dataset, Instance
 import mp.data.datasets.dataset_utils as du
 import torchio

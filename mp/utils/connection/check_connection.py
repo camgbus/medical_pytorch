@@ -2,8 +2,8 @@
 # Check connection by sending messages to a Telegram Bot once in a while.
 # ------------------------------------------------------------------------------
 
-from mp.utils.update_bots.telegram_bot import TelegramBot
-from mp.paths import telegram_login
+# from mp.utils.update_bots.telegram_bot import TelegramBot
+# from mp.paths import telegram_login
 import time
 
 def run_for_mins(bot, nr_mins):

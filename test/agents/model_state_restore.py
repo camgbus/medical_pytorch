@@ -1,4 +1,3 @@
-import torch
 from mp.data.datasets.ds_mr_prostate_decathlon import DecathlonProstateT2
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.models.segmentation.unet_fepegar import UNet2D
@@ -20,7 +19,6 @@ def test_restore_model_state_and_eval():
     datasets['train'] = PytorchSeg2DDataset(data, ix_lst=[0], size=input_shape, aug_key='none', resize=False)
     datasets['mixed'] = PytorchSeg2DDataset(data, ix_lst=[0, 1], size=input_shape, aug_key='none', resize=False)
     datasets['test'] = PytorchSeg2DDataset(data, ix_lst=[1], size=input_shape, aug_key='none', resize=False)
-    dl = torch.utils.data.DataLoader(datasets['train'], batch_size=8, shuffle=False)
 
     # Build model
     model = UNet2D(input_shape, nr_labels)
