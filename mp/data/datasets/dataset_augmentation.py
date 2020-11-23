@@ -51,13 +51,14 @@ def load_dataset(data, is_list=False, label_included=False):
 # Save Data function
 def save_dataset(itk_images, image_names, data_label, folder_name,
                  storage_data_path=storage_data_path, simpleITK=True,
-                 empty_dir=False):
+                 empty_dir=False, extend=False):
     r""" This function saves data in form of SimpleITK images at the specified
     location and folder based on the image names. If simpleITK is set to false,
     the images will be transformed into numpy arrays and saved in form of a .npy
     file. empty_dir indicates if the directory should be emptied --> only
     necessary for random images for training, since each training should have new
-    images."""
+    images. If extend is true, the images will be added to the directory if it
+    contains already other files."""
     # Set target path
     target_path = os.path.join(storage_data_path, data_label, folder_name)
     if not os.path.isdir(target_path):
@@ -66,12 +67,14 @@ def save_dataset(itk_images, image_names, data_label, folder_name,
         # Delete files in directory
         for f in os.listdir(target_path):
             os.remove(os.path.join(target_path, f))
-    if os.listdir(target_path):
+    if not extend and os.listdir(target_path):
         assert "Desired path (folder) already contains files!"
 
     # Save images
     if simpleITK:
         for idx, image in enumerate(itk_images):
+            if isinstance(image, np.ndarray):
+                image = sitk.GetImageFromArray(image)
             sitk.WriteImage(image, 
                 join_path([target_path, str(image_names[idx])+".nii.gz"]))
     else:
@@ -144,7 +147,10 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
         - (Gaussian) Noise
         - Spike
         It saves the data based on transmitted information and returns the data in form of a list
-        with its labels as a dictionary."""
+        with its labels as a dictionary.
+        If random is true, random images based on nr_images and nr_slices will be selected according to
+        the noise type. If the noise type is set to 'all', from all noise types, random images will be
+        selected."""
 
     # 0. Initialize variables
     aug_data = list()
@@ -314,17 +320,19 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
                           seed=42)
     spike3 = random_spike(num_spikes=10, intensity=15,
                           seed=42)
-    spike4 = random_spike(num_spikes=20, intensity=20,
+    spike4 = random_spike(num_spikes=18, intensity=18,
                           seed=42)
-    spike5 = random_spike(num_spikes=35, intensity=35,
+    spike5 = random_spike(num_spikes=25, intensity=25,
                           seed=42)
 
 
     # 6. Apply augmentation methods to extracted data
     for num, image in enumerate(itk_images):
-        msg = "Transforming SimpleITK images: "
+        msg = "Transforming and saving SimpleITK images: "
         msg += str(num + 1) + " of " + str(len(itk_images)) + "."
         print (msg, end = "\r")
+        img_names = updated_image_names[24*num:24*(num+1)]
+        aug_data = list()
         aug_data.append(downsample2(image))
         aug_data.append(downsample3(image))
         aug_data.append(downsample4(image))
@@ -349,8 +357,16 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
         aug_data.append(spike3(image))
         aug_data.append(spike4(image))
         aug_data.append(spike5(image))
+        # 7. Save new images so they can be loaded directly
+        save_dataset(aug_data,
+                 img_names,
+                 dataset_name,
+                 'augmented_data',
+                 storage_data_path,
+                 simpleITK=True,
+                 extend=True)
 
-
+    """
     # 7. Save new images so they can be loaded directly
     print('Saving augmented images as SimpleITK..')
     save_dataset(aug_data,
@@ -358,7 +374,7 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
                  dataset_name,
                  'augmented_data',
                  storage_data_path,
-                 simpleITK=True)
+                 simpleITK=True)"""
                  
     # 8. Save label dict
     print("Saving labels file..")

@@ -11,26 +11,28 @@ import SimpleITK as sitk
 from mp.data.pytorch.transformation import centre_crop_pad_2d
 import random
 from mp.utils.load_restore import join_path
-from mp.data.datasets.dataset_regression import RegressionDataset, RegressionInstance
+from mp.data.datasets.dataset_cnn_inceptionV3 import CNNInceptionV3Dataset, CNNInceptionV3Instance
 from mp.paths import storage_data_path
 import mp.data.datasets.dataset_utils as du
 from mp.data.datasets.dataset_augmentation import augment_data_in_four_intensities as augment_data
 from mp.data.datasets.dataset_augmentation import select_random_images_slices, save_dataset
 
-class DecathlonLung(RegressionDataset):
+class DecathlonLung(CNNInceptionV3Dataset):
     r"""Class for the Lung decathlon challenge, contains only
     CT, found at http://medicaldecathlon.com/.
     """
     def __init__(self, subset=None, hold_out_ixs=[], augmented=False,
-        img_size=(1, 256, 256), max_likert_value=1, random_slices=False,
-        noise='blur', nr_images=200, nr_slices=20, original_perc_data=0.2):
+        img_size=(1, 299, 299), max_likert_value=1, random_slices=False,
+        noise='all', nr_images=300, nr_slices=20, original_perc_data=0.2,
+        one_hot_classes=None):
         assert subset is None, "No subsets for this dataset."
+        assert one_hot_classes is not None, "No one hot encoding for the labels of this dataset."
 
         # Extract necessary paths    
         global_name = 'DecathlonLung'
         dataset_path = os.path.join(storage_data_path, global_name)
         original_data_path = du.get_original_data_path(global_name)
-        folder_name = 'randomised_data_' + str(noise)   # For random selected data
+        folder_name = 'randomised_data_all'   # For random selected data
 
         # Extract all images, if not already done
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
@@ -59,9 +61,9 @@ class DecathlonLung(RegressionDataset):
             msg = 'Creating dataset from SimpleITK images: '
             msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
             print (msg, end = '\r')
-            instances_full.append(RegressionInstance(
+            instances_full.append(CNNInceptionV3Instance(
                 x_path=os.path.join(dataset_path, study_name+'.nii.gz'),
-                y_label=torch.tensor([1/max_likert_value]),
+                y_label=torch.tensor(one_hot_classes['orig']),#, torch.tensor([1/max_likert_value])),
                 name=study_name,
                 group_id=None
                 ))
@@ -71,10 +73,10 @@ class DecathlonLung(RegressionDataset):
                 msg = 'Creating dataset from random SimpleITK images and slices: '
                 msg += str(num + 1) + ' of ' + str(len(study_names_random)) + '.'
                 print (msg, end = '\r')
-                instances.append(RegressionInstance(
+                instances.append(CNNInceptionV3Instance(
                     x_path=os.path.join(t_path,
                                         study_name+'.nii.gz'),
-                    y_label=torch.tensor([1/max_likert_value]),
+                    y_label=torch.tensor(one_hot_classes['orig']),#, torch.tensor([1/max_likert_value])),
                     name=study_name,
                     group_id=None
                     ))
@@ -87,6 +89,13 @@ class DecathlonLung(RegressionDataset):
                                                    True, False, storage_data_path,
                                                    max_likert_value, random_slices,
                                                    noise, nr_images, nr_slices)
+            labels_class = dict()
+            # Transform labels, i.e. extract noise type from name and add it to
+            # the value creating a tuple
+            for name, intensity in labels.items():
+                # Name has following structur: lungxxx<noise_type>_<intensity>
+                noise_type = name.split('_')[0][7:]
+                labels_class[name] = noise_type#, intensity)
 
             # Add to instances
             if random_slices:
@@ -94,10 +103,10 @@ class DecathlonLung(RegressionDataset):
                     msg = 'Creating dataset from random SimpleITK images and slices: '
                     msg += str(num + 1) + ' of ' + str(len(names)) + '.'
                     print (msg, end = '\r')
-                    instances.append(RegressionInstance(
+                    instances.append(CNNInceptionV3Instance(
                         x_path=os.path.join(storage_data_path, 'DecathlonLungAugmented',
                                             folder_name, name+'.nii.gz'),
-                        y_label=labels[name],
+                        y_label=torch.tensor(one_hot_classes[labels_class[name]]),
                         name=name,
                         group_id=None
                         ))
@@ -106,10 +115,10 @@ class DecathlonLung(RegressionDataset):
                     msg = 'Creating dataset from augmented SimpleITK images: '
                     msg += str(num + 1) + ' of ' + str(len(names)) + '.'
                     print (msg, end = '\r')
-                    instances.append(RegressionInstance(
+                    instances.append(CNNInceptionV3Instance(
                         x_path=os.path.join(storage_data_path, 'DecathlonLungAugmented',
                                             'augmented_data', name+'.nii.gz'),
-                        y_label=labels[name],
+                        y_label=torch.tensor(one_hot_classes[labels_class[name]]),
                         name=name,
                         group_id=None
                         ))
@@ -117,7 +126,7 @@ class DecathlonLung(RegressionDataset):
         super().__init__(instances, name=global_name,
             modality='CT', nr_channels=1, hold_out_ixs=[])
 
-def _extract_images(source_path, target_path, img_size=(1, 256, 256)):
+def _extract_images(source_path, target_path, img_size=(1, 299, 299)):
     r"""Extracts MRI images and saves the modified images."""
     images_path = os.path.join(source_path, 'imagesTr')
 

@@ -67,8 +67,7 @@ class PytorchReg2DDataset(PytorchRegressionDataset):
     the specified size, otherwise they are center-cropped and padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
-        norm_key='rescaling', aug_key='standard', resize=False, random_slices=False,
-        nr_slices=2000):
+        norm_key='rescaling', aug_key='standard', resize=False):
         if isinstance(size, int):
             size = (1, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 

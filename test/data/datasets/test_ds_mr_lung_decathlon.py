@@ -1,4 +1,4 @@
-from mp.data.datasets.ds_mr_lung_decathlon import DecathlonLung
+from mp.data.datasets.ds_mr_lung_decathlon_reg import DecathlonLung
 
 def test_ds_label():
     data = DecathlonLung()

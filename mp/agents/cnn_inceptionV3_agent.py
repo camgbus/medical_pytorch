@@ -1,14 +1,15 @@
-# ------------------------------
-# A standard regression agent.
-# ------------------------------
+# ------------------------------------------------------------------
+# A model agent for CNN InceptionV3 model.
+# ------------------------------------------------------------------
 
 from mp.agents.agent import Agent
 from mp.eval.inference.predict import softmax
 import torch
+from torchvision import transforms
 from sklearn.metrics import r2_score
 
-class RegressionAgent(Agent):
-    r"""An Agent for regression models."""
+class CNNInceptionV3Agent(Agent):
+    r"""An Agent for a CNN InceptionV3 model."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
@@ -19,6 +20,12 @@ class RegressionAgent(Agent):
         """
         losses = list()
         losses_cum = list()
+        # Necessary for input image into InceptionV3 model
+        preprocess = transforms.Compose([
+            #transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
+
         for epoch in range(nr_epochs):
             msg = "Running epoch "
             msg += str(epoch + 1) + " of " + str(nr_epochs) + "."
@@ -27,7 +34,11 @@ class RegressionAgent(Agent):
             total = 0
             correct = 0
             for idx, (x, y) in enumerate(train_dataloader):
-                x, y = x.to(self.device), y.to(self.device)
+                y = y.to(self.device)
+                for i in range(list(x.size())[0]):
+                    x[i] = preprocess(x[i])
+                x = x.unsqueeze(0) # create a mini-batch as expected by the model
+                x = x.to(self.device)
                 yhat = self.model(x)
                 loss = loss_f(yhat, y)
                 total += y.size(0)
@@ -50,31 +61,25 @@ class RegressionAgent(Agent):
 
     def test(self, loss_f, test_dataloader):
         losses = list()
-        accuracy = list()
         total = 0
         losses_cum = 0
-        correct = 0
-        score = 0
+        # Necessary for input image into InceptionV3 model
+        preprocess = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+        ])
         with torch.no_grad():
             for idx, (x, y) in enumerate(test_dataloader):
-                x, y = x.to(self.device), y.to(self.device)
+                y = y.to(self.device)
+                x = preprocess(x)
+                x = x.unsqueeze(0) # create a mini-batch as expected by the model
+                x = x.to(self.device)
                 yhat = self.model(x)
                 loss = loss_f(yhat, y)
                 losses.append([idx+1, loss.item()])
                 total += y.size(0)
                 losses_cum += loss.item()
-                # Round prediction to 1 decimal float numbers
-                rounded_yhat = torch.round(yhat * 10**1) / (10**1)
-                correct += (rounded_yhat == y).sum().item()
-                accuracy.append([idx+1, 100 * (rounded_yhat == y).sum().item() / y.size(0)])
-                yhat = yhat.cpu().numpy()
-                score += r2_score(y.cpu(), yhat)
         print('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
-        print('Accuracy of the regression model on the test set: %d %%' % (
-            100 * correct / total))
-        print("R2 score (accuracy): ", score / total)
 
         # Return losses
-        return losses, accuracy
-
-        
+        return losses

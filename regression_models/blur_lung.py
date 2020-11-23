@@ -8,7 +8,7 @@ from mp.paths import storage_data_path
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
-from mp.data.datasets.ds_mr_lung_decathlon import DecathlonLung
+from mp.data.datasets.ds_mr_lung_decathlon_reg import DecathlonLung
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_reg_dataset import PytorchReg2DDataset
@@ -22,8 +22,8 @@ from mp.visualization.plot_results import plot_numpy
 
 config = {'experiment_name':'exp_lung', 'device':'cuda:4',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
-    'lr': 0.0001, 'batch_size': 8, 'max_likert_value': 5, 'nr_epochs': 1000
+    'input_shape': (1, 299, 299), 'resize': False, 'augmentation': 'none', 
+    'lr': 0.0001, 'batch_size': 128, 'max_likert_value': 5, 'nr_epochs': 200
     }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
@@ -39,7 +39,7 @@ max_likert_value = config['max_likert_value']
 data = Data()
 data.add_dataset(DecathlonLung(augmented=True, img_size=input_shape,
                  max_likert_value=max_likert_value, random_slices=True,
-                 noise='blur', nr_images=100, nr_slices=20,
+                 noise='blur', nr_images=150, nr_slices=20,
                  original_perc_data=1/max_likert_value))
 train_ds = ('DecathlonLung', 'train')
 test_ds = ('DecathlonLung', 'test')
@@ -75,7 +75,8 @@ for run_ix in range(config['nr_runs']):
 
     # 7. Build train dataloader, and visualize
     dl = DataLoader(datasets[(train_ds)], 
-        batch_size=batch_size, shuffle=True)
+        batch_size=batch_size, shuffle=True,
+        num_workers=1)
 
     # 8. Initialize model
     model = LinReg(input_features, output_features)
@@ -91,7 +92,7 @@ for run_ix in range(config['nr_runs']):
     agent = RegressionAgent(model=model, device=device)
     losses_train, losses_cum_train = agent.train(optimizer, loss_f, dl,
                                          nr_epochs=config['nr_epochs'],
-                                      save_path=paths, save_interval=5)
+                                     save_path=paths, save_interval=25)
 
     # 11. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
