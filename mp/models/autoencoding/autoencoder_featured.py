@@ -2,19 +2,17 @@
 # An autoencoder that reconstructs extracted features.
 # ------------------------------------------------------------------------------
 
-import torch 
-import torch.nn as nn
-import torch.nn.functional as F
+import torch
 import torchvision.models as models
 from mp.models.autoencoding.autoencoder_linear import AutoencoderLinear
 from mp.data.pytorch.transformation import torchvision_rescaling
 
 class AutoencoderFeatured(AutoencoderLinear):
     r"""An autoencoder that recontracts features."""
-    def __init__(self, input_shape, hidden_dim = [128, 64], 
+    def __init__(self, input_shape, hidden_dim=[128, 64], 
         feature_model_name='AlexNet'):
 
-        extractor_size = (3, 224, 224) # For AlexNet, TODO clean up and others
+        extractor_size = (3, 224, 224)  # For AlexNet, TODO clean up and others
         features_size = 9216
 
         super().__init__(input_shape=[features_size], hidden_dim=hidden_dim)

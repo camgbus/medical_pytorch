@@ -4,7 +4,6 @@
 # ------------------------------------------------------------------------------
 
 import os
-import numpy as np
 import csv
 import SimpleITK as sitk
 from mp.data.datasets.dataset_segmentation import SegmentationDataset, SegmentationInstance

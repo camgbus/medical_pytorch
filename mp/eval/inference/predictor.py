@@ -121,9 +121,9 @@ class GridPredictor(Predictor):
     r"""The GridPredictor deconstructs a 3D volume into patches, makes a forward 
     pass through the model and reconstructs a prediction of the output size.
     """
-    def __init__(self, *args, patch_overlap = (0,0,0), **kwargs):
+    def __init__(self, *args, patch_overlap=(0,0,0), **kwargs):
         super().__init__(*args, **kwargs)
-        assert patch_overlap[2] == 0 # Otherwise, have gotten wrong overlap
+        assert patch_overlap[2] == 0  # Otherwise, have gotten wrong overlap
         self.patch_overlap = patch_overlap
         self.patch_size = self.size[1:]
 

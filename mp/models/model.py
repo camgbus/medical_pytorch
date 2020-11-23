@@ -53,7 +53,8 @@ class Model(nn.Module):
     # Method to output model information
 
     def model_summary(self, verbose=False):
-        r"""Return a Keras-style summary."""
+        r"""Return a Keras-style summary.
+        """
         summary_str = str(summary(self, input_data=self.input_shape, verbose=0))
         if verbose:
             print(summary_str)

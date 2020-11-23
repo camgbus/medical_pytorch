@@ -34,7 +34,7 @@ def _insert_divider_before_titles(handles, labels, titles):
     r"""Inserts an empty line before each new legend easthetic
     param titles: elements of 'labels' before which a space should be inserted
     """
-    titles = titles[1:] # Do not need to insert space before first title
+    titles = titles[1:]  # Do not need to insert space before first title
     empty_handle = mpatches.Patch(color='white', alpha=0)
     space_indexes = [labels.index(title) for title in titles]
     for i in range(len(space_indexes)):

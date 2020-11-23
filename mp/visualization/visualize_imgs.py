@@ -2,9 +2,7 @@
 # Visualize images (in Numpy, PyTorch or TorchIO formats) and dataloaders.
 # ------------------------------------------------------------------------------
 
-import os
 import numpy as np
-import torch
 import matplotlib.pyplot as plt
 import SimpleITK as sitk
 import math
@@ -59,11 +57,11 @@ def stretch_mask_range(mask):
         mask *= (255.0/mask.max())
         mask = mask.astype(np.uint8)
 
-segmask_colors = {1: {'red': 206, 'green': 24, 'blue': 30}, # Red
-    2: {'red': 64, 'green': 201, 'blue': 204}, # Mint
-    3: {'red': 250, 'green': 245, 'blue': 56}, # Yellow
-    4: {'red': 193, 'green': 69, 'blue': 172}, # Purple
-    5: {'red': 54, 'green': 71, 'blue': 217} # Blue
+segmask_colors = {1: {'red': 206, 'green': 24, 'blue': 30},  # Red
+    2: {'red': 64, 'green': 201, 'blue': 204},  # Mint
+    3: {'red': 250, 'green': 245, 'blue': 56},  # Yellow
+    4: {'red': 193, 'green': 69, 'blue': 172},  # Purple
+    5: {'red': 54, 'green': 71, 'blue': 217}  # Blue
     }
 
 def color_mask(mask):
@@ -81,7 +79,7 @@ def color_mask(mask):
     mask = np.array([red, green, blue]).T
     return mask
 
-### Visualize images, masks and dataloaders using Pillow ###
+# Visualize images, masks and dataloaders using Pillow
     
 def plot_3d_subject_gt(subject, save_path=None):
     r"""Plot a subject with input and ground truth"""
@@ -163,10 +161,10 @@ def create_img_grid(img_grid = [[]], img_size = (512, 512),
     for row in img_grid:
         for img in row:
             if img is not None:
-                if img.shape[0]==1: # Grayscale images
+                if img.shape[0]==1:  # Grayscale images
                     img = img[0]
-                else: # Colored images
-                    if np.argpartition(img.shape, 1)[0] == 0: # Channels first
+                else:  # Colored images
+                    if np.argpartition(img.shape, 1)[0] == 0:  # Channels first
                         img = np.moveaxis(img, 0, 2) 
                 img = normalize_range(img)
                 img = Image.fromarray(img).resize(img_size).convert('RGBA')
@@ -189,9 +187,9 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
     top = margin[1]
     for row in img_grid:
         for img_mask_pair in row:
-            if img_mask_pair is not None: # Is None if grid to large for img nr.
+            if img_mask_pair is not None:  # Is None if grid to large for img nr.
                 img, mask = img_mask_pair
-                if img.shape[0]==1: # Grayscale images
+                if img.shape[0]==1:  # Grayscale images
                     img = img[0]
                     # Normalize image values between 0 and 255
                     img = normalize_range(img)
@@ -202,8 +200,8 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
                     Image.fromarray(mask)
                     Image.fromarray(mask).resize(img_size)
                     mask = Image.fromarray(mask).resize(img_size).convert('RGBA')
-                else: # Colored images
-                    if np.argpartition(img.shape, 1)[0] == 0: # If channels first
+                else:  # Colored images
+                    if np.argpartition(img.shape, 1)[0] == 0:  # If channels first
                         img = np.moveaxis(img, 0, 2) 
                         mask = np.moveaxis(mask, 0, 2) 
                     img = normalize_range(img)
@@ -264,7 +262,7 @@ def get_x_y_from_dataloader(dataloader, nr_imgs):
 
         y = y.cpu().detach().numpy()
 
-        if len(x.shape) == 5: # If each x or y is a batch of volumes
+        if len(x.shape) == 5:  # If each x or y is a batch of volumes
             # Go from shape (batch, 1, width, height, depth) to 
             # (batch*depth, 1, width, height) by shifting the depth channel to
             # the beginning and concatenating all volumes.
@@ -280,7 +278,7 @@ def get_x_y_from_dataloader(dataloader, nr_imgs):
             break  
     return imgs
 
-### Visualize using matplotlib, deprecated ###
+# Visualize using matplotlib, deprecated
 
 def plot_overlay_mask(img, mask, save_path=None, figsize=(20, 20)):
     r"""
@@ -302,7 +300,7 @@ def plot_overlay_mask(img, mask, save_path=None, figsize=(20, 20)):
 
 def plot_2d_img(img, save_path=None, figsize=(20, 20)):
     r"""Plot a 2d image"""
-    if 'torch.Tensor' in  str(type(img)):
+    if 'torch.Tensor' in str(type(img)):
         img = img.cpu().detach().numpy()
     while img.shape[0] == 1:
         img = img[0]
