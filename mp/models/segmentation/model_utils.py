@@ -373,8 +373,8 @@ class DecodingBlock(nn.Module):
     def forward(self, skip_connection, x):
         x = self.upsample(x)
         skip_connection = self.center_crop(skip_connection, x)
-        #print(skip_connection.shape)
-        #print(x.shape)
+        # print(skip_connection.shape)
+        # print(x.shape)
 
         x = torch.cat((skip_connection, x), dim=CHANNELS_DIMENSION)
         if self.residual:

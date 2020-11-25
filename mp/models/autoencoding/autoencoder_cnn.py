@@ -9,7 +9,7 @@ from mp.models.autoencoding.autoencoder import Autoencoder
 
 class AutoencoderCNN(Autoencoder):
     r"""A simple CNN autoencoder."""
-    def __init__(self, input_shape, hidden_ch = [16, 4]):
+    def __init__(self, input_shape, hidden_ch=[16, 4]):
         super().__init__(input_shape=input_shape)
         in_channels = self.input_shape[0]
 
@@ -35,5 +35,5 @@ class AutoencoderCNN(Autoencoder):
 
     def decode(self, x):
         x = F.relu(self.dec_conv1(x))
-        x = F.sigmoid(self.dec_conv2(x)) # Input should be normed to [0, 1]
+        x = F.sigmoid(self.dec_conv2(x))  # Input should be normed to [0, 1]
         return x

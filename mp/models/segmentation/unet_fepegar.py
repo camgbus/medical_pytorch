@@ -130,9 +130,9 @@ class UNet2D(UNet):
         predef_kwargs = {}
         predef_kwargs['dimensions'] = 2
         predef_kwargs['num_encoding_blocks'] = 5
-        predef_kwargs['out_channels_first_layer'] = 16 #64
+        predef_kwargs['out_channels_first_layer'] = 16  # 64
         predef_kwargs['normalization'] = 'batch'
-        preactivation = True
+        predef_kwargs['preactivation'] = True
         # Added this so there is no error between the skip connection and 
         # feature mas shapes
         predef_kwargs['padding'] = True

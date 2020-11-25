@@ -2,6 +2,9 @@
 # Miscellaneous helper functions.
 # ------------------------------------------------------------------------------
 
+import datetime
+import ntpath
+
 def f_optional_args(f, args, x):
     r"""If there are arguments, these are passed to the function."""
     if args:
@@ -9,7 +12,7 @@ def f_optional_args(f, args, x):
     else:
         return f(x)
 
-import datetime
+
 def get_time_string(cover=False):
     r"""
     Returns the current time in the format YYYY-MM-DD_HH-MM, or
@@ -20,8 +23,6 @@ def get_time_string(cover=False):
         return '['+date+']'
     else:
         return date
-
-import ntpath
 
 def divide_path_fname(path):
     r"""Divide path and name from a full path."""

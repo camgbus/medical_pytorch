@@ -3,9 +3,13 @@
 # ------------------------------------------------------------------------------
 
 import os
+import pickle
+import numpy as np
+import json
+import functools
+import SimpleITK as sitk
 
 # PICKLE
-import pickle
 def pkl_dump(obj, name, path='obj'):
     r"""Saves an object in pickle format."""
     if '.p' not in name:
@@ -25,14 +29,12 @@ def pkl_load(name, path='obj'):
     return obj
 
 # NUMPY
-from numpy import save, load
-
 def np_dump(obj, name, path='obj'):
     r"""Saves an object in npy format."""
     if '.npy' not in name:
         name = name + '.npy'
     path = os.path.join(path, name)
-    save(path, obj)
+    np.save(path, obj)
 
 def np_load(name, path='obj'):
     r"""Restores an object from a npy file."""
@@ -40,13 +42,12 @@ def np_load(name, path='obj'):
         name = name + '.npy'
     path = os.path.join(path, name)
     try:
-        obj = load(path)
+        obj = np.load(path)
     except FileNotFoundError:
         obj = None
     return obj
 
 # JSON
-import json
 def save_json(dict_obj, path, name):
     r"""Saves a dictionary in json format."""
     if '.json' not in name:
@@ -76,7 +77,6 @@ def nifty_dump(x, name, path):
     sitk.WriteImage(sitk.GetImageFromArray(x), path)
 
 # OTHERS
-import functools
 def join_path(list):
     r"""From a list of chained directories, forms a path"""
     return functools.reduce(os.path.join, list)

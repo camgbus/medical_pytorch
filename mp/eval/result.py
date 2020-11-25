@@ -47,7 +47,7 @@ class Result():
             for metric in self.results.keys()
             for epoch in self.results[metric].keys()
             for data in self.results[metric][epoch].keys()]
-        df = pd.DataFrame(data, columns = ['Metric', 'Epoch', 'Data', 'Value'])
+        df = pd.DataFrame(data, columns=['Metric', 'Epoch', 'Data', 'Value'])
         return df
 
     def get_min_epoch(self, metric, data='val'):

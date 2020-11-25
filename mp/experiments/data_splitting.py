@@ -92,7 +92,7 @@ def split_instances(dataset, ratio=0.7, exclude_ixs=[], stratisfied=True,
         classes = list(dataset.classes)
         classes.sort(key=lambda x: len(class_instances[x]))
         for class_name in classes:
-            #print('Class: {}'.format(class_name))
+            # print('Class: {}'.format(class_name))
             ixs = class_instances[class_name]
             random.shuffle(ixs)
             # The mayority class is used to fill to the desired number of 
@@ -149,7 +149,7 @@ def create_instance_folds(dataset, k=5, exclude_ixs=[],
         classes = list(dataset.classes)
         classes.sort(key=lambda x: len(class_instances[x]))
         for class_name in classes:
-            #print('Class: {}'.format(class_name))
+            # print('Class: {}'.format(class_name))
             exs = class_instances[class_name]
             # Sort so folds with least examples come first
             folds.sort(key=lambda x: len(x))
@@ -166,7 +166,7 @@ def _divide_sets_similar_length(instances, exs, k, respecting_groups=True):
     random.shuffle(exs)
     folds = [[] for i in range(k)]
     # Add example indexes to folds
-    if instances[0].group_id == None or not respecting_groups:
+    if instances[0].group_id is None or not respecting_groups:
         # Calculate number of examples per fold
         nr_per_fold, remaining = divmod(len(exs), k)
         if nr_per_fold < 1:
@@ -219,7 +219,7 @@ def _divide_sets_similar_length(instances, exs, k, respecting_groups=True):
 def _split_ixs(ixs, first_ds_len, instances, respecting_groups=True):
     r"""Returns two lists of indexes, which are subsets of ixs.
     """
-    if not respecting_groups or instances[0].group_id == None:
+    if not respecting_groups or (instances[0].group_id is None):
         return ixs[:first_ds_len], ixs[first_ds_len:]
     else:
         ixs_1, ixs_2 = [], []

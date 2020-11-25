@@ -29,7 +29,7 @@ def test_softmax():
     assert softmaxed_output.shape == (2,3,2,2)
     for k in [0,1]:
         for i, j in [(0,0),(0,1),(1,0),(1,1)]:
-            assert abs(1 - sum(x[i][j] for x in softmaxed_output[k]) ) < 0.0001
+            assert abs(1 - sum(x[i][j] for x in softmaxed_output[k])) < 0.0001
 
 def test_softmax_another_channel_output():
     output = torch.tensor([[[3., 1.], [0.2, 0.05]], [[4., .0], [0.8, 0.4]], 
@@ -37,7 +37,7 @@ def test_softmax_another_channel_output():
     softmaxed_output = softmax(output, channel_dim=0).numpy()
     assert softmaxed_output.shape == (3,2,2)
     for i, j in [(0,0),(0,1),(1,0),(1,1)]:
-        assert abs(1 - sum(x[i][j] for x in softmaxed_output) ) < 0.0001
+        assert abs(1 - sum(x[i][j] for x in softmaxed_output)) < 0.0001
 
 def test_per_label_channel_to_pred():
     A_1=[[0,0,0,0,0,0,0],

@@ -6,14 +6,14 @@
 import torch
 import torch.nn.functional as F
 import torchio
+from torchvision import transforms
 
-NORMALIZATION_STRATEGIES = {None: None,
-                            'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1),
-                                                                             percentiles=(0.1, 99.)),
-                            'z_norm': torchio.transforms.ZNormalization(masking_method=None)
-                            # TODO
-                            # 'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
-                            }
+NORMALIZATION_STRATEGIES = {None:None,
+    'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.1, 99.)),
+    'z_norm': torchio.transforms.ZNormalization(masking_method=None)
+    # TODO
+    # 'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
+}
 
 AUGMENTATION_STRATEGIES = {'none': None,
                            'standard': torchio.transforms.Compose([
@@ -95,7 +95,7 @@ AUGMENTATION_STRATEGIES = {'none': None,
 
 
 def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
-    r"""Trans. a one-channeled mask where the integers specify the label to a
+    r"""Trans. a one-channeled mask where the integers specify the label to a 
     multi-channel output with one channel per label, where 1 marks belonging to
     that label."""
     masks = []
@@ -133,7 +133,7 @@ def one_output_channel(y, channel_dim=0):
 
 def resize_2d(img, size=(1, 128, 128), label=False):
     r"""2D resize."""
-    img.unsqueeze_(0) # Add additional batch dimension so input is 4D
+    img.unsqueeze_(0)  # Add additional batch dimension so input is 4D
     if label:
         # Interpolation in 'nearest' mode leaves the original mask values.
         img = F.interpolate(img, size=size[1:], mode='nearest')
@@ -143,7 +143,7 @@ def resize_2d(img, size=(1, 128, 128), label=False):
 
 def resize_3d(img, size=(1, 56, 56, 56), label=False):
     r"""3D resize."""
-    img.unsqueeze_(0) # Add additional batch dimension so input is 5D
+    img.unsqueeze_(0)  # Add additional batch dimension so input is 5D
     if label:
         # Interpolation in 'nearest' mode leaves the original mask values.
         img = F.interpolate(img, size=size[1:], mode='nearest')
@@ -178,7 +178,7 @@ def pad_3d_if_required(instance, size):
     if instance.shape[-1] < size[-1]:
         delta = size[-1]-instance.shape[-1]
         subject = instance.get_subject()
-        transform = torchio.transforms.Pad(padding=(0, 0, 0, 0, 0, delta), padding_mode = 0)
+        transform = torchio.transforms.Pad(padding=(0, 0, 0, 0, 0, delta), padding_mode=0)
         subject = transform(subject)
         instance.x = torchio.Image(tensor=subject.x.tensor, type=torchio.INTENSITY)
         instance.y = torchio.Image(tensor=subject.y.tensor, type=torchio.LABEL)
@@ -205,8 +205,8 @@ def torchvision_rescaling(x, size=(3, 224, 224), resize=False):
     if resize:
         transform_ops.append(transforms.Resize(size=(size[1], size[2])))
     else:
-        transform_ops.append(transforms.CenterCrop(size=(size[1], size[2])))
-    # Apply pre-defined normalization
+        transform_ops.append(transforms.CenterCrop(size=(size[1], size[2])))   
+    # Apply pre-defined normalization 
     transform_ops.append(transforms.ToTensor())
     transform_ops.append(transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225]))

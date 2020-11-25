@@ -39,7 +39,6 @@ def test_reload():
     notes='A test experiment which is reloaded'
     # First experiment creation
     exp = Experiment({'test_param': 2, 'nr_runs': 1}, name='TEST_RELOAD', notes=notes)
-    res = Result(name='some_result')
     # Experiment reload
     exp = Experiment(name='TEST_RELOAD', reload_exp=True)
     assert exp.review['notes'] == notes

@@ -117,7 +117,7 @@ class ExperimentRun:
                 for result in results:
                     self._plot_results(result=result, save_path=self.paths['results'], plot_metrics=plot_metrics)
             else:
-                 self._plot_results(result=results, save_path=self.paths['results'], plot_metrics=plot_metrics)
+                self._plot_results(result=results, save_path=self.paths['results'], plot_metrics=plot_metrics)
         else:
             self.review['state'] = 'FAILURE: ' + str(exception)
             # TODO: store exception with better format, or whole error path
