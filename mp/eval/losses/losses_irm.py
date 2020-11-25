@@ -39,37 +39,6 @@ class IRMLossAbstract(LossAbstract):
         return eval_dict
 
 
-class LossClassWeightedIRM(IRMLossAbstract):
-    r"""
-    Adaptation of LossClassWeighted to IRM losses.
-    This class mostly exists to implement the get_evaluation_dict method
-    and also since LossClassWeighted removes a dimension in the data.
-    """
-    def __init__(self, irm_loss, weights=None, nr_labels=None, device="cuda:0"):
-        super().__init__(irm_loss.erm_loss, device=device)
-        self.irm_loss = irm_loss
-        self.weighted_erm_loss = LossClassWeighted(self.erm_loss, weights=weights, nr_labels=nr_labels)
-        self.weighted_irm_loss = LossClassWeighted(self.irm_loss, weights=weights, nr_labels=nr_labels)
-
-    def forward(self, output, target):
-        # Need to use the weighted wrapper to separate the channels
-        return self.weighted_irm_loss(output, target)
-
-    def erm(self, output, target):
-        # Need to use the weighted wrapper to separate the channels
-        return self.weighted_erm_loss(output, target)
-
-    def finalize_loss(self, nlls, penalties):
-        # The nlls and penalties are already weighted
-        return self.irm_loss.finalize_loss(nlls, penalties)
-
-    def get_evaluation_dict(self, output, target):
-        eval_dict = self.weighted_irm_loss.get_evaluation_dict(output, target)
-        # Just need to add the ERM term
-        eval_dict.update(self.weighted_erm_loss.get_evaluation_dict(output, target))
-        return eval_dict
-
-
 class IRMv1Loss(IRMLossAbstract):
     r"""
     IRMv1 loss from Invariant Risk Minimization, M. Arjovsky et al.

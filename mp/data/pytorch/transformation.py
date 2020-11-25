@@ -7,45 +7,95 @@ import torch
 import torch.nn.functional as F
 import torchio
 
-NORMALIZATION_STRATEGIES = {None:None,
-    'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.1, 99.)),
-    'z_norm': torchio.transforms.ZNormalization(masking_method=None)
-    # TODO
-    #'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
-}
+NORMALIZATION_STRATEGIES = {None: None,
+                            'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1),
+                                                                             percentiles=(0.1, 99.)),
+                            'z_norm': torchio.transforms.ZNormalization(masking_method=None)
+                            # TODO
+                            # 'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
+                            }
 
-AUGMENTATION_STRATEGIES = {'none':None,
-    'standard': torchio.transforms.Compose([
-        torchio.transforms.OneOf({
-            torchio.transforms.RandomElasticDeformation(p=0.1,
-                num_control_points=(7,7,7), 
-                max_displacement=7.5): 0.7,
-            torchio.RandomAffine(p=0.1,
-                scales=(0.5, 1.5),
-                degrees=(5),
-                isotropic=False,
-                default_pad_value='otsu',
-                image_interpolation='bspline'): 0.1
-        }),
-        torchio.transforms.RandomFlip(p=0.1, 
-            axes=(1, 0, 0)),
-        torchio.transforms.RandomMotion(p=0.1,
-            degrees=10, 
-            translation=10, 
-            num_transforms=2),
-        torchio.transforms.RandomBiasField(p=0.1,
-            coefficients=(0.5, 0.5), 
-            order=3),
-        torchio.transforms.RandomNoise(p=0.1,
-            mean=(0,0), 
-            std=(50, 50)),
-        torchio.transforms.RandomBlur(p=0.1,
-            std=(0, 1))
-    ])
-}
+AUGMENTATION_STRATEGIES = {'none': None,
+                           'standard': torchio.transforms.Compose([
+                               torchio.transforms.OneOf({
+                                   torchio.transforms.RandomElasticDeformation(p=0.1,
+                                                                               num_control_points=(7, 7, 7),
+                                                                               max_displacement=7.5): 0.7,
+                                   torchio.RandomAffine(p=0.1,
+                                                        scales=(0.5, 1.5),
+                                                        degrees=5,
+                                                        isotropic=False,
+                                                        default_pad_value='otsu',
+                                                        image_interpolation='bspline'): 0.1
+                               }),
+                               torchio.transforms.RandomFlip(p=0.1,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1,
+                                                               degrees=10,
+                                                               translation=10,
+                                                               num_transforms=2),
+                               torchio.transforms.RandomBiasField(p=0.1,
+                                                                  coefficients=(0.5, 0.5),
+                                                                  order=3),
+                               torchio.transforms.RandomNoise(p=0.1,
+                                                              mean=(0, 0),
+                                                              std=(50, 50)),
+                               torchio.transforms.RandomBlur(p=0.1,
+                                                             std=(0, 1))
+                           ]),
+                           'geometric': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1,
+                                                    scales=(0.5, 1.5),
+                                                    degrees=5,
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline'),
+                               torchio.transforms.RandomFlip(p=0.1,
+                                                             axes=(1, 0, 0)),
+                           ]),
+                           'hybrid': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1,
+                                                    scales=(0.5, 1.5),
+                                                    degrees=5,
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline'),
+                               torchio.transforms.RandomFlip(p=0.1,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1,
+                                                               degrees=10,
+                                                               translation=10,
+                                                               num_transforms=2)
+                           ]),
+                           'mri': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1,
+                                                    scales=(0.5, 1.5),
+                                                    degrees=5,
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline')
+                               ,
+                               torchio.transforms.RandomFlip(p=0.1,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1,
+                                                               degrees=10,
+                                                               translation=10,
+                                                               num_transforms=2),
+                               torchio.transforms.RandomBiasField(p=0.1,
+                                                                  coefficients=(0.5, 0.5),
+                                                                  order=3),
+                               torchio.transforms.RandomNoise(p=0.1,
+                                                              mean=(0, 0),
+                                                              std=(50, 50))
+                           ])
+                           }
+
 
 def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
-    r"""Trans. a one-channeled mask where the integers specify the label to a 
+    r"""Trans. a one-channeled mask where the integers specify the label to a
     multi-channel output with one channel per label, where 1 marks belonging to
     that label."""
     masks = []
@@ -155,8 +205,8 @@ def torchvision_rescaling(x, size=(3, 224, 224), resize=False):
     if resize:
         transform_ops.append(transforms.Resize(size=(size[1], size[2])))
     else:
-        transform_ops.append(transforms.CenterCrop(size=(size[1], size[2])))   
-    # Apply pre-defined normalization 
+        transform_ops.append(transforms.CenterCrop(size=(size[1], size[2])))
+    # Apply pre-defined normalization
     transform_ops.append(transforms.ToTensor())
     transform_ops.append(transforms.Normalize(mean=[0.485, 0.456, 0.406],
                                  std=[0.229, 0.224, 0.225]))
