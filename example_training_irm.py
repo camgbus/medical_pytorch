@@ -14,7 +14,7 @@ from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg3DDataset
 from mp.eval.losses.losses_segmentation import LossDiceBCE, LossClassWeighted
-from mp.eval.losses.losses_irm import IRMv1Loss, VRexLoss, MMRexLoss, LossClassWeightedIRM
+from mp.eval.losses.losses_irm import IRMv1Loss, VRexLoss, MMRexLoss
 from mp.eval.result import Result
 from mp.experiments.experiment import Experiment
 from mp.models.segmentation.unet_fepegar import UNet3D
