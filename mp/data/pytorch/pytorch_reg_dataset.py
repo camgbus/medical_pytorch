@@ -21,7 +21,7 @@ import mp.data.pytorch.transformation as trans
 import mp.eval.inference.predictor as pred
 
 class PytorchRegressionDataset(PytorchDataset):
-    def __init__(self, dataset, ix_lst=None, size=None, norm_key='rescaling', 
+    def __init__(self, dataset, ix_lst=None, size=None, norm_key='z_norm', 
         aug_key='standard'):
         r"""A torch.utils.data.Dataset for regression data.
         Args:
@@ -67,7 +67,7 @@ class PytorchReg2DDataset(PytorchRegressionDataset):
     the specified size, otherwise they are center-cropped and padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
-        norm_key='rescaling', aug_key='standard', resize=False):
+        norm_key='z_norm', aug_key='standard', resize=False):
         if isinstance(size, int):
             size = (1, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
@@ -120,7 +120,7 @@ class PytorchReg3DDataset(PytorchRegressionDataset):
     padded if needed.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), 
-        norm_key='rescaling', aug_key='standard', resize=False):
+        norm_key='z_norm', aug_key='standard', resize=False):
         if isinstance(size, int):
             size = (1, size, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
@@ -157,7 +157,7 @@ class Pytorch3DQueue(PytorchRegressionDataset):
     self.size[-1], these are padded.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), sampler=None,
-        max_length=300, samples_per_volume=10, norm_key='rescaling', 
+        max_length=300, samples_per_volume=10, norm_key='z_norm', 
         aug_key='standard'):
         r"""The number of patches is determined by samples_per_volume """
         if isinstance(size, int):

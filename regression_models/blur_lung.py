@@ -23,7 +23,7 @@ from mp.visualization.plot_results import plot_numpy
 config = {'experiment_name':'exp_lung', 'device':'cuda:4',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
     'input_shape': (1, 299, 299), 'resize': False, 'augmentation': 'none', 
-    'lr': 0.0001, 'batch_size': 128, 'max_likert_value': 5, 'nr_epochs': 200
+    'lr': 0.0001, 'batch_size': 128, 'max_likert_value': 5, 'nr_epochs': 400
     }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
@@ -83,16 +83,17 @@ for run_ix in range(config['nr_runs']):
     model.to(device)
 
     # 9. Define loss and optimizer
-    loss_f = LossMSE(device=device)
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    loss_f = LossHuber(device=device)
+    optimizer = optim.SGD(model.parameters(), lr=config['lr'])
 
     # 10. Train model
     print('Training model in batches of {}..'.format(batch_size))
 
     agent = RegressionAgent(model=model, device=device)
-    losses_train, losses_cum_train = agent.train(optimizer, loss_f, dl,
-                                         nr_epochs=config['nr_epochs'],
-                                     save_path=paths, save_interval=25)
+    losses_train, losses_cum_train, accuracy_train, accuracy_det_train = agent.\
+                                                   train(optimizer, loss_f, dl,
+                                                 nr_epochs=config['nr_epochs'],
+                                             save_path=paths, save_interval=25)
 
     # 11. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
@@ -100,19 +101,26 @@ for run_ix in range(config['nr_runs']):
     
     # 12. Test model
     print('Testing model in batches of {}..'.format(batch_size))
-    losses_cum_test, accuracy_test = agent.test(loss_f, dl)
+    losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl)
     
 
-# 11. Save results
+# 13. Save results
 print('Save trained model and losses..')
 torch.save(model.state_dict(), os.path.join(paths, 'model_state_dict.zip'))
 torch.save(model, os.path.join(storage_data_path, 'models', 'blur', 'model.zip'))
 np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
+np.save(os.path.join(pathr, 'accuracy_train.npy'), np.array(accuracy_train))
+np.save(os.path.join(pathr, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
 np.save(os.path.join(pathr, 'losses_test.npy'), np.array(losses_cum_test))
 np.save(os.path.join(pathr, 'accuracy_test.npy'), np.array(accuracy_test))
+np.save(os.path.join(pathr, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
 plot_numpy(pd.DataFrame(losses_cum_train, columns =['Epoch', 'Loss']),
     save_path=pathr, save_name='losses_train', title='Losses [train dataset]',
     x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+    xints=float, yints=float)
+plot_numpy(pd.DataFrame(accuracy_train, columns =['Epoch', 'Accuracy']),
+    save_path=pathr, save_name='accuracy_train', title='Accuracy [train dataset]',
+    x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(losses_cum_test, columns =['Datapoints', 'Loss']),
     save_path=pathr, save_name='losses_test', title='Losses [test dataset]',

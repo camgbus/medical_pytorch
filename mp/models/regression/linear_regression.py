@@ -14,6 +14,12 @@ class LinearRegression(Model):
         self.linear2 = nn.Linear(1000, 10)
         self.linear3 = nn.Linear(10, out_feat)
         self.relu = nn.ReLU()
+        self.sigmoid = nn.Sigmoid()
+        self.linear1 = nn.Linear(in_feat, 100)
+        self.linear2 = nn.Linear(100, out_feat)
+        #Loss huber
+        #lr 0.0001
+        #SGD
         
     def forward(self, x):
         # Reshape input based on batchsize
@@ -22,6 +28,7 @@ class LinearRegression(Model):
         yhat = self.linear1(x)
         yhat = self.relu(yhat)
         yhat = self.linear2(yhat)
-        yhat = self.relu(yhat)
-        yhat = self.linear3(yhat)
+        #yhat = self.relu(yhat)
+        #yhat = self.linear3(yhat)
+        #yhat = self.sigmoid(yhat)
         return yhat

@@ -89,9 +89,10 @@ for run_ix in range(config['nr_runs']):
     print('Training model in batches of {}..'.format(batch_size))
 
     agent = RegressionAgent(model=model, device=device)
-    losses_train, losses_cum_train = agent.train(optimizer, loss_f, dl,
-                                         nr_epochs=config['nr_epochs'],
-                                      save_path=paths, save_interval=25)
+    losses_train, losses_cum_train, accuracy_train, accuracy_det_train = agent.\
+                                                   train(optimizer, loss_f, dl,
+                                                 nr_epochs=config['nr_epochs'],
+                                             save_path=paths, save_interval=25)
 
     # 11. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
@@ -99,19 +100,26 @@ for run_ix in range(config['nr_runs']):
     
     # 12. Test model
     print('Testing model in batches of {}..'.format(batch_size))
-    losses_cum_test, accuracy_test = agent.test(loss_f, dl)
+    losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl)
     
 
-# 11. Save results
+# 13. Save results
 print('Save trained model and losses..')
 torch.save(model.state_dict(), os.path.join(paths, 'model_state_dict.zip'))
 torch.save(model, os.path.join(storage_data_path, 'models', 'ghosting', 'model.zip'))
 np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
+np.save(os.path.join(pathr, 'accuracy_train.npy'), np.array(accuracy_train))
+np.save(os.path.join(pathr, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
 np.save(os.path.join(pathr, 'losses_test.npy'), np.array(losses_cum_test))
 np.save(os.path.join(pathr, 'accuracy_test.npy'), np.array(accuracy_test))
+np.save(os.path.join(pathr, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
 plot_numpy(pd.DataFrame(losses_cum_train, columns =['Epoch', 'Loss']),
     save_path=pathr, save_name='losses_train', title='Losses [train dataset]',
     x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+    xints=float, yints=float)
+plot_numpy(pd.DataFrame(accuracy_train, columns =['Epoch', 'Accuracy']),
+    save_path=pathr, save_name='accuracy_train', title='Accuracy [train dataset]',
+    x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(losses_cum_test, columns =['Datapoints', 'Loss']),
     save_path=pathr, save_name='losses_test', title='Losses [test dataset]',
