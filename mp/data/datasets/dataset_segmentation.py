@@ -70,6 +70,7 @@ class SegmentationDataset(Dataset):
                 du.check_correct_nr_labels(label_names, instances)
         print('Mask labels: {}\n'.format(label_names))
         self.mean_shape = mean_shape
+        self.shape_std = shape_std
         self.label_names = label_names
         self.nr_labels = len(label_names)
         self.nr_channels = nr_channels

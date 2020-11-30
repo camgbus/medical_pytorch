@@ -5,24 +5,20 @@
 # ------------------------------------------------------------------------------
 
 # 1. Imports
-
 import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_prostate_decathlon import DecathlonProstateT2
-import mp.visualization.visualize_imgs as vis
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.models.segmentation.unet_fepegar import UNet2D
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.result import Result
-from mp.utils.load_restore import nifty_dump
 
 # 2. Define configuration
-
-config = {'experiment_name':'test_exp', 'device':'cuda:4',
+config = {'experiment_name':'test_exp', 'device':'cuda:0',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
@@ -54,7 +50,7 @@ for run_ix in range(config['nr_runs']):
     datasets = dict()
     for ds_name, ds in data.datasets.items():
         for split, data_ixs in exp.splits[ds_name][exp_run.run_ix].items():
-            if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
+            if len(data_ixs) > 0:  # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
                     ix_lst=data_ixs, size=input_shape, aug_key=aug, 
