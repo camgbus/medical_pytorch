@@ -33,3 +33,12 @@ class LossHuber(LossAbstract):
 
     def forward(self, output, target):
         return self.huber(output, target)
+
+class LossCEL(LossAbstract):
+    r"""Cross Entropy loss."""
+    def __init__(self, device='cuda:0'):
+        super().__init__(device=device)
+        self.cel = nn.CrossEntropyLoss(reduction='mean')
+
+    def forward(self, output, target):
+        return self.cel(output, target)

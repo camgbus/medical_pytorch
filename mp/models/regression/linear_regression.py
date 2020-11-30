@@ -5,6 +5,7 @@
 import torch.nn as nn
 import torch
 from mp.models.model import Model
+import torchvision.models as models
 
 class LinearRegression(Model):
     r""" This class represents a simple linear regression Model."""
@@ -31,4 +32,18 @@ class LinearRegression(Model):
         #yhat = self.relu(yhat)
         #yhat = self.linear3(yhat)
         #yhat = self.sigmoid(yhat)
+        return yhat
+
+class AlexNet(Model):
+    r""" This class represents the AlexNet for image classification."""
+    def __init__(self, num_labels):
+        super(AlexNet, self).__init__()
+        self.alexnet = models.alexnet(pretrained=True)
+        classifier_input = self.alexnet.fc.in_features
+        self.alexnet.fc = nn.Linear(classifier_input, num_labels)
+        self.alexnet.eval()
+        
+    def forward(self, x):
+        # Reshape input based on batchsize
+        yhat = self.alexnet(x)
         return yhat

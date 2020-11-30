@@ -171,3 +171,105 @@ def _extract_images_random(source_path, data_label, folder_name,
                  storage_data_path,
                  simpleITK=True,
                  empty_dir=True)
+
+class DecathlonLungAlexNet(RegressionDataset):
+    r"""Class for the Lung decathlon challenge, contains only
+    CT, found at http://medicaldecathlon.com/.
+    """
+    def __init__(self, subset=None, hold_out_ixs=[], augmented=False,
+        img_size=(1, 299, 299), max_likert_value=1, random_slices=False,
+        noise='blur', nr_images=200, nr_slices=20, original_perc_data=0.2):
+        assert subset is None, "No subsets for this dataset."
+
+        # Extract necessary paths    
+        global_name = 'DecathlonLung'
+        dataset_path = os.path.join(storage_data_path, global_name)
+        original_data_path = du.get_original_data_path(global_name)
+        folder_name = 'randomised_data_' + str(noise)   # For random selected data
+        
+        one_hot = torch.nn.functional.one_hot(torch.arange(0, 5), num_classes=5)
+
+        # Extract all images, if not already done
+        if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
+            _extract_images(original_data_path, dataset_path, img_size)
+
+        if random_slices:
+            t_path = os.path.join(dataset_path, folder_name)
+            _extract_images_random(dataset_path, global_name,
+                                   folder_name, nr_images,
+                                   nr_slices, original_perc_data,
+                                   storage_data_path)
+            
+            # Fetch all random patient/study names that do not begin with '._'
+            study_names_random = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
+                in os.listdir(t_path) if '._' not in file_name and 'lung' in file_name)
+
+        # Fetch all patient/study names that do not begin with '._'
+        study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
+            in os.listdir(dataset_path) if '._' not in file_name and 'lung' in file_name)
+            
+        # Build instances
+        instances = []
+        instances_full = []
+        # Load all data into instances_full, needed to augment all data instances once
+        for num, study_name in enumerate(study_names):
+            msg = 'Creating dataset from SimpleITK images: '
+            msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+            print (msg, end = '\r')
+            instances_full.append(RegressionInstance(
+                x_path=os.path.join(dataset_path, study_name+'.nii.gz'),
+                y_label=one_hot[0] #torch.tensor([1/max_likert_value]),
+                name=study_name,
+                group_id=None
+                ))
+
+        if random_slices:
+            for num, study_name in enumerate(study_names_random):
+                msg = 'Creating dataset from random SimpleITK images and slices: '
+                msg += str(num + 1) + ' of ' + str(len(study_names_random)) + '.'
+                print (msg, end = '\r')
+                instances.append(RegressionInstance(
+                    x_path=os.path.join(t_path,
+                                        study_name+'.nii.gz'),
+                    y_label=one_hot[0] #torch.tensor([1/max_likert_value]),
+                    name=study_name,
+                    group_id=None
+                    ))
+        else:
+            instances = instances_full
+                    
+        # Create augmented images and add them if it is desired
+        if augmented:
+            labels, names = augment_data(instances_full, 'DecathlonLungAugmented',
+                                                   True, False, storage_data_path,
+                                                   max_likert_value, random_slices,
+                                                   noise, nr_images, nr_slices)
+
+            # Add to instances
+            if random_slices:
+                for num, name in enumerate(names):
+                    msg = 'Creating dataset from random SimpleITK images and slices: '
+                    msg += str(num + 1) + ' of ' + str(len(names)) + '.'
+                    print (msg, end = '\r')
+                    instances.append(RegressionInstance(
+                        x_path=os.path.join(storage_data_path, 'DecathlonLungAugmented',
+                                            folder_name, name+'.nii.gz'),
+                        y_label=one_hot[labels[name]*max_likert_value-1] #labels[name],
+                        name=name,
+                        group_id=None
+                        ))
+            else:
+                for num, name in enumerate(names):
+                    msg = 'Creating dataset from augmented SimpleITK images: '
+                    msg += str(num + 1) + ' of ' + str(len(names)) + '.'
+                    print (msg, end = '\r')
+                    instances.append(RegressionInstance(
+                        x_path=os.path.join(storage_data_path, 'DecathlonLungAugmented',
+                                            'augmented_data', name+'.nii.gz'),
+                        y_label=one_hot[labels[name]*max_likert_value-1] #labels[name],
+                        name=name,
+                        group_id=None
+                        ))
+
+        super().__init__(instances, name=global_name,
+            modality='CT', nr_channels=1, hold_out_ixs=[])
