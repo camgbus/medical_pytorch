@@ -118,7 +118,7 @@ plot_numpy(pd.DataFrame(losses_cum_train, columns =['Epoch', 'Loss']),
     x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(accuracy_train, columns =['Epoch', 'Accuracy']),
-    save_path=pathr, save_name='accuracy_train', title='Accuracy [train dataset]',
+    save_path=pathr, save_name='accuracy_train', title='Accuracy [train dataset] in %',
     x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(losses_cum_test, columns =['Datapoints', 'Loss']),
