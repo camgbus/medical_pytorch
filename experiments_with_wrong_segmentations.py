@@ -34,12 +34,13 @@ PATH_TO_NEW_SEGMENTATION = os.path.join(
 PLOT_RESULTS = True
 TOOL_FOR_DIM_RECTION = 'TrunctatedSVD'  # should be 'TrunctatedSVD' or 'PCA'
 CUDA_DEVICE = 0
+DATA_FOR_NEW_SEGMENTATIONS = 'VESSEL12' # shoud be a dataset in storage/data
 
 # which experiments to conduct:
 DICE_SCORES = False  # 5.
 DIMENSIONALITY_REDUCTION = False  # 6.
 COUNT_ISOLATED_PIXELS = False  # 7.
-CONNECTED_COMPONENTS = True  # 8.
+CONNECTED_COMPONENTS = False  # 8.
 
 # 3.Load segmentation agent from state and load data
 if USE_SERVER:
@@ -84,11 +85,10 @@ data.add_dataset(VESSEL12())
 if not os.path.isdir(PATH_TO_NEW_SEGMENTATION):
     os.makedirs(PATH_TO_NEW_SEGMENTATION)
     print('Segmenting Images')
-    global_name = "VESSEL12"
+    global_name = DATA_FOR_NEW_SEGMENTATIONS
     dataset_path = os.path.join('storage', 'data', global_name)
-    for id, subject_ix in enumerate(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20']):
-        x_path = os.path.join(
-            dataset_path, 'VESSEL12_' + subject_ix + '.nii.gz')
+    for id, file in enumerate(os.listdir(dataset_path)):
+        x_path = os.path.join(dataset_path, file)
         x = torch.tensor(torchio.Image(x_path, type=torchio.INTENSITY).numpy())
         original_size_2d = x.shape[:3]
         original_size = x.shape
@@ -104,13 +104,13 @@ if not os.path.isdir(PATH_TO_NEW_SEGMENTATION):
                     slice_pred, size=original_size_2d, label=True))
         # Merge slices and rotate so depth last
         pred = torch.stack(pred, dim=0)  # depth,channel,weight,height
-        pred = pred.permute(1, 2, 3, 0)  # channel,weight,height,depth
+        pred = pred.permute(1, 2, 3, 0)  # ? channel,weight,height,depth is that right ? 
         assert original_size == pred.shape
         pred = pred.numpy()
         shape = pred.shape
         pred = np.resize(pred, (shape[1], shape[2], shape[3]))
         sitk.WriteImage(sitk.GetImageFromArray(pred), os.path.join(
-            PATH_TO_NEW_SEGMENTATION, 'segmented_lung_' + subject_ix + '_gt.nii.gz'))
+            PATH_TO_NEW_SEGMENTATION, 'segmented_lung_' + str(id) + '_gt.nii.gz'))
     print('Images segmented and saved')
 else:
     print('Images can be loaded directly')
