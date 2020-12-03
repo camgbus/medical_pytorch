@@ -24,3 +24,4 @@ torchio==0.17.46
 pexpect==4.8.0
 python-telegram-bot==12.8
 scikit-learn==0.23.2
+scikit-image==0.17.2
