@@ -44,7 +44,7 @@ exp.set_data_splits(data)
 
 # Now repeat for each repetition
 for run_ix in range(config['nr_runs']):
-    exp_run = exp.get_run(run_ix=0)
+    exp_run = exp.get_run(run_ix=run_ix)
 
     # 6. Bring data to Pytorch format
     datasets = dict()
