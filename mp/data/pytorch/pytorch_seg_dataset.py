@@ -99,8 +99,11 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
 
         subject = copy.deepcopy(self.instances[instance_idx].get_subject())
         subject.load()
-
-        subject = self.transform_subject(subject)
+        try:
+            subject = self.transform_subject(subject)
+        except:
+            print('Transformation failed for: ')
+            print(self.instances[instance_idx].name)
 
         x = subject.x.tensor.permute(3, 0, 1, 2)[slice_idx]
         y = subject.y.tensor.permute(3, 0, 1, 2)[slice_idx]
