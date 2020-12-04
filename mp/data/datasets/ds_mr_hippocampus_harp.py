@@ -120,7 +120,7 @@ def _extract_images(source_path, target_path, subset):
             # BUGFIX: Some segmentation have some weird values eg {26896.988, 26897.988} instead of {0, 1}
             y = (y - np.min(y.flat)).astype(np.uint32)
 
-            # Cropping bounds computed to fit the
+            # Cropping bounds computed to fit the ground truth
             if (side == "_L") ^ (filename in files_with_swapped_masks):
                 y = y[40: 104, 78: 142, 49: 97]
                 x_cropped = x[40: 104, 78: 142, 49: 97]
@@ -137,23 +137,3 @@ def _extract_images(source_path, target_path, subset):
                             join_path([target_path, study_name + "_gt.nii.gz"]))
             sitk.WriteImage(sitk.GetImageFromArray(x_cropped),
                             join_path([target_path, study_name + ".nii.gz"]))
-
-# FIXME remove cropping debug code when implem is finalized
-# (189, 233, 197)
-# l_bbox = [[999, 0], [999, 0], [999, 0]]
-# r_bbox = [[999, 0], [999, 0], [999, 0]]
-# _extract_images("D:\\Hippocampus\\HarP", ".", "100")
-# _extract_images("D:\\Hippocampus\\HarP", ".", "35")
-#
-# for bbox in (l_bbox, r_bbox):
-#     print(bbox)
-#     print([[e[1] - e[0]] for e in bbox])
-
-# [[41, 104], [75, 138], [56, 94]]
-# [[63], [63], [38]]
-# [[43, 105], [80, 136], [104, 138]]
-# [[62], [56], [34]]
-
-# So overall min shape: (63, 63, 38)
-# axis 0 and 1 around same place (41 to 105, 75 to 138)
-# axis 2 left (56 to 94) and right (104 to 138)

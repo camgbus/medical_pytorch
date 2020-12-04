@@ -31,11 +31,9 @@ class DryadHippocampus(SegmentationDataset):
         else:
             subset = default
 
-        assert subset["Resolution"] == "Standard", "Only standard resolution is currently implemented"
-
-        # Hires T2w is not available
+        # Standard resolution T2w is not available
         assert not (subset["Resolution"] == "Standard" and subset["Modality"] == "T2w"), \
-            "Hires T2w not available for the Dryad Hippocampus dataset"
+            "Standard resolution T2w not available for the Dryad Hippocampus dataset"
 
         if hold_out_ixs is None:
             hold_out_ixs = []
@@ -111,35 +109,29 @@ def _extract_images(source_path, target_path, merge_labels, subset):
             # Shape expected: (189, 233, 197)
             assert x.shape == y.shape
 
-            # Cropping bounds computed to fit the
-            if side == "L":
-                y = y[40: 104, 78: 142, 49: 97]
-                x_cropped = x[40: 104, 78: 142, 49: 97]
+            # Cropping bounds computed to fit the ground truth
+            if subset["Resolution"] == "Standard":
+                if side == "L":
+                    y = y[40: 104, 78: 142, 49: 97]
+                    x_cropped = x[40: 104, 78: 142, 49: 97]
+                else:
+                    y = y[40: 104, 78: 142, 97: 145]
+                    x_cropped = x[40: 104, 78: 142, 97: 145]
             else:
-                y = y[40: 104, 78: 142, 97: 145]
-                x_cropped = x[40: 104, 78: 142, 97: 145]
+                if side == "L":
+                    y = y[88: 216, 190: 318, 81: 209]
+                    x_cropped = x[88: 216, 190: 318, 81: 209]
+                else:
+                    y = y[88: 216, 190: 318, 218: 346]
+                    x_cropped = x[88: 216, 190: 318, 218: 346]
 
             if merge_labels:
                 y[y > 1] = 1
+            import numpy as np
+            assert np.count_nonzero(y) > 0, f"Error @ {(patient_folder, side)}"
 
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),
                             join_path([target_path, study_name + "_gt.nii.gz"]))
             sitk.WriteImage(sitk.GetImageFromArray(x_cropped),
                             join_path([target_path, study_name + ".nii.gz"]))
-
-# FIXME remove cropping debug code when implem is finalized
-# (189, 233, 197)
-# l_bbox = [[999, 0], [999, 0], [999, 0]]
-# r_bbox = [[999, 0], [999, 0], [999, 0]]
-# _extract_images("D:\\Hippocampus\\Dryad\\mri_dataset", ".", merge_labels=True, subset={"Modality": "T1w", "Resolution": "Standard"})
-
-# [[40, 83], [86, 133], [58, 90]]
-# [[43], [47], [32]]
-# [[39, 83], [90, 132], [103, 138]]
-# [[44], [42], [35]]
-
-# So overall min shape: (44, 47, 35)
-# axis 0 and 1 around same place (39 to 83, 86 to 133)
-# axis 2 left (58 to 90) and right (100 to 138)
-
