@@ -127,8 +127,6 @@ def _extract_images(source_path, target_path, merge_labels, subset):
 
             if merge_labels:
                 y[y > 1] = 1
-            import numpy as np
-            assert np.count_nonzero(y) > 0, f"Error @ {(patient_folder, side)}"
 
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),
