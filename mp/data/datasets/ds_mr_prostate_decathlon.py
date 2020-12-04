@@ -15,16 +15,21 @@ class DecathlonProstateT2(SegmentationDataset):
     r"""Class for the prostate segmentation decathlon challenge, only for T2,
     found at http://medicaldecathlon.com/.
     """
-    def __init__(self, subset=None, hold_out_ixs=[], merge_labels=True):
+    def __init__(self, subset=None, hold_out_ixs=[], merge_labels=True, label_mapping=None):
         assert subset is None, "No subsets for this dataset."
 
         global_name = 'DecathlonProstateT2'
+        name = du.get_dataset_name(global_name, subset, label_mapping)
+        if label_mapping is None:
+            dataset_path = os.path.join(storage_data_path, global_name)
+        else:
+            dataset_path = join_path([storage_data_path, global_name, str(tuple(label_mapping))])
         dataset_path = os.path.join(storage_data_path, global_name)
         original_data_path = du.get_original_data_path(global_name)
 
         # Separate T2 images, if not already done
         if not os.path.isdir(dataset_path):
-            _extract_t2_images(original_data_path, dataset_path, merge_labels)
+            _extract_t2_images(original_data_path, dataset_path, merge_labels, label_mapping)
 
         # Fetch all patient/study names
         study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
@@ -43,10 +48,11 @@ class DecathlonProstateT2(SegmentationDataset):
             label_names = ['background', 'prostate']
         else:
             label_names = ['background', 'peripheral zone', 'central gland']
-        super().__init__(instances, name=global_name, label_names=label_names, 
-            modality='MR', nr_channels=1, hold_out_ixs=[])
+        # TODO adapt
+        super().__init__(instances, name=name, label_names=label_names, 
+            modality='MR', nr_channels=1, hold_out_ixs=[], label_mapping=label_mapping))
   
-def _extract_t2_images(source_path, target_path, merge_labels):
+def _extract_t2_images(source_path, target_path, merge_labels, label_mapping):
     r"""Extracts T2 images, merges mask labels (if specified) and saves the
     modified images.
     """
@@ -71,10 +77,12 @@ def _extract_t2_images(source_path, target_path, merge_labels):
         # No longer distinguish between central and peripheral zones
         if merge_labels:
             y = np.where(y==2, 1, y)
+        # TODO: new
+        if label_mapping is not None:
+            for original_label, new_label in enumerate(label_mapping):
+                y = np.where(y==original_label, new_label, y)
 
         # Save new images so they can be loaded directly
         study_name = filename.replace('_', '').split('.nii')[0]
-        sitk.WriteImage(sitk.GetImageFromArray(x), 
-            join_path([target_path, study_name+".nii.gz"]))
-        sitk.WriteImage(sitk.GetImageFromArray(y), 
-            join_path([target_path, study_name+"_gt.nii.gz"]))
+        sitk.WriteImage(sitk.GetImageFromArray(x), join_path([target_path, study_name+".nii.gz"]))
+        sitk.WriteImage(sitk.GetImageFromArray(y), join_path([target_path, study_name+"_gt.nii.gz"]))

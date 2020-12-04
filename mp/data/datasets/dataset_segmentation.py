@@ -54,10 +54,13 @@ class SegmentationDataset(Dataset):
             correct number of labels (the mength of label_names) is consistent
             with the dataset. As it takes a long time to check, only set to True
             when initially testing a dataset.
+        label_mapping (list[int]): if not None, then the labels are mapped to 
+            the indexes specified in this list. For instance, [0, 0, 1] would
+            mean both initial labels would be mapped to 0, and the thirs to 1.
     """
     def __init__(self, instances, name, mean_shape=None, 
     label_names=None, nr_channels=1, modality='unknown', hold_out_ixs=[],
-    check_correct_nr_labels=False):
+    check_correct_nr_labels=False, label_mapping=None):
         # Set mean input shape and mask labels, if these are not provided
         print('\nDATASET: {} with {} instances'.format(name, len(instances)))
         if mean_shape is None:

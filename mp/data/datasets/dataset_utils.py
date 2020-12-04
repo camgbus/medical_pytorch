@@ -14,15 +14,15 @@ def get_original_data_path(global_name):
         raise Exception('Data path for {} must be set in paths.py.'.format(global_name))
     return data_path
 
-def get_dataset_name(global_name, subset=None):
+def get_dataset_name(global_name, subset=None, label_mapping=None):
     r"""Get name of dataset by adding the global name to the subset."""
-    if subset is None:
-        return global_name
-    else:
-        name = global_name
+    name = global_name
+    if subset is not None:
         for key, value in subset.items():
             name += '[' + key+':'+ value + ']'
-        return name
+    if label_mapping is not None:
+        name += '[Labels:' + str(tuple(label_mapping))+']'
+    return name
 
 def get_mean_std_shape(instances):
     r"""Returns the mean sheap as (channels, width, heigth, depth) for a 

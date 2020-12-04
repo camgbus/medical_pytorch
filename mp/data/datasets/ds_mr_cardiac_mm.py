@@ -4,6 +4,7 @@
 # ------------------------------------------------------------------------------
 
 import os
+import numpy as np
 import csv
 import SimpleITK as sitk
 from mp.data.datasets.dataset_segmentation import SegmentationDataset, SegmentationInstance
@@ -15,16 +16,19 @@ class MM_Challenge(SegmentationDataset):
     r"""Class for importing the Multi-Centre, Multi-Vendor & Multi-Disease
     Cardiac Image Segmentation Challenge (M&Ms), found at www.ub.edu/mnms/."""
 
-    def __init__(self, subset={'Vendor': 'A'}, hold_out_ixs=[]):
+    def __init__(self, subset={'Vendor': 'A'}, hold_out_ixs=[], label_mapping=None):
 
         global_name = 'MM_Challenge'
-        name = du.get_dataset_name(global_name, subset)
-        dataset_path = os.path.join(storage_data_path, global_name)
+        name = du.get_dataset_name(global_name, subset, label_mapping)
+        if label_mapping is None:
+            dataset_path = os.path.join(storage_data_path, global_name)
+        else:
+            dataset_path = os.path.join(storage_data_path, global_name, str(tuple(label_mapping)))
         original_data_path = du.get_original_data_path(global_name)
 
         # Extract ED and ES images, if not already done
         if not os.path.isdir(dataset_path):
-            _extract_segmented_slices(original_data_path, dataset_path)
+            _extract_segmented_slices(original_data_path, dataset_path, label_mapping)
         
         # Fetch metadata
         csv_info = os.path.join(original_data_path, "M&Ms Dataset Information.csv")
@@ -57,8 +61,11 @@ class MM_Challenge(SegmentationDataset):
                 instances.append(instance_ed)
                 instances.append(instance_es)
         label_names = ['background', 'left ventricle', 'myocardium', 'right ventricle']
+        if label_mapping is not None:
+            # TODO
+            label_names = ['background', 'left ventricle']
         super().__init__(instances, name=name, label_names=label_names, 
-            modality='MR', nr_channels=1, hold_out_ixs=[])
+            modality='MR', nr_channels=1, hold_out_ixs=[], label_mapping=label_mapping)
   
 
 def _get_csv_patient_info(file_full_path, id_ix=0):
@@ -78,7 +85,7 @@ def _get_csv_patient_info(file_full_path, id_ix=0):
                 enumerate(first_line)}
     return file_info
 
-def _extract_segmented_slices(source_path, target_path):
+def _extract_segmented_slices(source_path, target_path, label_mapping):
     r"""The original dataset has the following structure:
 
     MM_Challenge_dataset
@@ -126,6 +133,10 @@ def _extract_segmented_slices(source_path, target_path):
         mask = sitk.GetArrayFromImage(mask)
         assert x.shape == mask.shape
         assert len(x.shape) == 4
+        # Use new label mapping
+        if label_mapping is not None:
+            for original_label, new_label in enumerate(label_mapping):
+                mask = np.where(mask==original_label, new_label, mask)
         # There are two times for which segmentation is performed, ED and ES.
         # These are specified in the metadata file
         ed_slice = int(data_info[study_name]["ED"])
