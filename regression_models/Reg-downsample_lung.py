@@ -19,12 +19,11 @@ from mp.visualization.plot_results import plot_numpy
 
 
 # 2. Define configuration dict
-
-config = {'experiment_name':'exp_lung', 'device':'cuda:4',
-    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    'input_shape': (1, 299, 299), 'resize': False, 'augmentation': 'none', 
-    'lr': 0.0001, 'batch_size': 128, 'max_likert_value': 5, 'nr_epochs': 20
-    }
+config = {'device':'cuda:4', 'nr_runs': 1, 'cross_validation': False, 
+          'val_ratio': 0.2, 'test_ratio': 0.2, 'input_shape': (1, 299, 299),
+          'resize': False, 'augmentation': 'none', 'lr': 0.001, 'batch_size': 64,
+          'max_likert_value': 5, 'nr_epochs': 2
+         }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
 print('Device name: {}'.format(device_name))
@@ -42,6 +41,7 @@ data.add_dataset(DecathlonLung(augmented=True, img_size=input_shape,
                  noise='downsample', nr_images=150, nr_slices=20,
                  original_perc_data=1/max_likert_value))
 train_ds = ('DecathlonLung', 'train')
+val_ds = ('DecathlonLung', 'val')
 test_ds = ('DecathlonLung', 'test')
 
 
@@ -76,6 +76,9 @@ for run_ix in range(config['nr_runs']):
     # 7. Build train dataloader, and visualize
     dl = DataLoader(datasets[(train_ds)], 
         batch_size=batch_size, shuffle=True)
+    dl_val = DataLoader(datasets[(val_ds)], 
+        batch_size=batch_size, shuffle=True,
+        num_workers=1)
 
     # 8. Initialize model
     model = LinReg(input_features, output_features)
@@ -89,10 +92,12 @@ for run_ix in range(config['nr_runs']):
     print('Training model in batches of {}..'.format(batch_size))
 
     agent = RegressionAgent(model=model, device=device)
-    losses_train, losses_cum_train, accuracy_train, accuracy_det_train = agent.\
-                                                   train(optimizer, loss_f, dl,
-                                                 nr_epochs=config['nr_epochs'],
-                                             save_path=paths, save_interval=25)
+    losses_train, losses_cum_train, losses_cum_val, accuracy_train,\
+    accuracy_det_train, accuracy_val, accuracy_det_val = agent.\
+                                    train(optimizer, loss_f, dl,
+                          dl_val, nr_epochs=config['nr_epochs'],
+                              save_path=paths, save_interval=25,
+                                            bot_msg_interval=20)
 
     # 11. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
@@ -108,8 +113,11 @@ print('Save trained model and losses..')
 torch.save(model.state_dict(), os.path.join(paths, 'model_state_dict.zip'))
 torch.save(model, os.path.join(storage_data_path, 'models', 'downsample', 'model.zip'))
 np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
+np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_cum_val))
 np.save(os.path.join(pathr, 'accuracy_train.npy'), np.array(accuracy_train))
 np.save(os.path.join(pathr, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
+np.save(os.path.join(pathr, 'accuracy_validation.npy'), np.array(accuracy_val))
+np.save(os.path.join(pathr, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
 np.save(os.path.join(pathr, 'losses_test.npy'), np.array(losses_cum_test))
 np.save(os.path.join(pathr, 'accuracy_test.npy'), np.array(accuracy_test))
 np.save(os.path.join(pathr, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
@@ -119,6 +127,14 @@ plot_numpy(pd.DataFrame(losses_cum_train, columns =['Epoch', 'Loss']),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(accuracy_train, columns =['Epoch', 'Accuracy']),
     save_path=pathr, save_name='accuracy_train', title='Accuracy [train dataset] in %',
+    x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
+    xints=float, yints=float)
+plot_numpy(pd.DataFrame(losses_cum_val, columns =['Epoch', 'Loss']),
+    save_path=pathr, save_name='losses_val', title='Losses [validation dataset]',
+    x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+    xints=float, yints=float)
+plot_numpy(pd.DataFrame(accuracy_val, columns =['Epoch', 'Accuracy']),
+    save_path=pathr, save_name='accuracy_val', title='Accuracy [validation dataset] in %',
     x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(losses_cum_test, columns =['Datapoints', 'Loss']),

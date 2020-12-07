@@ -4,44 +4,43 @@ import torch
 import os
 import numpy as np
 import pandas as pd
-from mp.paths import storage_data_path
+from mp.paths import storage_data_path, telegram_login
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
-from mp.data.datasets.ds_mr_lung_decathlon_reg import DecathlonLung
+from mp.data.datasets.ds_mr_lung_decathlon_cnn import DecathlonLung
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
-from mp.data.pytorch.pytorch_reg_dataset import PytorchReg2DDataset
-from mp.models.regression.linear_regression import LinearRegression as LinReg
-from mp.eval.losses.losses_regression import LossMAE, LossMSE, LossHuber
-from mp.agents.regression_agent import RegressionAgent
+from mp.data.pytorch.pytorch_cnn_dataset import PytorchCNN2DDataset
+from mp.models.cnn.cnn import CNN_Net2D
+from mp.eval.losses.losses_cnn import LossCEL
+from mp.agents.cnn_agents import NetAgent
 from mp.visualization.plot_results import plot_numpy
 
 
 # 2. Define configuration dict
-
-config = {'experiment_name':'exp_lung', 'device':'cuda:4',
-    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    'input_shape': (1, 299, 299), 'resize': False, 'augmentation': 'none', 
-    'lr': 0.0001, 'batch_size': 128, 'max_likert_value': 5, 'nr_epochs': 20
-    }
+config = {'device':'cuda:4', 'nr_runs': 1, 'cross_validation': False, 
+          'val_ratio': 0.2, 'test_ratio': 0.2, 'input_shape': (1, 299, 299),
+          'resize': False, 'augmentation': 'none', 'lr': 0.001, 'batch_size': 64,
+          'max_likert_value': 5, 'nr_epochs': 300
+         }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
 print('Device name: {}'.format(device_name))
 input_shape = config['input_shape']
 batch_size = config['batch_size'] 
-input_features = int(input_shape[1]*input_shape[2])
-output_features = 1
 max_likert_value = config['max_likert_value']
+output_features = max_likert_value
 
 
 # 3. Define data
 data = Data()
 data.add_dataset(DecathlonLung(augmented=True, img_size=input_shape,
                  max_likert_value=max_likert_value, random_slices=True,
-                 noise='ghosting', nr_images=150, nr_slices=20,
+                 noise='downsample', nr_images=150, nr_slices=20,
                  original_perc_data=1/max_likert_value))
 train_ds = ('DecathlonLung', 'train')
+val_ds = ('DecathlonLung', 'val')
 test_ds = ('DecathlonLung', 'test')
 
 
@@ -51,8 +50,8 @@ for ds_name, ds in data.datasets.items():
     splits[ds_name] = split_dataset(ds, test_ratio=config['test_ratio'], 
     val_ratio=config['val_ratio'], nr_repetitions=config['nr_runs'], 
     cross_validation=config['cross_validation'])
-paths = os.path.join(storage_data_path, 'models', 'ghosting', 'states')
-pathr = os.path.join(storage_data_path, 'models', 'ghosting', 'results')
+paths = os.path.join(storage_data_path, 'models', 'downsample', 'states')
+pathr = os.path.join(storage_data_path, 'models', 'downsample', 'results')
 if not os.path.exists(paths):
     os.makedirs(paths)
 if not os.path.exists(pathr):
@@ -69,30 +68,36 @@ for run_ix in range(config['nr_runs']):
         for split, data_ixs in splits[ds_name][run_ix].items():
             if len(data_ixs) > 0: # Sometimes val indexes may be an empty list
                 aug = config['augmentation'] if not('test' in split) else 'none'
-                datasets[(ds_name, split)] = PytorchReg2DDataset(ds, 
+                datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
                     ix_lst=data_ixs, size=input_shape, aug_key=aug, 
                     resize=config['resize'])
 
     # 7. Build train dataloader, and visualize
     dl = DataLoader(datasets[(train_ds)], 
-        batch_size=batch_size, shuffle=True)
+        batch_size=batch_size, shuffle=True,
+        num_workers=1)
+    dl_val = DataLoader(datasets[(val_ds)], 
+        batch_size=batch_size, shuffle=True,
+        num_workers=1)
 
     # 8. Initialize model
-    model = LinReg(input_features, output_features)
+    model = CNN_Net2D(output_features)
     model.to(device)
 
     # 9. Define loss and optimizer
-    loss_f = LossMSE(device=device)
-    optimizer = optim.Adam(model.parameters(), lr=config['lr'])
+    loss_f = LossCEL(device=device)
+    optimizer = optim.Adam(model.parameters(), lr=config['lr'], weight_decay=0.75)
 
     # 10. Train model
     print('Training model in batches of {}..'.format(batch_size))
 
-    agent = RegressionAgent(model=model, device=device)
-    losses_train, losses_cum_train, accuracy_train, accuracy_det_train = agent.\
-                                                   train(optimizer, loss_f, dl,
-                                                 nr_epochs=config['nr_epochs'],
-                                             save_path=paths, save_interval=25)
+    agent = NetAgent(model=model, device=device)
+    losses_train, losses_cum_train, losses_cum_val, accuracy_train,\
+    accuracy_det_train, accuracy_val, accuracy_det_val = agent.\
+                                    train(optimizer, loss_f, dl,
+                          dl_val, nr_epochs=config['nr_epochs'],
+                              save_path=paths, save_interval=25,
+                                            bot_msg_interval=20)
 
     # 11. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
@@ -106,10 +111,13 @@ for run_ix in range(config['nr_runs']):
 # 13. Save results
 print('Save trained model and losses..')
 torch.save(model.state_dict(), os.path.join(paths, 'model_state_dict.zip'))
-torch.save(model, os.path.join(storage_data_path, 'models', 'ghosting', 'model.zip'))
+torch.save(model, os.path.join(storage_data_path, 'models', 'downsample', 'model.zip'))
 np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
+np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_cum_val))
 np.save(os.path.join(pathr, 'accuracy_train.npy'), np.array(accuracy_train))
 np.save(os.path.join(pathr, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
+np.save(os.path.join(pathr, 'accuracy_validation.npy'), np.array(accuracy_val))
+np.save(os.path.join(pathr, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
 np.save(os.path.join(pathr, 'losses_test.npy'), np.array(losses_cum_test))
 np.save(os.path.join(pathr, 'accuracy_test.npy'), np.array(accuracy_test))
 np.save(os.path.join(pathr, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
@@ -119,6 +127,14 @@ plot_numpy(pd.DataFrame(losses_cum_train, columns =['Epoch', 'Loss']),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(accuracy_train, columns =['Epoch', 'Accuracy']),
     save_path=pathr, save_name='accuracy_train', title='Accuracy [train dataset] in %',
+    x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
+    xints=float, yints=float)
+plot_numpy(pd.DataFrame(losses_cum_val, columns =['Epoch', 'Loss']),
+    save_path=pathr, save_name='losses_val', title='Losses [validation dataset]',
+    x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+    xints=float, yints=float)
+plot_numpy(pd.DataFrame(accuracy_val, columns =['Epoch', 'Accuracy']),
+    save_path=pathr, save_name='accuracy_val', title='Accuracy [validation dataset] in %',
     x_name='Epoch', y_name='Accuracy', ending='.png', ylog=False, figsize=(10,5),
     xints=float, yints=float)
 plot_numpy(pd.DataFrame(losses_cum_test, columns =['Datapoints', 'Loss']),
