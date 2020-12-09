@@ -38,6 +38,7 @@ def ensure_channel_width_height_depth(np_array):
 
 def normalize_range(img_array, max_value=255.):
     r"""Normalize in range [0, 255]"""
+    img_array = img_array.astype(np.float32)
     img_array /= (img_array.max()/max_value)
     return img_array.astype(np.uint8)
 
@@ -175,6 +176,7 @@ def create_img_grid(img_grid = [[]], img_size = (512, 512),
     if save_path is None:
         new_img.show()
     else:
+        save_path = save_path.replace(':', '-')
         new_img.save(save_path)
 
 def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
@@ -219,6 +221,7 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
     if save_path is None:
         new_img.show()
     else:
+        save_path = save_path.replace(':', '-')
         new_img.save(save_path)
 
 def visualize_dataloader(
