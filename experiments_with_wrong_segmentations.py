@@ -140,7 +140,12 @@ if DICE_SCORES:
             second_ones = np.sum(second_slide)
             intersection = np.dot(first_slide.flatten(),
                                   second_slide.flatten())
-            dice_score = 2*intersection / (first_ones+second_ones)
+            ## if two consecutive slices are black, set dice score to one
+            ## leads to ignoring the score
+            if not(first_ones+second_ones == 0):
+                dice_score = 2*intersection / (first_ones+second_ones)
+            else:
+                dice_score = 1
             # if two consecutive slides are identical (having dicescore = 1), it is assumed, that they are copied
             # or completly black and thus dont count towards the overall Dicescore
             if not dice_score == 1:
@@ -350,7 +355,6 @@ if COUNT_ISOLATED_PIXELS:
 # 1     [559897, 88941, 64757, 148323, 84400]
 # 2     [338773, 53101, 38333, 90381, 51107] 
 # 3     [269132, 46605, 34450, 77675, 45655]
-
 if CONNECTED_COMPONENTS:
     # imports
     from skimage.measure import label
