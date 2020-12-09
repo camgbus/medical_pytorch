@@ -58,12 +58,12 @@ class SegmentationDataset(Dataset):
             the indexes specified in this list. For instance, [0, 0, 1] would
             mean both initial labels would be mapped to 0, and the thirs to 1.
     """
-    def __init__(self, instances, name, mean_shape=None, 
+    def __init__(self, instances, name, mean_shape=None, shape_std=None,
     label_names=None, nr_channels=1, modality='unknown', hold_out_ixs=[],
     check_correct_nr_labels=False, label_mapping=None):
         # Set mean input shape and mask labels, if these are not provided
         print('\nDATASET: {} with {} instances'.format(name, len(instances)))
-        if mean_shape is None:
+        if mean_shape is None or shape_std is None:
             mean_shape, shape_std = du.get_mean_std_shape(instances)
             print('Mean shape: {}, shape std: {}'.format(mean_shape, shape_std))
         if label_names is None:

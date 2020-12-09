@@ -8,14 +8,14 @@ import torch.nn.functional as F
 import torchio
 from torchvision import transforms
 
-NORMALIZATION_STRATEGIES = {None:None,
+NORMALIZATION_STRATEGIES = {None:None, 'none':None,
     'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.1, 99.)),
     'z_norm': torchio.transforms.ZNormalization(masking_method=None)
     # TODO
     # 'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
 }
 
-AUGMENTATION_STRATEGIES = {'none':None,
+AUGMENTATION_STRATEGIES = {None:None, 'none':None,
     'standard': torchio.transforms.Compose([
         torchio.transforms.OneOf({
             torchio.transforms.RandomElasticDeformation(p=0.1,
