@@ -4,9 +4,12 @@
 # ------------------------------------------------------------------------------
 
 from typing import Optional
+
 import torch.nn as nn
-from mp.models.segmentation.segmentation_model import SegmentationModel
+
 from mp.models.segmentation.model_utils import Encoder, EncodingBlock, Decoder, ConvolutionalBlock
+from mp.models.segmentation.segmentation_model import SegmentationModel
+
 
 class UNet(SegmentationModel):
     def __init__(
@@ -27,7 +30,7 @@ class UNet(SegmentationModel):
             initial_dilation: Optional[int] = None,
             dropout: float = 0,
             monte_carlo_dropout: float = 0,
-            ):
+    ):
         super().__init__(input_shape=input_shape, nr_labels=nr_labels)
 
         in_channels = input_shape[0]
@@ -83,7 +86,7 @@ class UNet(SegmentationModel):
         elif dimensions == 3:
             power = depth
         in_channels = self.bottom_block.out_channels
-        in_channels_skip_connection = out_channels_first_layer * 2**power
+        in_channels_skip_connection = out_channels_first_layer * 2 ** power
         num_decoding_blocks = depth
         self.decoder = Decoder(
             in_channels_skip_connection,
@@ -124,9 +127,22 @@ class UNet(SegmentationModel):
             x = self.monte_carlo_layer(x)
         return self.classifier(x)
 
+    def encode(self, x):
+        skip_connections, encoding = self.encoder(x)
+        encoding = self.bottom_block(encoding)
+        x = self.decoder(skip_connections, encoding)
+        if self.monte_carlo_layer is not None:
+            x = self.monte_carlo_layer(x)
+        return x
+
+    def classify(self, x):
+        return self.classifier(x)
+
+
 class UNet2D(UNet):
     def __init__(self, *args, **kwargs):
-        assert len(args[0]) == 3, "Input shape must have dimensions channels, width, height. Received: {}".format(args[0])
+        assert len(args[0]) == 3, "Input shape must have dimensions channels, width, height. Received: {}".format(
+            args[0])
         predef_kwargs = {}
         predef_kwargs['dimensions'] = 2
         predef_kwargs['num_encoding_blocks'] = 5
@@ -139,9 +155,12 @@ class UNet2D(UNet):
         predef_kwargs.update(kwargs)
         super().__init__(*args, **predef_kwargs)
 
+
 class UNet3D(UNet):
     def __init__(self, *args, **kwargs):
-        assert len(args[0]) == 4, "Input shape must have dimensions channels, width, height, depth. Received: {}".format(args[0])
+        assert len(
+            args[0]) == 4, "Input shape must have dimensions channels, width, height, depth. Received: {}".format(
+            args[0])
         predef_kwargs = {}
         predef_kwargs['dimensions'] = 3
         predef_kwargs['num_encoding_blocks'] = 4
