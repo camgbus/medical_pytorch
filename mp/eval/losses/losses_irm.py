@@ -92,3 +92,18 @@ class MMRexLoss(IRMLossAbstract):
                    - self.penalty_weight * nlls_tensor.sum()
 
         return loss
+
+
+class ERMWrapper(IRMLossAbstract):
+    r"""
+    Wrapper for AbstractLoss
+    """
+
+    def forward(self, output, target):
+        return torch.tensor(0., device=self.device, dtype=output.dtype)
+
+    def finalize_loss(self, nlls, penalties):
+        return torch.stack(nlls, dim=0).sum()
+
+    def get_evaluation_dict(self, output, target):
+        return self.erm_loss.get_evaluation_dict(output, target)

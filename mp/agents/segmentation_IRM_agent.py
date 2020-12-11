@@ -20,10 +20,6 @@ class SegmentationIRMAgent(SegmentationAgent):
             losses = []
             penalties = []
             for data in data_list:
-                if data is None:
-                    # The Dataloader corresponding to this data is has less examples than the others
-                    continue
-
                 # Get data
                 inputs, targets = self.get_inputs_targets(data)
 

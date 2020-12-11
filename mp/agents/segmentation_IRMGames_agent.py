@@ -32,10 +32,6 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
             losses = []
 
             for data_idx, (opt, data) in enumerate(zip(optimizers, data_list)):
-                if data is None:
-                    # The Dataloader corresponding to this data is has less examples than the others
-                    continue
-
                 # Get data
                 inputs, targets = self.get_inputs_targets(data)
 
