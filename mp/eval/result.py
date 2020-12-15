@@ -50,10 +50,18 @@ class Result():
         df = pd.DataFrame(data, columns=['Metric', 'Epoch', 'Data', 'Value'])
         return df
 
-    def get_min_epoch(self, metric, data='val'):
+    def get_min_epoch(self, metric):
         r"""Get the earliest epoch for which there is an entry."""
-        return min(self.results[metric].keys(), key=lambda e: self.results[metric][e][data])
+        return min(self.results[metric].keys())
 
-    def get_max_epoch(self, metric, data='val'):
+    def get_max_epoch(self, metric):
         r"""Get the latest epoch for which there is an entry."""
+        return max(self.results[metric].keys())
+
+    def get_best_epoch(self, metric, data='val'):
+        r"""Get the epoch with highest score."""
         return max(self.results[metric].keys(), key=lambda e: self.results[metric][e][data])
+
+    def get_epoch_results(self, metric, epoch):
+        r"""For each data set, return the score for that metric for an epoch."""
+        return self.results[metric][epoch]
