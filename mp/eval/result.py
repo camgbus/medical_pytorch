@@ -6,12 +6,6 @@
 
 import pandas as pd
 
-class ExperimentResults():
-    r"""Per-epoch results for all repetitions."""
-    def __init__(self, global_result_lst, epoch_result_lst):
-        pass
-        # TODO
-
 class Result():
     r"""Per-epoch results for 1 repetition."""
     def __init__(self, name='Results'):
@@ -42,8 +36,8 @@ class Result():
 
     def to_pandas(self):
         r"""Pandas representation of results."""
-        data = [[metric, epoch, data, 
-            self.results[metric][epoch][data]] 
+        data = [[metric, epoch, data,
+            self.results[metric][epoch][data]]
             for metric in self.results.keys()
             for epoch in self.results[metric].keys()
             for data in self.results[metric][epoch].keys()]

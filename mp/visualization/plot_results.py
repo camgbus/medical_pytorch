@@ -55,6 +55,6 @@ def plot_results(result, measures=None, save_path=None, save_name=None,
         file_name = save_name if save_name is not None else result.name
         if not os.path.exists(save_path):
             os.makedirs(save_path)
-        file_name = file_name.split('.')[0]+ending
+        file_name = (file_name.split('.')[0]).replace(':', '-')+ending
         plt.savefig(os.path.join(save_path, file_name), facecolor='w', 
             bbox_inches="tight", dpi = 300)
