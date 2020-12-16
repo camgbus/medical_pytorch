@@ -9,7 +9,7 @@ from mp.utils.seaborn.legend_utils import format_legend
 
 def plot_results(result, measures=None, save_path=None, save_name=None, 
     title=None, ending='.png', ylog=False, figsize=(10,5)):
-    """Plots a data frame as created by mp.eval.Results
+    r"""Plots a data frame as created by mp.eval.Results
 
     Args:
         measures (list[str]): list of measure names

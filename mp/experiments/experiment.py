@@ -50,7 +50,6 @@ class Experiment:
         if reload_exp and os.path.exists(self.path):
             assert name is not None
             self.config = lr.load_json(path=self.path, name='config')
-            self.review = lr.load_json(path=self.path, name='review')
         else:
             os.makedirs(self.path)
             self.config = config
@@ -130,7 +129,7 @@ class ExperimentRun:
         if results:
             self.review['state'] = 'SUCCESS'
             lr.pkl_dump(results, path=self.paths['results'], name='results')
-            self._write_summary_measures(results, metrics=[plot_metrics])
+            self._write_summary_measures(results, metrics=plot_metrics)
             if isinstance(results, list):
                 for result in results:
                     self._plot_results(result=result, save_path=self.paths['results'], plot_metrics=plot_metrics)
