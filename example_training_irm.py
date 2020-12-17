@@ -14,21 +14,21 @@ from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg3DDataset
 from mp.eval.losses.losses_segmentation import LossDiceBCE, LossClassWeighted
-from mp.eval.losses.losses_irm import IRMv1Loss, VRexLoss, MMRexLoss
+from mp.eval.losses.losses_irm import IRMv1Loss, VRexLoss, MMRexLoss, ERMWrapper
 from mp.eval.result import Result
 from mp.experiments.experiment import Experiment
 from mp.models.segmentation.unet_fepegar import UNet3D
 from torch.utils.data import DataLoader
 
 # 2. Define configuration
-config = {'experiment_name': 'test_exp', 'device': 'cuda:0',
-          'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'geometric',
-          'class_weights': (0., 1.), 'lr': 1e-3, 'batch_size': 32,
-          "nr_epochs": 100,
-          "penalty_weight": 1e5, "penalty_anneal_iters": 80,
+config = {'experiment_name': 'not_decath_crossval5_erm', 'device': 'cuda:0',
+          'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
+          'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [27, 5],
+          "nr_epochs": 120,
+          "penalty_weight": 0, "penalty_anneal_iters": 0,
           "save_interval": 10,
-          "loss": "irmv1"
+          "loss": "erm"
           }
 
 
@@ -80,10 +80,13 @@ for run_ix in range(config['nr_runs']):
                                                              resize=config['resize'])
 
     # 7. Build train dataloader, and visualize
-    ds_lengths = [len(datasets[name, "train"]) for name in train_ds_names]
-    total_length = sum(ds_lengths)
-    dls = [DataLoader(datasets[name, "train"], batch_size=config['batch_size'] * length // total_length, shuffle=True)
-           for name, length in zip(train_ds_names, ds_lengths)]
+    # ds_lengths = [len(datasets[name, "train"]) for name in train_ds_names]
+    # total_length = sum(ds_lengths)
+    # dls = [DataLoader(datasets[name, "train"], batch_size=config['batch_size'] * length // total_length, shuffle=True)
+    #        for name, length in zip(train_ds_names, ds_lengths)]
+    dls = [DataLoader(datasets[name, "train"], batch_size=length, shuffle=True)
+           for name, length in zip(train_ds_names, config['batch_sizes'])]
+
 
     # 8. Initialize model
     model = UNet3D(input_shape, nr_labels)
@@ -93,7 +96,8 @@ for run_ix in range(config['nr_runs']):
     erm_loss = LossClassWeighted(LossDiceBCE(bce_weight=1., smooth=1., device=device), weights=config["class_weights"])
     irm_losses = {"vrex": VRexLoss(erm_loss, device=device),
                   "mmrex": MMRexLoss(erm_loss, device=device),
-                  "irmv1": IRMv1Loss(erm_loss, device=device)
+                  "irmv1": IRMv1Loss(erm_loss, device=device),
+                  "erm": ERMWrapper(erm_loss, device=device)
                   }
     irm_loss = irm_losses[config["loss"]]
 
@@ -105,7 +109,7 @@ for run_ix in range(config['nr_runs']):
     agent.train(results, optimizer, irm_loss, train_dataloaders=dls,
                 init_epoch=0, nr_epochs=config["nr_epochs"], run_loss_print_interval=config["save_interval"],
                 eval_datasets=datasets, eval_interval=config["save_interval"],
-                save_path=exp_run.paths['states'], save_interval=config["save_interval"],
+                save_path=exp_run.paths['states'], save_interval=config["nr_epochs"],
                 penalty_weight=config["penalty_weight"], penalty_anneal_iters=config["penalty_anneal_iters"])
 
     # 11. Save and print results for this experiment run

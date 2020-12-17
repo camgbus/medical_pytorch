@@ -1,7 +1,6 @@
 import torch
 
 from .loss_abstract import LossAbstract
-from .losses_segmentation import LossClassWeighted
 
 
 class IRMLossAbstract(LossAbstract):
