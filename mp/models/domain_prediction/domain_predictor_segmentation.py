@@ -8,6 +8,7 @@ from mp.models.segmentation.model_utils import ConvolutionalBlock, get_downsampl
 
 
 class DomainPredictor(Model):
+    r"""The domain predictor is based on the UNet's implementation (but only its first half)"""
     def __init__(
             self,
             input_shape,

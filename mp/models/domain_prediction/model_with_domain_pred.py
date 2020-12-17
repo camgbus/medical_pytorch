@@ -15,26 +15,34 @@ class FullModelWithDomainPred(Model):
     (depending on the paper)
     """
     def forward(self, x, detach=False):
-        r"""Return a tuple: classification, domain prediction"""
+        r"""Return the output of a model (main head) and its attached domain predictor:
+        classification, domain prediction"""
         raise NotImplementedError
 
     def get_features_from_encoder(self, x):
+        r"""Returns the intermediary encoding from the encoder"""
         raise NotImplementedError
 
     def get_classification_from_features(self, x):
+        r"""Returns the classification from the main head using the encoding"""
         raise NotImplementedError
 
     def get_domain_prediction_from_features(self, x):
+        r"""Returns the domain prediction from the main head using the encoding"""
         raise NotImplementedError
 
     def encoder_parameters(self):
+        r"""Returns the parameters of the encoder only"""
         raise NotImplementedError
 
     def classifier_parameters(self):
+        r"""Returns the parameters of the classifier only"""
         raise NotImplementedError
 
     def domain_predictor_parameters(self):
+        r"""Returns the parameters of the domain predictor only"""
         raise NotImplementedError
 
     def parameters(self, **kwargs):
+        r"""Returns the parameters of the overall model"""
         return chain(self.encoder_parameters(), self.classifier_parameters(), self.domain_predictor_parameters())

@@ -23,8 +23,9 @@ from mp.eval.losses.losses_segmentation import LossDiceBCE, LossClassWeighted, L
 from mp.eval.result import Result
 from mp.experiments.experiment import Experiment
 from mp.models.domain_prediction.domain_predictor_segmentation import DomainPredictor3D
-from mp.models.domain_prediction.unet import UNetWithDomainPred
+from mp.models.domain_prediction.unet_with_domain_pred import UNetWithDomainPred
 from mp.models.segmentation.unet_fepegar import UNet3D
+from mp.utils.early_stopping import EarlyStopping
 
 warnings.filterwarnings("ignore")
 
@@ -50,8 +51,8 @@ data.add_dataset(dryad)
 nr_labels = data.nr_labels
 label_names = data.label_names
 
-configs = [{'experiment_name': 'not_decath_crossval5_dompred', 'device': 'cuda:0',
-            'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+configs = [{'experiment_name': 'a_test', 'device': 'cuda:0',
+            'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
             'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
             'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
             "nr_epochs": 120,
@@ -138,7 +139,6 @@ for config in configs:
 
         optimizer_stage1 = optim.Adam(model.parameters(), lr=config['lr'])
         optimizer_model = optim.Adam(chain(model.encoder_parameters(), model.classifier_parameters()), lr=2e-5)
-        # optimizer_model = optim.Adam(model.classifier_parameters(), lr=5e-5)
         optimizer_domain_predictor = optim.Adam(model.domain_predictor_parameters(), lr=2e-6)
         optimizer_encoder = optim.Adam(model.encoder_parameters(), lr=2e-5)
         optimizers = [optimizer_stage1, optimizer_model, optimizer_domain_predictor, optimizer_encoder]
@@ -147,22 +147,39 @@ for config in configs:
         results = Result(name='training_trajectory')
         agent = SegmentationDomainAgent(model=model, label_names=label_names, device=device, metrics=["ScoreDice"],
                                         verbose=False)
-        agent.train(results, optimizers, losses, train_dataloaders=dls,
-                    init_epoch=0, nr_epochs=config["nr_epochs"], run_loss_print_interval=config["save_interval"],
-                    eval_datasets=datasets, eval_interval=config["save_interval"],
-                    save_path=exp_run.paths['states'], save_interval=config["nr_epochs"],
-                    beta=config["beta"], stage1_epochs=config["stage1_epochs"])
+        # epochs = agent.train(results, optimizers, losses, train_dataloaders=dls,
+        #                      init_epoch=0, nr_epochs=config["nr_epochs"],
+        #                      run_loss_print_interval=config["save_interval"],
+        #                      eval_datasets=datasets, eval_interval=config["save_interval"],
+        #                      save_path=exp_run.paths['states'], save_interval=config["nr_epochs"],
+        #                      beta=config["beta"], stage1_epochs=config["stage1_epochs"])
+        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_test" for name in train_ds_names])
+        epochs = agent.train_with_early_stopping(results, optimizers, losses, train_dataloaders=dls,
+                             early_stopping=early_stopping,
+                             run_loss_print_interval=config["save_interval"],
+                             eval_datasets=datasets, eval_interval=config["save_interval"],
+                             save_path=exp_run.paths['states'], save_interval=config["nr_epochs"],
+                             beta=config["beta"])
+        stage1_epoch, stage2_epoch, stage3_epoch = epochs
 
         # 11. Save and print results for this experiment run
         exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice[hippocampus]'])
 
-        dice = results.results["Mean_ScoreDice[hippocampus]"][config["stage1_epochs"]]
-        acc = results.results["Mean_Accuracy"][config["stage1_epochs"]]
-
-        # Print the final result in a csv format for easy copy-pasting to the spreadsheet
+        # Outputs the results in csv format
+        # Stage 1: DICE scores and accuracy scores
+        dice = results.results["Mean_ScoreDice[hippocampus]"][stage1_epoch]
+        acc = results.results["Mean_Accuracy"][stage1_epoch]
         print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","), end="")
 
-        dice = results.results["Mean_ScoreDice[hippocampus]"][max(results.results["Mean_ScoreDice[hippocampus]"])]
-        acc = results.results["Mean_Accuracy"][max(results.results["Mean_ScoreDice[hippocampus]"])]
-        print("\t\tEntries:\t", end="")
-        print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","))
+        # Stage 2: DICE scores and accuracy scores
+        dice = results.results["Mean_ScoreDice[hippocampus]"][stage2_epoch]
+        acc = results.results["Mean_Accuracy"][stage2_epoch]
+        print("\t\t\t", end="")
+        print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","), end="")
+
+        # Stage 3: accuracy scores
+        acc = results.results["Mean_Accuracy"][stage3_epoch]
+        print("\t\t\t", end="")
+        print("\t".join(f"{e:.3f}" for e in acc.values()).replace(".", ","))
+
+        print(stage1_epoch, stage2_epoch, stage3_epoch)

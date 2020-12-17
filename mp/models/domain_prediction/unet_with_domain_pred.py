@@ -11,6 +11,9 @@ from mp.models.segmentation.unet_fepegar import UNet
 
 class UNetWithDomainPred(FullModelWithDomainPred):
     r"""
+    TLDR: A UNet but its encoder + bottleneck + decoder parts act as the "encoder"
+    The UNet's classifier is the classifier.
+    A domain predictor is attached after the UNet's decoder.
     Architecture from this paper: https://www.biorxiv.org/content/10.1101/2020.10.09.332973v1.full.pdf+html
     Implementation @ https://github.com/nkdinsdale/Unlearning_for_MRI_harmonisation
     """
@@ -24,7 +27,6 @@ class UNetWithDomainPred(FullModelWithDomainPred):
         features = self.get_features_from_encoder(x)
         return self.get_classification_from_features(features), \
                self.get_domain_prediction_from_features(features.detach() if detach else features)
-
 
     def get_features_from_encoder(self, x):
         return self.unet.encode(x)
