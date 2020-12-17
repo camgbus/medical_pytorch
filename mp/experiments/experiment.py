@@ -85,12 +85,12 @@ class Experiment:
         r"""After running all runs, finish experiment by recording averages"""
         # Record the mean and std for all results
         try:
-            num_results = [exp_run.review['results'] for exp_run in self.exp_runs]
+            num_results = [exp_run.review['results'] for exp_run in self.exp_runs.values()]
             self.review['results_MEAN'], self.review['results_STD'] = average_dictionaries(*num_results)
         except KeyError:
             pass
         # If one experiment run failed, the state is 'FAILURE'
-        if all(exp_run.review['state'] == 'SUCCESS' for exp_run in self.exp_runs):
+        if all(exp_run.review['state'] == 'SUCCESS' for exp_run in self.exp_runs.values()):
             self.review['state'] = 'SUCCESS'
         else:
             self.review['state'] = 'FAILURE'
