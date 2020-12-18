@@ -1,19 +1,47 @@
 # ------------------------------
-# A AlexNet agent.
+# A group of cnn agents.
 # ------------------------------
 
 from mp.agents.agent import Agent
 import torch
+import os
 from torchvision import transforms
 import numpy as np
 from mp.paths import telegram_login
 from mp.utils.update_bots.telegram_bot import TelegramBot
+from mp.utils.agents.save_restore import save_state as external_save_state
+from mp.utils.agents.save_restore import restore_state as external_restore_state
 
 class AlexNetAgent(Agent):
     r"""An Agent for AlexNet models."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bot = TelegramBot(telegram_login)
+
+    def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
+                   losses_train=None, losses_val=None, accuracy_train=None,
+                   accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None,
+                   path_npy_files=None):
+        r"""Saves an agent state. Raises an error if the directory exists and 
+        overwrite=False. Saves all further results like losses and accuracies as
+        .npy files.
+        """
+        external_save_state(self, states_path, state_name, optimizer, overwrite,
+                            losses_train, losses_val, accuracy_train,
+                            accuracy_det_train, accuracy_val, accuracy_det_val,
+                            path_npy_files)
+
+    def restore_state(self, states_path, state_name, path_npy_files, optimizer=None):
+        r"""Tries to restore a previous agent state, consisting of a model 
+        state and the content of agent_state_dict. Returns whether the restore 
+        operation  was successful. Further the results will be loaded as well,
+        i.e. losses and accuracies.
+        """
+        return external_restore_state(self, states_path, state_name, path_npy_files, optimizer)
+
+    def replicating_image(self, img, nr):
+        replicat_img = img.repeat(1, nr, 1, 1)
+        return replicat_img
 
     def preprocess(self, img_tensor):
         r"""Transforms an image based on the desired input of
@@ -35,13 +63,14 @@ class AlexNetAgent(Agent):
         return new_img.to(self.device)
 
     def train(self, optimizer, loss_f, train_dataloader,
-              val_dataloader, nr_epochs=100, save_path=None,
+              val_dataloader, nr_epochs=100, start_epoch=0, save_path=None,
               save_interval=10, msg_bot=True, bot_msg_interval=10):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
+        assert start_epoch < nr_epochs, 'Start epoch needs to be smaller than the number of epochs!'
         if msg_bot == True:
-            self.bot.send_msg('Start training the model for {} epochs..'.format(nr_epochs))
+            self.bot.send_msg('Start training the model for {} epochs..'.format(nr_epochs-start_epoch))
         losses = list()
         losses_cum = list()
         losses_val = list()
@@ -50,7 +79,7 @@ class AlexNetAgent(Agent):
         accuracy_detailed = list()
         accuracy_val = list()
         accuracy_val_detailed = list()
-        for epoch in range(nr_epochs):
+        for epoch in range(start_epoch, nr_epochs):
             msg = "Running epoch "
             msg += str(epoch + 1) + " of " + str(nr_epochs) + "."
             print (msg, end = "\r")
@@ -165,19 +194,41 @@ class AlexNetAgent(Agent):
         return losses, accuracy, accuracy_detailed
 
 class NetAgent(Agent):
-    r"""An Agent for AlexNet models."""
+    r"""An Agent for CNN models."""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.bot = TelegramBot(telegram_login)
 
+    def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
+                   losses_train=None, losses_val=None, accuracy_train=None,
+                   accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None,
+                   path_npy_files=None):
+        r"""Saves an agent state. Raises an error if the directory exists and 
+        overwrite=False. Saves all further results like losses and accuracies as
+        .npy files.
+        """
+        external_save_state(self, states_path, state_name, optimizer, overwrite,
+                            losses_train, losses_val, accuracy_train,
+                            accuracy_det_train, accuracy_val, accuracy_det_val,
+                            path_npy_files)
+
+    def restore_state(self, states_path, state_name, path_npy_files, optimizer=None):
+        r"""Tries to restore a previous agent state, consisting of a model 
+        state and the content of agent_state_dict. Returns whether the restore 
+        operation  was successful. Further the results will be loaded as well,
+        i.e. losses and accuracies.
+        """
+        return external_restore_state(self, states_path, state_name, path_npy_files, optimizer)
+
     def train(self, optimizer, loss_f, train_dataloader,
-              val_dataloader, nr_epochs=100, save_path=None,
-              save_interval=10, msg_bot=True, bot_msg_interval=10):
+              val_dataloader, nr_epochs=100, start_epoch=0, save_path=None,
+              pathr=None, save_interval=10, msg_bot=True, bot_msg_interval=10):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
+        assert start_epoch < nr_epochs, 'Start epoch needs to be smaller than the number of epochs!'
         if msg_bot == True:
-            self.bot.send_msg('Start training the model for {} epochs..'.format(nr_epochs))
+            self.bot.send_msg('Start training the model for {} epochs..'.format(nr_epochs-start_epoch))
         losses = list()
         losses_cum = list()
         losses_val = list()
@@ -186,7 +237,7 @@ class NetAgent(Agent):
         accuracy_detailed = list()
         accuracy_val = list()
         accuracy_val_detailed = list()
-        for epoch in range(nr_epochs):
+        for epoch in range(start_epoch, nr_epochs):
             msg = "Running epoch "
             msg += str(epoch + 1) + " of " + str(nr_epochs) + "."
             print (msg, end = "\r")
@@ -255,10 +306,12 @@ class NetAgent(Agent):
             if (epoch + 1) % save_interval == 0 and save_path is not None:
                 print('Saving current state after epoch: {}.'.format(epoch + 1))
                 self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-                                optimizer, overwrite=True)
+                                optimizer, True, losses, losses_val,
+                                accuracy, accuracy_detailed, accuracy_val,
+                                accuracy_val_detailed, pathr)
                 
         # Return losses
-        return losses, losses_cum, losses_cum_val, accuracy, accuracy_detailed, accuracy_val, accuracy_val_detailed
+        return losses, losses_cum, losses_val, losses_cum_val, accuracy, accuracy_detailed, accuracy_val, accuracy_val_detailed
 
     def test(self, loss_f, test_dataloader, msg_bot=True):
         if msg_bot == True:
@@ -292,8 +345,4 @@ class NetAgent(Agent):
             100 * correct / total))
             
         # Return losses
-        return losses, accuracy, accuracy_detailed
-
-def replicating_image(self, img, nr):
-    replicat_img = img.repeat(1, nr, 1, 1)
-    return replicat_img
+        return losses, losses_cum, accuracy, accuracy_detailed

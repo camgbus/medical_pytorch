@@ -61,7 +61,7 @@ def plot_results(result, measures=None, save_path=None, save_name=None,
         plt.savefig(os.path.join(save_path, file_name), facecolor='w', 
             bbox_inches="tight", dpi = 300)
 
-def plot_numpy(result, save_path=None, save_name=None, 
+def plot_dataframe(result, save_path=None, save_name=None, 
     title=None, ending='.png', x_name='Epoch', y_name='Value',
     ylog=False, figsize=(10,5), xints=int, yints=int):
     """Plots a dataframe

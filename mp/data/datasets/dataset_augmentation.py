@@ -87,20 +87,37 @@ def save_dataset(itk_images, image_names, data_label, folder_name,
 
 
 # Select randomly slices of images 
-def select_random_images_slices(path, filenames, noise, nr_images, nr_slices):
+def select_random_images_slices(path, filenames, noise, nr_images, nr_slices, nr_intensities=None):
     r""" This function selects randomly based on the number of images and noise type images
          from a path and filenames. The length of the filenames represents the number of instances,
          i.e. 3D volumes. If the number of images is greater than the actual images, then all images
-         will be considered. From the loaded images randomly slices will be stacked and returned."""
+         will be considered. From the loaded images randomly slices will be stacked and returned.
+         With the nr_intensities, the equally portions of images will be selected, i.e. if it is set
+         to 30, 30 images will be selected for each intensity. --> Training data will be equally
+         distributed."""
     # Select only filenames based on noise type
     filenames = [filename for filename in filenames if noise in filename]
 
     # Reset nr_images if needed
     nr_images = len(filenames) if nr_images > len(filenames) else nr_images
 
-    # Select random filenames from list based on nr_images
-    if nr_images != len(filenames):
-        filenames = random.sample(filenames, nr_images)
+    # Select random filenames from list based on nr_images but in a way that all 4
+    # intensities are equally in the dataset afterwards
+    if nr_intensities is not None:
+        new_filenames = list()
+        if nr_images*nr_intensities < len(filenames):
+            # Get index of intensities beginning with 2, since 1 is the original image, not augmented!
+            for i in range(2, nr_intensities+1):
+                filenames_intensity = [filename for filename in filenames if '_' + str(i) in filename]
+                select_images_nr = min(nr_images, len(filenames_intensity))
+                new_filenames.extend(random.sample(filenames_intensity, select_images_nr))
+
+            # Update filenames
+            filenames = new_filenames
+    else:
+        # Select random filenames from list based on nr_images
+        if nr_images != len(filenames):
+            filenames = random.sample(filenames, nr_images)
 
     # Loop through selected filenames and load images with defined nr_slices
     aug_data = list()
@@ -137,8 +154,8 @@ def select_random_images_slices(path, filenames, noise, nr_images, nr_slices):
 # Perfom augmentation on dataset
 def augment_data_in_four_intensities(data, dataset_name, is_list=False,
                                      label_included=False, storage_data_path=storage_data_path,
-                                     max_likert_value=1, random=False, noise='blur', nr_images=100,
-                                     nr_slices=50):
+                                     max_likert_value=1, random=False, noise='blur', nr_images=20,
+                                     nr_slices=20, model_type='regression'):
     r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
         - Downsampling
         - Blurring
@@ -149,14 +166,14 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
         It saves the data based on transmitted information and returns the data in form of a list
         with its labels as a dictionary.
         If random is true, random images based on nr_images and nr_slices will be selected according to
-        the noise type. If the noise type is set to 'all', from all noise types, random images will be
-        selected."""
+        the noise type. nr_images is the number of images per intensity and nr_slices the number of
+        slices per image."""
 
     # 0. Initialize variables
     aug_data = list()
     image_names = list()
     labels = dict()
-    folder_name = 'randomised_data_' + str(noise)
+    folder_name = 'randomised_data_' + str(model_type) + '_' + str(noise)
 
     # 1. Check if data has been generated already:
     print('Check if data {} has been generated and can be retrieved from {}.'.format(dataset_name,
@@ -176,7 +193,7 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
             path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
             if random:
                 aug_data, image_names = select_random_images_slices(path, filenames, noise,
-                nr_images, nr_slices)
+                nr_images, nr_slices, max_likert_value)
                 # Save random images so they can be loaded
                 print("Saving random images and image slices as SimpleITK for training and testing..")
                 save_dataset(aug_data,
@@ -365,16 +382,6 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
                  storage_data_path,
                  simpleITK=True,
                  extend=True)
-
-    """
-    # 7. Save new images so they can be loaded directly
-    print('Saving augmented images as SimpleITK..')
-    save_dataset(aug_data,
-                 updated_image_names,
-                 dataset_name,
-                 'augmented_data',
-                 storage_data_path,
-                 simpleITK=True)"""
                  
     # 8. Save label dict
     print("Saving labels file..")
@@ -395,7 +402,7 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
         path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
         aug_data, image_names = select_random_images_slices(path, updated_image_names,
                                                             noise, nr_images,
-                                                            nr_slices)
+                                                            nr_slices, max_likert_value)
         # Save random images so they can be loaded
         print("Saving random images and image slices as SimpleITK for training and testing..")
         save_dataset(aug_data,

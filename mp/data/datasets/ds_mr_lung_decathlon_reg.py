@@ -7,6 +7,7 @@
 import os
 import numpy as np
 import torch
+import json
 import SimpleITK as sitk
 from mp.data.pytorch.transformation import centre_crop_pad_2d
 import random
@@ -30,7 +31,7 @@ class DecathlonLung(RegressionDataset):
         global_name = 'DecathlonLung'
         dataset_path = os.path.join(storage_data_path, global_name)
         original_data_path = du.get_original_data_path(global_name)
-        folder_name = 'randomised_data_' + str(noise)   # For random selected data
+        folder_name = 'randomised_data_regression_' + str(noise)   # For random selected data
 
         # Extract all images, if not already done
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
@@ -86,7 +87,7 @@ class DecathlonLung(RegressionDataset):
             labels, names = augment_data(instances_full, 'DecathlonLungAugmented',
                                                    True, False, storage_data_path,
                                                    max_likert_value, random_slices,
-                                                   noise, nr_images, nr_slices)
+                                                   noise, nr_images, nr_slices, 'regression')
 
             # Add to instances
             if random_slices:
@@ -130,7 +131,7 @@ class DecathlonLungOneHotLabels(RegressionDataset):
         global_name = 'DecathlonLung'
         dataset_path = os.path.join(storage_data_path, global_name)
         original_data_path = du.get_original_data_path(global_name)
-        folder_name = 'randomised_data_' + str(noise)   # For random selected data
+        folder_name = 'randomised_data_regression_' + str(noise)   # For random selected data
         
         one_hot = torch.nn.functional.one_hot(torch.arange(0, 5), num_classes=5)
 
@@ -188,7 +189,7 @@ class DecathlonLungOneHotLabels(RegressionDataset):
             labels, names = augment_data(instances_full, 'DecathlonLungAugmented',
                                                    True, False, storage_data_path,
                                                    max_likert_value, random_slices,
-                                                   noise, nr_images, nr_slices)
+                                                   noise, 'regression', nr_images, nr_slices)
 
             # Add to instances
             if random_slices:
@@ -218,6 +219,74 @@ class DecathlonLungOneHotLabels(RegressionDataset):
 
         super().__init__(instances, name=global_name,
             modality='CT', nr_channels=1, hold_out_ixs=[])
+
+class DecathlonLungRestored(RegressionDataset):
+    r"""Class for the Lung decathlon challenge, contains only
+    CT, found at http://medicaldecathlon.com/. This class is used
+    to train a restored model with the same data, e.g. if the training
+    interrupted due to an error. It is important that the original
+    images and random image folders (DecathlonLung/randomised_data_regression_<noise>
+    and DecathlonLungAugmented/randomised_data_regression_<noise>) exists and are not
+    empty. Further the corresponding Labels, creating by augmenting images
+    or performing training for first time need to present at the same location
+    as created (DecathlonLungAugmented/labels/labels.json).
+    """
+    def __init__(self, subset=None, hold_out_ixs=[], img_size=(1, 299, 299),
+        max_likert_value=1, noise='blur'):
+
+        # Extract necessary paths
+        global_name = 'DecathlonLung'
+        dataset_path = os.path.join(storage_data_path, global_name)
+        random_path = os.path.join(storage_data_path, global_name+'Augmented')
+        original_data_path = du.get_original_data_path(global_name)
+        folder_name = 'randomised_data_regression_' + str(noise)
+        t_path = os.path.join(dataset_path, folder_name)
+        r_path = os.path.join(random_path, folder_name)
+
+        # Fetch all patient/study names that do not begin with '._' for random and original images
+        study_names_random_orig = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
+                        in os.listdir(t_path) if '._' not in file_name and 'lung' in file_name)
+        study_names_random_augm = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
+                        in os.listdir(r_path) if '._' not in file_name and 'lung' in file_name)
+
+        # Load labels
+        with open(os.path.join(storage_data_path,
+        global_name+'Augmented', 'labels', 'labels.json'), 'r') as fp:
+            labels = json.load(fp)
+
+        # Transform label integers into torch.tensors
+        for key, value in labels.items():
+            labels[key] = torch.tensor([value])
+
+        # Build instances
+        instances = []
+        # Add image path and labels to instances
+        for num, study_name in enumerate(study_names_random_orig):
+            msg = 'Creating dataset from random SimpleITK images and slices: '
+            msg += str(num + 1) + ' of ' + str(len(study_names_random_orig)) + '.'
+            print (msg, end = '\r')
+            instances.append(RegressionInstance(
+                x_path=os.path.join(t_path,
+                                    study_name+'.nii.gz'),
+                y_label=torch.tensor([1/max_likert_value]),
+                name=study_name,
+                group_id=None
+                ))
+
+        for num, study_name in enumerate(study_names_random_augm):
+            msg = 'Creating dataset from random SimpleITK images and slices: '
+            msg += str(num + 1) + ' of ' + str(len(study_names_random_augm)) + '.'
+            print (msg, end = '\r')
+            instances.append(RegressionInstance(
+                x_path=os.path.join(r_path,
+                                    study_name+'.nii.gz'),
+                y_label=labels[name],
+                name=study_name,
+                group_id=None
+                ))
+
+        super().__init__(instances, name=global_name,
+                    modality='CT', nr_channels=1, hold_out_ixs=[])
 
 
 def _extract_images(source_path, target_path, img_size=(1, 299, 299)):
