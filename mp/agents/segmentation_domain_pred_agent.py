@@ -283,9 +283,10 @@ class SegmentationDomainAgent(SegmentationAgent):
         return stage1_epochs - 1, nr_epochs - 1, nr_epochs - 1 + stage3_epochs
 
     def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, early_stopping,
+                                  init_epoch=0,
                                   run_loss_print_interval=10,
                                   eval_datasets=None, eval_interval=10,
-                                  save_path=None, save_interval=10,
+                                  save_path=None,
                                   beta=10.):
         r"""Train a model through its agent. Performs training epochs,
         tracks metrics and saves model states.
@@ -324,7 +325,7 @@ class SegmentationDomainAgent(SegmentationAgent):
         early_stopping.reset_counter()
 
         # Tracking metrics at step 0
-        epoch = stage1_last_epoch = stage2_last_epoch = stage3_last_epoch = 0
+        epoch = stage1_last_epoch = stage2_last_epoch = stage3_last_epoch = init_epoch
         self.track_metrics(epoch, results, loss_f_classifier, eval_datasets)
         self.track_domain_prediction_accuracy(epoch, results, train_dataloaders)
 
@@ -407,6 +408,8 @@ class SegmentationDomainAgent(SegmentationAgent):
                             optimizer_model,
                             optimizer_domain_predictor,
                             optimizer_encoder)
+
+        results["stages"] = [stage1_last_epoch, stage2_last_epoch, stage3_last_epoch]
 
         return stage1_last_epoch, stage2_last_epoch, stage3_last_epoch
 

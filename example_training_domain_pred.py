@@ -29,16 +29,6 @@ from mp.utils.early_stopping import EarlyStopping
 
 warnings.filterwarnings("ignore")
 
-# 2. Define configuration
-
-# 1: 1e-3, 150, 10, 100, 1e-5, 1e-6, 1e-6
-# 2: 1e-4, 150, 10, 100, 1e-5, 1e-6, 1e-6
-# 3: 2e-4, 200, 1000, 100, 5e-5, 1e-5, 5e-5
-# 4: 2e-4, 160, 10, 120, 5e-5, 1e-5, 1e-4
-# 5: 2e-4, 120, 10, 80, 1e-4, 2e-5, 1e-4
-# 6: 2e-4, 120, 10, 80, 2e-5, 2e-6, 2e-5
-# test_exp_not_decath4_dompred_aug_many: 2e-4, 120, 10, 80, 2e-5, 2e-6, 2e-5
-# test_exp_not_decath4_dompred_aug_many2: 2e-4, 120, 10, 80, 2e-5, 2e-6, 2e-6
 
 # 4. Define data
 data = Data()
@@ -153,6 +143,7 @@ for config in configs:
         #                      eval_datasets=datasets, eval_interval=config["save_interval"],
         #                      save_path=exp_run.paths['states'], save_interval=config["nr_epochs"],
         #                      beta=config["beta"], stage1_epochs=config["stage1_epochs"])
+
         early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_test" for name in train_ds_names])
         epochs = agent.train_with_early_stopping(results, optimizers, losses, train_dataloaders=dls,
                              early_stopping=early_stopping,
@@ -181,5 +172,3 @@ for config in configs:
         acc = results.results["Mean_Accuracy"][stage3_epoch]
         print("\t\t\t", end="")
         print("\t".join(f"{e:.3f}" for e in acc.values()).replace(".", ","))
-
-        print(stage1_epoch, stage2_epoch, stage3_epoch)
