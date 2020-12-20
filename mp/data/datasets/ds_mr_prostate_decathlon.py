@@ -50,7 +50,7 @@ class DecathlonProstateT2(SegmentationDataset):
             label_names = ['background', 'peripheral zone', 'central gland']
         # TODO adapt
         super().__init__(instances, name=name, label_names=label_names, 
-            modality='MR', nr_channels=1, hold_out_ixs=[], label_mapping=label_mapping))
+            modality='MR', nr_channels=1, hold_out_ixs=[], label_mapping=label_mapping)
   
 def _extract_t2_images(source_path, target_path, merge_labels, label_mapping):
     r"""Extracts T2 images, merges mask labels (if specified) and saves the

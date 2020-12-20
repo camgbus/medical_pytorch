@@ -56,24 +56,30 @@ class Experiment:
             lr.save_json(self.config, path=self.path, name='config')
 
     def set_data_splits(self, data):
-        try:
-            self.splits = lr.load_json(path=self.path, name='splits')
-        except FileNotFoundError:
-            print('Dividing dataset')
-            # If the data consists of several datasets, then the splits are a
-            # dictionary with one more label, that of the dataset name.
-            if isinstance(data, Data):
-                self.splits = dict()
-                for ds_name, ds in data.datasets.items():
-                    self.splits[ds_name] = split_dataset(ds, test_ratio=self.config.get('test_ratio', 0.0),
-                    val_ratio=self.config['val_ratio'], nr_repetitions=self.config['nr_runs'],
-                    cross_validation=self.config['cross_validation'])
-            else:
-                self.splits = split_dataset(data, test_ratio=self.config.get('test_ratio', 0.0),
-                    val_ratio=self.config['val_ratio'], nr_repetitions=self.config['nr_runs'],
-                    cross_validation=self.config['cross_validation'])
+        if 'splits_path' in self.config and self.config['splits_path'] is not None:
+            path, name = os.path.split(self.config['splits_path'])
+            self.splits = lr.load_json(path=os.path.join(storage_path, path), name=name)
+            print('Restored existing splits')
             lr.save_json(self.splits, path=self.path, name='splits')
-            print('\n')
+        else:
+            try:
+                self.splits = lr.load_json(path=self.path, name='splits')
+            except FileNotFoundError:
+                print('Dividing dataset')
+                # If the data consists of several datasets, then the splits are a
+                # dictionary with one more label, that of the dataset name.
+                if isinstance(data, Data):
+                    self.splits = dict()
+                    for ds_name, ds in data.datasets.items():
+                        self.splits[ds_name] = split_dataset(ds, test_ratio=self.config.get('test_ratio', 0.0),
+                        val_ratio=self.config['val_ratio'], nr_repetitions=self.config['nr_runs'],
+                        cross_validation=self.config['cross_validation'])
+                else:
+                    self.splits = split_dataset(data, test_ratio=self.config.get('test_ratio', 0.0),
+                        val_ratio=self.config['val_ratio'], nr_repetitions=self.config['nr_runs'],
+                        cross_validation=self.config['cross_validation'])
+                lr.save_json(self.splits, path=self.path, name='splits')
+                print('\n')
 
     def get_run(self, run_ix, reload_exp_run=False):
         r"""Overwrite to specify a different experiment run class"""
