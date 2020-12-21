@@ -38,10 +38,10 @@ class LinearRegression(Model):
             # Output shape of cnn_layers
             #nn.Linear(8 * 18 * 18, out_feat),
             #nn.Sigmoid()
-            nn.Linear(8 * 18 * 18, 5),
-            nn.ReLU(inplace=True),
-            nn.Linear(5, out_feat),
-            nn.Sigmoid()
+            nn.Linear(8 * 18 * 18, 1),
+            #nn.ReLU(inplace=True),
+            #nn.Linear(5, out_feat),
+            #nn.Sigmoid()
         )
 
     # Defining the forward pass    

@@ -280,7 +280,7 @@ class DecathlonLungRestored(RegressionDataset):
             instances.append(RegressionInstance(
                 x_path=os.path.join(r_path,
                                     study_name+'.nii.gz'),
-                y_label=labels[name],
+                y_label=labels[study_name],
                 name=study_name,
                 group_id=None
                 ))

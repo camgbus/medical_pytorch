@@ -7,8 +7,7 @@ from mp.utils.pytorch.pytorch_load_restore import save_model_state, load_model_s
 
 def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
                losses_train=None, losses_val=None, accuracy_train=None,
-               accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None,
-               path_npy_files=None):
+               accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None):
     r"""Saves an agent state. Raises an error if the directory exists and 
     overwrite=False. Saves all further results like losses and accuracies as
     .npy files.
@@ -24,22 +23,20 @@ def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
         pkl_dump(self.agent_state_dict, 'agent_state_dict', state_full_path)
         if optimizer is not None:
             save_optimizer_state(optimizer, 'optimizer', state_full_path)
-
-    if path_npy_files is not None:
         if losses_train is not None:
-            np.save(os.path.join(path_npy_files, 'losses_train.npy'), np.array(losses_train))
+            np.save(os.path.join(state_full_path, 'losses_train.npy'), np.array(losses_train))
         if losses_val is not None:
-            np.save(os.path.join(path_npy_files, 'losses_validation.npy'), np.array(losses_val))
+            np.save(os.path.join(state_full_path, 'losses_validation.npy'), np.array(losses_val))
         if accuracy_train is not None:
-            np.save(os.path.join(path_npy_files, 'accuracy_train.npy'), np.array(accuracy_train))
+            np.save(os.path.join(state_full_path, 'accuracy_train.npy'), np.array(accuracy_train))
         if accuracy_det_train is not None:
-            np.save(os.path.join(path_npy_files, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
+            np.save(os.path.join(state_full_path, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
         if accuracy_val is not None:
-            np.save(os.path.join(path_npy_files, 'accuracy_validation.npy'), np.array(accuracy_val))
+            np.save(os.path.join(state_full_path, 'accuracy_validation.npy'), np.array(accuracy_val))
         if accuracy_det_val is not None:
-            np.save(os.path.join(path_npy_files, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
+            np.save(os.path.join(state_full_path, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
 
-def restore_state(self, states_path, state_name, path_npy_files, optimizer=None):
+def restore_state(self, states_path, state_name, optimizer=None):
     r"""Tries to restore a previous agent state, consisting of a model 
     state and the content of agent_state_dict. Returns whether the restore 
     operation  was successful. Further the results will be loaded as well,
@@ -57,12 +54,12 @@ def restore_state(self, states_path, state_name, path_npy_files, optimizer=None)
         if self.verbose:
             print('State {} was restored'.format(state_name))
         print("Loading model state dict was successful.")
-        losses_train = np.load(os.path.join(path_npy_files, 'losses_train.npy'), allow_pickle=True)
-        losses_val = np.load(os.path.join(path_npy_files, 'losses_validation.npy'), allow_pickle=True)
-        accuracy_train = np.load(os.path.join(path_npy_files, 'accuracy_train.npy'), allow_pickle=True)
-        accuracy_det_train = np.load(os.path.join(path_npy_files, 'accuracy_detailed_train.npy'), allow_pickle=True)
-        accuracy_val = np.load(os.path.join(path_npy_files, 'accuracy_validation.npy'), allow_pickle=True)
-        accuracy_det_val = np.load(os.path.join(path_npy_files, 'accuracy_detailed_validation.npy'), allow_pickle=True)
+        losses_train = np.load(os.path.join(state_full_path, 'losses_train.npy'), allow_pickle=True)
+        losses_val = np.load(os.path.join(state_full_path, 'losses_validation.npy'), allow_pickle=True)
+        accuracy_train = np.load(os.path.join(state_full_path, 'accuracy_train.npy'), allow_pickle=True)
+        accuracy_det_train = np.load(os.path.join(state_full_path, 'accuracy_detailed_train.npy'), allow_pickle=True)
+        accuracy_val = np.load(os.path.join(state_full_path, 'accuracy_validation.npy'), allow_pickle=True)
+        accuracy_det_val = np.load(os.path.join(state_full_path, 'accuracy_detailed_validation.npy'), allow_pickle=True)
         print("Loading losses and accuracies was succesful.")
         return True, (losses_train, losses_val, accuracy_train, accuracy_det_train, accuracy_val, accuracy_det_val)
     except:

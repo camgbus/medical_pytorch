@@ -19,43 +19,38 @@ class RegressionAgent(Agent):
 
     def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
                    losses_train=None, losses_val=None, accuracy_train=None,
-                   accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None,
-                   path_npy_files=None):
+                   accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None):
         r"""Saves an agent state. Raises an error if the directory exists and 
         overwrite=False. Saves all further results like losses and accuracies as
         .npy files.
         """
         external_save_state(self, states_path, state_name, optimizer, overwrite,
                             losses_train, losses_val, accuracy_train,
-                            accuracy_det_train, accuracy_val, accuracy_det_val,
-                            path_npy_files)
+                            accuracy_det_train, accuracy_val, accuracy_det_val)
 
-    def restore_state(self, states_path, state_name, path_npy_files, optimizer=None):
+    def restore_state(self, states_path, state_name, optimizer=None):
         r"""Tries to restore a previous agent state, consisting of a model 
         state and the content of agent_state_dict. Returns whether the restore 
         operation  was successful. Further the results will be loaded as well,
         i.e. losses and accuracies.
         """
-        return external_restore_state(self, states_path, state_name, path_npy_files, optimizer)
+        return external_restore_state(self, states_path, state_name, optimizer)
 
     def train(self, optimizer, loss_f, train_dataloader,
               val_dataloader, nr_epochs=100, start_epoch=0, save_path=None,
-              pathr=None, save_interval=10, msg_bot=True, bot_msg_interval=10):
+              losses=list(), losses_val=list(), accuracy=list(),
+              accuracy_detailed=list(), accuracy_val=list(),
+              accuracy_val_detailed=list(), save_interval=10,
+              msg_bot=True, bot_msg_interval=10):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
         assert start_epoch < nr_epochs, 'Start epoch needs to be smaller than the number of epochs!'
         if msg_bot == True:
             self.bot.send_msg('Start training the model for {} epochs..'.format(nr_epochs-start_epoch))
-        losses = list()
         losses_cum = list()
-        losses_val = list()
         losses_cum_val = list()
-        accuracy = list()
-        accuracy_detailed = list()
-        accuracy_val = list()
-        accuracy_val_detailed = list()
-        for epoch in range(nr_epochs):
+        for epoch in range(start_epoch, nr_epochs):
             msg = "Running epoch "
             msg += str(epoch + 1) + " of " + str(nr_epochs) + "."
             print (msg, end = "\r")
@@ -126,7 +121,9 @@ class RegressionAgent(Agent):
             if (epoch + 1) % save_interval == 0 and save_path is not None:
                 print('Saving current state after epoch: {}.'.format(epoch + 1))
                 self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-                                optimizer, overwrite=True)
+                                optimizer, True, losses, losses_val,
+                                accuracy, accuracy_detailed, accuracy_val,
+                                accuracy_val_detailed)
 
         # Return losses
         return losses, losses_cum, losses_val, losses_cum_val, accuracy, accuracy_detailed, accuracy_val, accuracy_val_detailed

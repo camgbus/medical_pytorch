@@ -107,7 +107,7 @@ def Reg_initialize_and_train(config):
         accuracy_train, accuracy_det_train, accuracy_val,\
         accuracy_det_val = agent.train(optimizer, loss_f, dl,
                        dl_val, nr_epochs=config['nr_epochs'],
-                                save_path=paths, pathr=pathr,
+                                             save_path=paths,
                 save_interval=save_interval, msg_bot=msg_bot,
                            bot_msg_interval=bot_msg_interval)
 
@@ -117,7 +117,7 @@ def Reg_initialize_and_train(config):
         
         # 11. Test model
         print('Testing model in batches of {}..'.format(batch_size))
-        losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl)
+        losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot=msg_bot)
 
     # 12. Save results
     save_results(model, noise, 'regression', paths, pathr, losses_train, losses_val, accuracy_train,
@@ -186,7 +186,7 @@ def Reg_restore_and_train(config):
             num_workers=1)
 
         # 7. Initialize model
-        model = LinReg(input_features, output_features)
+        model = LinReg(output_features)
         model.to(device)
 
         # 8. Define loss and optimizer
@@ -205,19 +205,24 @@ def Reg_restore_and_train(config):
         print('Restore last saved model from epoch {}..'.format(state_name.split('_')[-1]))
         agent = RegressionAgent(model=model, device=device)
         _, restored_results = agent.restore_state(paths, state_name,
-                                            pathr, optimizer=optimizer)
-        losses_train, losses_val, accuracy_train,\
-        accuracy_det_train, accuracy_val, accuracy_det_val = restored_results
-
+                                                optimizer=optimizer)
+        losses_train_r, losses_val_r, accuracy_train_r,\
+        accuracy_det_train_r, accuracy_val_r, accuracy_det_val_r = restored_results
+        
         print('Training model in batches of {}..'.format(batch_size))
         losses_train, losses_cum_train, losses_val, losses_cum_val,\
         accuracy_train, accuracy_det_train, accuracy_val,\
         accuracy_det_val = agent.train(optimizer, loss_f, dl,
-                    dl_val, nr_epochs=config['nr_epochs'],
-               start_epoch=int(state_name.split('_')[-1]),
-                             save_path=paths, pathr=pathr,
-             save_interval=save_interval, msg_bot=msg_bot,
-                        bot_msg_interval=bot_msg_interval)
+                       dl_val, nr_epochs=config['nr_epochs'],
+                  start_epoch=int(state_name.split('_')[-1]),
+             save_path=paths, losses=losses_train_r.tolist(),
+                            losses_val=losses_val_r.tolist(),
+                          accuracy=accuracy_train_r.tolist(),
+             accuracy_detailed=accuracy_det_train_r.tolist(),
+                        accuracy_val=accuracy_val_r.tolist(),
+           accuracy_val_detailed=accuracy_det_val_r.tolist(),
+                save_interval=save_interval, msg_bot=msg_bot,
+                           bot_msg_interval=bot_msg_interval)
 
         # 10. Join data
         losses_cum_train_r = list()
@@ -227,12 +232,6 @@ def Reg_restore_and_train(config):
         for idx, e_loss in enumerate(losses_val_r):
             losses_cum_val_r.append([idx+1, sum(e_loss) / len(e_loss)])
 
-        losses_train_r.tolist().extend(losses_train)
-        losses_val_r.tolist().extend(losses_val)
-        accuracy_train_r.tolist().extend(accuracy_train)
-        accuracy_det_train_r.tolist().extend(accuracy_det_train)
-        accuracy_val_r.tolist().extend(accuracy_val)
-        accuracy_det_val_r.tolist().extend(accuracy_det_val)
         losses_cum_train_r.extend(losses_cum_train)
         losses_cum_val_r.extend(losses_cum_val)
 
@@ -242,9 +241,9 @@ def Reg_restore_and_train(config):
         
         # 12. Test model
         print('Testing model in batches of {}..'.format(batch_size))
-        losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl)
+        losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot=msg_bot)
 
     # 13. Save results
-    save_results(model, noise, 'regression', paths, pathr, losses_train_r, losses_val_r, accuracy_train_r,
-                 accuracy_det_train_r, accuracy_val_r, accuracy_det_val_r, losses_test, accuracy_test,
+    save_results(model, noise, 'regression', paths, pathr, losses_train, losses_val, accuracy_train,
+                 accuracy_det_train, accuracy_val, accuracy_det_val, losses_test, accuracy_test,
                  accuracy_det_test, losses_cum_train_r, losses_cum_val_r)
