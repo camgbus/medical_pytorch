@@ -60,12 +60,16 @@ def Reg_initialize_and_train(config):
         splits[ds_name] = split_dataset(ds, test_ratio=config['test_ratio'], 
         val_ratio=config['val_ratio'], nr_repetitions=config['nr_runs'], 
         cross_validation=config['cross_validation'])
-    paths = os.path.join(storage_data_path, 'models', noise+'_regression', 'states')
-    pathr = os.path.join(storage_data_path, 'models', noise+'_regression', 'results')
+    paths = os.path.join(storage_data_path, 'models', noise+'_cnn', 'states')
+    pathr = os.path.join(storage_data_path, 'models', noise+'_cnn', 'results')
     if not os.path.exists(paths):
         os.makedirs(paths)
     if not os.path.exists(pathr):
         os.makedirs(pathr)
+
+    # Save split
+    if splits is not None:
+        lr.save_json(splits, path=paths, name='data_splits')
 
 
     # 4. Create data splits for each repetition
@@ -153,14 +157,12 @@ def Reg_restore_and_train(config):
     val_ds = ('DecathlonLung', 'val')
     test_ds = ('DecathlonLung', 'test')
 
-    # 3. Split data and define path
-    splits = dict()
-    for ds_name, ds in data.datasets.items():
-        splits[ds_name] = split_dataset(ds, test_ratio=config['test_ratio'], 
-        val_ratio=config['val_ratio'], nr_repetitions=config['nr_runs'], 
-        cross_validation=config['cross_validation'])
-    paths = os.path.join(storage_data_path, 'models', noise+'_regression', 'states')
-    pathr = os.path.join(storage_data_path, 'models', noise+'_regression', 'results')
+
+    # 3. Restore and define path
+    paths = os.path.join(storage_data_path, 'models', noise+'_cnn', 'states')
+    pathr = os.path.join(storage_data_path, 'models', noise+'_cnn', 'results')
+    splits = lr.load_json(path=paths, name='data_splits')
+    print('Restored existing splits')
 
 
     # 4. Create data splits for each repetition
@@ -247,3 +249,7 @@ def Reg_restore_and_train(config):
     save_results(model, noise, 'regression', paths, pathr, losses_train, losses_val, accuracy_train,
                  accuracy_det_train, accuracy_val, accuracy_det_val, losses_test, accuracy_test,
                  accuracy_det_test, losses_cum_train_r, losses_cum_val_r)
+
+def Reg_predict(config):
+    r"""This function loads an existing state and makes predictions based on the input file."""
+    pass

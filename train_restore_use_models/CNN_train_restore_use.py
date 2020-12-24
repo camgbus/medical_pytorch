@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_lung_decathlon_cnn import DecathlonLung, DecathlonLungRestored
+from mp.data.datasets.corona_fra_cnn import FraCoronaDatasetAugmented
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_cnn_dataset import PytorchCNN2DDataset
@@ -65,6 +66,10 @@ def CNN_initialize_and_train(config):
         os.makedirs(paths)
     if not os.path.exists(pathr):
         os.makedirs(pathr)
+
+    # Save split
+    if splits is not None:
+        lr.save_json(splits, path=paths, name='data_splits')
 
 
     # 4. Create data splits for each repetition
@@ -152,15 +157,12 @@ def CNN_restore_and_train(config):
     val_ds = ('DecathlonLung', 'val')
     test_ds = ('DecathlonLung', 'test')
 
-    # 3. Split data and define path
-    splits = dict()
-    for ds_name, ds in data.datasets.items():
-        splits[ds_name] = split_dataset(ds, test_ratio=config['test_ratio'], 
-        val_ratio=config['val_ratio'], nr_repetitions=config['nr_runs'], 
-        cross_validation=config['cross_validation'])
+
+    # 3. Restore and define path
     paths = os.path.join(storage_data_path, 'models', noise+'_cnn', 'states')
     pathr = os.path.join(storage_data_path, 'models', noise+'_cnn', 'results')
-
+    splits = lr.load_json(path=paths, name='data_splits')
+    print('Restored existing splits')
 
     # 4. Create data splits for each repetition
     print('Bring data to PyTorch format..')
@@ -248,3 +250,34 @@ def CNN_restore_and_train(config):
     save_results(model, noise, 'cnn', paths, pathr, losses_train, losses_val, accuracy_train,
                  accuracy_det_train, accuracy_val, accuracy_det_val, losses_test, accuracy_test,
                  accuracy_det_test, losses_cum_train_r, losses_cum_val_r)
+
+def CNN_predict(config):
+    r"""This function loads an existing state and makes predictions based on the input file."""
+
+    # 1. Retrieve information from config dict
+    device = config['device']
+    device_name = torch.cuda.get_device_name(device)
+    print('Device name: {}'.format(device_name))
+    input_shape = config['input_shape']
+    batch_size = config['batch_size'] 
+    max_likert_value = config['max_likert_value']
+    output_features = max_likert_value
+    noise = config['noise']
+    augmented = config['augmented']
+    random_slices = config['random_slices']
+    nr_images = config['nr_images']
+    nr_slices = config['nr_slices']
+    weight_decay = config['weight_decay']
+    save_interval = config['save_interval']
+    msg_bot = config['msg_bot']
+    bot_msg_interval = config['bot_msg_interval']
+
+
+    # 2. Define data
+    data = Data()
+    data.add_dataset(FraCoronaDatasetAugmented(augmented=augmented,
+                                              img_size=input_shape,
+                                 max_likert_value=max_likert_value,
+                                       random_slices=False,
+                                  noise=noise, nr_images=nr_images,
+                                              nr_slices=nr_slices))
