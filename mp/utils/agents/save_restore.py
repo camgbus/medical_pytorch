@@ -6,8 +6,9 @@ from mp.utils.load_restore import pkl_dump, pkl_load
 from mp.utils.pytorch.pytorch_load_restore import save_model_state, load_model_state, save_optimizer_state, load_optimizer_state
 
 def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
-               losses_train=None, losses_val=None, accuracy_train=None,
-               accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None):
+               losses_train=None, losses_cum_train=None, losses_val=None, 
+               losses_cum_val=None, accuracy_train=None, accuracy_det_train=None,
+               accuracy_val=None, accuracy_det_val=None):
     r"""Saves an agent state. Raises an error if the directory exists and 
     overwrite=False. Saves all further results like losses and accuracies as
     .npy files.
@@ -25,8 +26,12 @@ def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
             save_optimizer_state(optimizer, 'optimizer', state_full_path)
         if losses_train is not None:
             np.save(os.path.join(state_full_path, 'losses_train.npy'), np.array(losses_train))
+        if losses_cum_train is not None:
+            np.save(os.path.join(state_full_path, 'losses_cum_train.npy'), np.array(losses_cum_train))
         if losses_val is not None:
             np.save(os.path.join(state_full_path, 'losses_validation.npy'), np.array(losses_val))
+        if losses_cum_val is not None:
+            np.save(os.path.join(state_full_path, 'losses_cum_validation.npy'), np.array(losses_cum_val))
         if accuracy_train is not None:
             np.save(os.path.join(state_full_path, 'accuracy_train.npy'), np.array(accuracy_train))
         if accuracy_det_train is not None:
@@ -55,13 +60,15 @@ def restore_state(self, states_path, state_name, optimizer=None):
             print('State {} was restored'.format(state_name))
         print("Loading model state dict was successful.")
         losses_train = np.load(os.path.join(state_full_path, 'losses_train.npy'), allow_pickle=True)
+        losses_cum_train = np.load(os.path.join(state_full_path, 'losses_cum_train.npy'), allow_pickle=True)
         losses_val = np.load(os.path.join(state_full_path, 'losses_validation.npy'), allow_pickle=True)
+        losses_cum_val = np.load(os.path.join(state_full_path, 'losses_cum_validation.npy'), allow_pickle=True)
         accuracy_train = np.load(os.path.join(state_full_path, 'accuracy_train.npy'), allow_pickle=True)
         accuracy_det_train = np.load(os.path.join(state_full_path, 'accuracy_detailed_train.npy'), allow_pickle=True)
         accuracy_val = np.load(os.path.join(state_full_path, 'accuracy_validation.npy'), allow_pickle=True)
         accuracy_det_val = np.load(os.path.join(state_full_path, 'accuracy_detailed_validation.npy'), allow_pickle=True)
         print("Loading losses and accuracies was succesful.")
-        return True, (losses_train, losses_val, accuracy_train, accuracy_det_train, accuracy_val, accuracy_det_val)
+        return True, (losses_train, losses_cum_train, losses_val, losses_cum_val, accuracy_train, accuracy_det_train, accuracy_val, accuracy_det_val)
     except:
         print('State {} could not be restored'.format(state_name))
         return False, None

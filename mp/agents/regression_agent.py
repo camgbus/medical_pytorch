@@ -18,15 +18,16 @@ class RegressionAgent(Agent):
         self.bot = TelegramBot(telegram_login)
 
     def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
-                   losses_train=None, losses_val=None, accuracy_train=None,
-                   accuracy_det_train=None, accuracy_val=None, accuracy_det_val=None):
+                   losses_train=None, losses_cum_train=None, losses_val=None, 
+                   losses_cum_val=None, accuracy_train=None, accuracy_det_train=None,
+                   accuracy_val=None, accuracy_det_val=None):
         r"""Saves an agent state. Raises an error if the directory exists and 
         overwrite=False. Saves all further results like losses and accuracies as
         .npy files.
         """
         external_save_state(self, states_path, state_name, optimizer, overwrite,
-                            losses_train, losses_val, accuracy_train,
-                            accuracy_det_train, accuracy_val, accuracy_det_val)
+                            losses_train, losses_cum_train, losses_val, losses_cum_val,
+                            accuracy_train, accuracy_det_train, accuracy_val, accuracy_det_val)
 
     def restore_state(self, states_path, state_name, optimizer=None):
         r"""Tries to restore a previous agent state, consisting of a model 
@@ -38,8 +39,8 @@ class RegressionAgent(Agent):
 
     def train(self, optimizer, loss_f, train_dataloader,
               val_dataloader, nr_epochs=100, start_epoch=0, save_path=None,
-              losses=list(), losses_val=list(), accuracy=list(),
-              accuracy_detailed=list(), accuracy_val=list(),
+              losses=list(), losses_cum=list(), losses_val=list(), losses_cum_val=list(),
+              accuracy=list(), accuracy_detailed=list(), accuracy_val=list(),
               accuracy_val_detailed=list(), save_interval=10,
               msg_bot=True, bot_msg_interval=10):
         r"""Train a model through its agent. Performs training epochs, 
@@ -48,8 +49,7 @@ class RegressionAgent(Agent):
         assert start_epoch < nr_epochs, 'Start epoch needs to be smaller than the number of epochs!'
         if msg_bot == True:
             self.bot.send_msg('Start training the model for {} epochs..'.format(nr_epochs-start_epoch))
-        losses_cum = list()
-        losses_cum_val = list()
+            
         for epoch in range(start_epoch, nr_epochs):
             msg = "Running epoch "
             msg += str(epoch + 1) + " of " + str(nr_epochs) + "."
@@ -121,8 +121,8 @@ class RegressionAgent(Agent):
             if (epoch + 1) % save_interval == 0 and save_path is not None:
                 print('Saving current state after epoch: {}.'.format(epoch + 1))
                 self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-                                optimizer, True, losses, losses_val,
-                                accuracy, accuracy_detailed, accuracy_val,
+                                optimizer, True, losses, losses_cum, losses_val,
+                                losses_cum_val, accuracy, accuracy_detailed, accuracy_val,
                                 accuracy_val_detailed)
 
         # Return losses

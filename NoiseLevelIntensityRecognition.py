@@ -1,7 +1,7 @@
 # 1. Import needed libraries and functions
-import sys
 import os
 import argparse
+import traceback
 from mp.paths import storage_data_path, telegram_login
 from mp.utils.update_bots.telegram_bot import TelegramBot
 from train_restore_use_models.CNN_train_restore_use import CNN_initialize_and_train, CNN_restore_and_train, CNN_predict
@@ -52,9 +52,16 @@ parser.add_argument('--use_telegram_bot', action='store_const', const=True, defa
                          ' Default: No Telegram Bot will be used to send messages.')
 parser.add_argument('--try_catch_repeat', action='store', type=int, nargs=1, default=0,
                     help='Try to train the model with a restored state, if an error occurs.'+
+                         ' Repeat only <TRY_CATCH_REPEAT> number of times.'+
+                         ' Default: Do not retry to train after an error occurs.')
+
+
+"""parser.add_argument('--try_catch_repeat', action='store', type=int, nargs=1, default=0,
+                    help='Try to train the model with a restored state, if an error occurs.'+
                          ' Repeat only <TRY_CATCH_REPEAT> number of times. For debugging errors,'+
                          ' this should not be set, since only the error name will be displayed!'+
-                         ' Default: Do not retry to train after an error occurs.')
+                         ' Default: Do not retry to train after an error occurs.')"""
+
 
 # 4. Define configuration dict and train the model
 args = parser.parse_args()
@@ -92,7 +99,7 @@ if mode == 'train':
                 # Otherwise, a permission denied error or other errors occured
                 break
             except: # catch *all* exceptions
-                e = sys.exc_info()[0]
+                e = traceback.format_exc()
                 print('Error occured during training {} model for {} noise: {}'.format(model, noise, e))
                 if msg_bot:
                     bot.send_msg('Error occured during training {} model for {} noise: {}'.format(model, noise, e))
@@ -101,7 +108,7 @@ if mode == 'train':
                 # occurs while trying to extract the highest saved state for restoring a state.
                 # Check if the directory is empty. If so, restore = False, otherwise True.
                 if os.path.exists(dir_name) and os.path.isdir(dir_name):
-                    if len(os.listdir(dir_name)) > 1:
+                    if len(os.listdir(dir_name)) <= 1:
                         # Directory only contains json splitting file but no model state!
                         restore = False
                     else:    
