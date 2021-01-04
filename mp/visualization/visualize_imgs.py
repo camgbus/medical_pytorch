@@ -39,7 +39,10 @@ def ensure_channel_width_height_depth(np_array):
 def normalize_range(img_array, max_value=255.):
     r"""Normalize in range [0, 255]"""
     img_array = img_array.astype(np.float32)
-    img_array /= (img_array.max()/max_value)
+    array_max = img_array.max()
+    if array_max == 0:
+        array_max = 0.001
+    img_array /= (array_max/max_value)
     return img_array.astype(np.uint8)
 
 def overlay_images(base, overlay, alpha=0.5):

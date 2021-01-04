@@ -11,7 +11,7 @@ import torchio
 import mp.data.pytorch.transformation as trans
 
 class Predictor():
-    r"""A predictor recreates a prediction with the correct dimensions from 
+    r"""A predictor recreates a prediction with the correct dimensions from
     model outputs. There are different predictors for different PytorchDatasets,
     and these are setted internally with the creation of a PytorchDataset.
     Args:
@@ -81,7 +81,7 @@ class Predictor2D(Predictor):
         return pred
 
 class Predictor3D(Predictor):
-    r"""The Predictor3D Reconstructs an image into the original size after 
+    r"""The Predictor3D Reconstructs an image into the original size after
     performing a forward pass.
     """
     def __init__(self, *args, resize=False, **kwargs):
@@ -95,7 +95,6 @@ class Predictor3D(Predictor):
         # Get original label size
         original_size = subject['y'].data.shape
 
-        
         if self.resize:
             # Resize to appropiate model size and make prediction
             x = trans.resize_3d(x, size=self.size).to(agent.device)
@@ -116,7 +115,7 @@ class Predictor3D(Predictor):
         return pred
 
 class GridPredictor(Predictor):
-    r"""The GridPredictor deconstructs a 3D volume into patches, makes a forward 
+    r"""The GridPredictor deconstructs a 3D volume into patches, makes a forward
     pass through the model and reconstructs a prediction of the output size.
     """
     def __init__(self, *args, patch_overlap=(0,0,0), **kwargs):
@@ -139,7 +138,7 @@ class GridPredictor(Predictor):
         patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=5)
         patch_aggregator = torchio.inference.GridAggregator(grid_sampler)
         with torch.no_grad():
-            for patches_batch in patch_loader:            
+            for patches_batch in patch_loader:
                 input_tensor = patches_batch['x'][torchio.DATA].to(agent.device)
                 locations = patches_batch[torchio.LOCATION].to(agent.device)
                 pred = agent.predict(input_tensor)

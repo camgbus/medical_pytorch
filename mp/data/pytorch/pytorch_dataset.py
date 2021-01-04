@@ -30,6 +30,7 @@ class PytorchDataset(Dataset):
         self.instances = [ex for ix, ex in enumerate(dataset.instances) 
             if ix in ix_lst]
         self.size = size
+        self.ds_name = dataset.name
 
     def __len__(self):
         return len(self.instances)
