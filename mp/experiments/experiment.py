@@ -106,7 +106,7 @@ class ExperimentRun:
                 paths[subpath] = os.path.join(paths['root'], subpath)
         return paths
 
-    def finish(self, results=None, exception=None, plot_metrics=None):
+    def finish(self, results=None, exception=None, plot_metrics=None, plot_metrics_args=None):
         elapsed_time = time.time() - self.time_start
         self.review['elapsed_time'] = '{0:.2f}'.format(elapsed_time/60)
         if results:
@@ -115,9 +115,11 @@ class ExperimentRun:
             self._write_summary_measures(results)
             if isinstance(results, list):
                 for result in results:
-                    self._plot_results(result=result, save_path=self.paths['results'], plot_metrics=plot_metrics)
+                    self._plot_results(result=result, save_path=self.paths['results'],
+                                       plot_metrics=plot_metrics, plot_metrics_args=plot_metrics_args)
             else:
-                self._plot_results(result=results, save_path=self.paths['results'], plot_metrics=plot_metrics)
+                self._plot_results(result=results, save_path=self.paths['results'],
+                                   plot_metrics=plot_metrics, plot_metrics_args=plot_metrics_args)
         else:
             self.review['state'] = 'FAILURE: ' + str(exception)
             # TODO: store exception with better format, or whole error path
@@ -154,8 +156,11 @@ class ExperimentRun:
         for key in pkl_dict.keys():
             pkl_dict[key] = lr.pkl_load(key, path=self.paths['states'])
 
-    def _plot_results(self, result, save_path, plot_metrics=None):
-        plot_results(result, save_path=self.paths['results'], measures=plot_metrics)
+    def _plot_results(self, result, save_path, plot_metrics=None, plot_metrics_args=None):
+        if plot_metrics_args is not None:
+            plot_results(result, save_path=self.paths['results'], measures=plot_metrics, **plot_metrics_args)
+        else:
+            plot_results(result, save_path=self.paths['results'], measures=plot_metrics)
 
     def _write_summary_measures(self, results):
         pass

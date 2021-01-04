@@ -13,8 +13,7 @@ class SegmentationIRMAgent(SegmentationAgent):
 
         Args:
             irm_loss_f (IRMLossAbstract): the IRM loss
-            print_run_loss (bool): whether a running loss should be tracked and
-                printed.
+            print_run_loss (bool): whether a running loss should be tracked and printed.
         """
         acc = Accumulator('loss')
         for data_list in zip_longest_with_cycle(*train_dataloaders):
@@ -91,8 +90,9 @@ class SegmentationIRMAgent(SegmentationAgent):
             irm_loss_f (IRMLossAbstract): the IRM loss
             train_dataloaders (list): a list of Dataloaders
             early_stopping (EarlyStopping): the early stopping criterion
+
         Returns:
-            The the last epoch index of stages 1 and 2 (stage 1 ends right before penalty_anneal_iters)
+            The the last epoch index of stages 1 to 2 as a tuple
         """
         if eval_datasets is None:
             eval_datasets = dict()
@@ -131,7 +131,5 @@ class SegmentationIRMAgent(SegmentationAgent):
 
             # Update the penalty weight for the IRM loss at the end of the first stage
             irm_loss_f.penalty_weight = penalty_weight
-
-        results["stages"] = stages_last_epoch
 
         return tuple(stages_last_epoch)

@@ -22,8 +22,7 @@ class SegmentationDomainAgent(SegmentationAgent):
         meaning that the encoder, classifier and domain predictor are all trained together
 
         Args:
-            print_run_loss (bool): whether a running loss should be tracked and
-                printed.
+            print_run_loss (bool): whether a running loss should be tracked and printed.
         """
         acc = Accumulator('loss')
         # For each batch
@@ -36,13 +35,12 @@ class SegmentationDomainAgent(SegmentationAgent):
                 # Get data
                 inputs, targets = self.get_inputs_targets(data)
 
-                # Forward pass for the classification
+                # Forward pass for the classification and domain prediction
                 # Here we cannot use self.get_outputs(inputs)
                 classifier_output, domain_pred = self.model(inputs, detach=True)
-                outputs = softmax(classifier_output)
 
                 # Store losses and predictions
-                classifier_losses.append(loss_f_classifier(outputs, targets))
+                classifier_losses.append(loss_f_classifier(softmax(classifier_output), targets))
                 domain_preds.append(domain_pred)
                 data_lengths.append(inputs.shape[0])
 
@@ -74,8 +72,7 @@ class SegmentationDomainAgent(SegmentationAgent):
         meaning that the encoder, classifier and domain predictor are all trained one after the other
 
         Args:
-            print_run_loss (bool): whether a running loss should be tracked and
-                printed.
+            print_run_loss (bool): whether a running loss should be tracked and printed.
         """
         acc = Accumulator('loss')
         # For each batch
@@ -145,8 +142,7 @@ class SegmentationDomainAgent(SegmentationAgent):
         meaning that the domain predictor only is trained
 
         Args:
-            print_run_loss (bool): whether a running loss should be tracked and
-                printed.
+            print_run_loss (bool): whether a running loss should be tracked and printed.
         """
         acc = Accumulator('loss')
         # For each batch
@@ -158,7 +154,7 @@ class SegmentationDomainAgent(SegmentationAgent):
                 # Get data
                 inputs, targets = self.get_inputs_targets(data)
 
-                # Forward pass for the classification
+                # Forward pass for the domain prediction
                 # Here we cannot use self.get_outputs(inputs)
                 feature = self.model.get_features_from_encoder(inputs).detach()
                 domain_pred = softmax(self.model.get_domain_prediction_from_features(feature))
@@ -282,6 +278,7 @@ class SegmentationDomainAgent(SegmentationAgent):
 
         return stage1_epochs - 1, nr_epochs - 1, nr_epochs - 1 + stage3_epochs
 
+
     def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, early_stopping,
                                   init_epoch=0,
                                   run_loss_print_interval=10,
@@ -352,8 +349,7 @@ class SegmentationDomainAgent(SegmentationAgent):
         # Stage 2
         early_stopping.reset_counter()
         for epoch in range(epoch + 1, 1 << 32):
-            print_run_loss = (epoch + 1) % run_loss_print_interval == 0
-            print_run_loss = print_run_loss and self.verbose
+            print_run_loss = (epoch + 1) % run_loss_print_interval == 0 and self.verbose
 
             self.perform_stage2_training_epoch(optimizer_model,
                                                optimizer_domain_predictor,
@@ -383,13 +379,19 @@ class SegmentationDomainAgent(SegmentationAgent):
         #       The domain predictor will constantly predict the larger dataset
         # early_stopping_stage3 = EarlyStopping(0, "Mean_Accuracy", ["Training dl 0", "Training dl 1"],
         #                                       metric_min_delta=early_stopping.metric_min_delta)
-        for epoch in range(epoch + 1, 1 << 32):
+        # for epoch in range(epoch + 1, 1 << 32):
+        for epoch in range(epoch + 1, epoch + 21):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0 and self.verbose
 
             self.perform_stage3_training_epoch(optimizer_domain_predictor,
                                                loss_f_domain_pred,
                                                train_dataloaders,
                                                print_run_loss=print_run_loss)
+
+            if (epoch + 1) % eval_interval == 0:
+                self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
+                self.track_domain_prediction_accuracy(epoch + 1, results, train_dataloaders)
+
             # keep_going = track_if_needed(early_stopping_stage3)
             # if not keep_going:
             #     stage3_last_epoch = epoch + 1
@@ -408,8 +410,6 @@ class SegmentationDomainAgent(SegmentationAgent):
                             optimizer_model,
                             optimizer_domain_predictor,
                             optimizer_encoder)
-
-        results["stages"] = [stage1_last_epoch, stage2_last_epoch, stage3_last_epoch]
 
         return stage1_last_epoch, stage2_last_epoch, stage3_last_epoch
 

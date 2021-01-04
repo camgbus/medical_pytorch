@@ -28,7 +28,7 @@ config = {'experiment_name': 'test_exp_not_decath4_firm_aug_many', 'device': 'cu
           'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'geometric',
           'class_weights': (0., 1.), 'lr': 2e-4, 'batch_size': 22,
           "nr_epochs": 100,
-          "save_interval": 10
+          "eval_interval": 10
           }
 
 device = config['device']
@@ -102,8 +102,8 @@ for run_ix in range(config['nr_runs']):
     results = Result(name='training_trajectory')
     agent = SegmentationIRMGamesAgent(model=model, label_names=label_names, device=device)
     agent.train(results, optimizers, loss_g, train_dataloaders=dls,
-                init_epoch=0, nr_epochs=config["nr_epochs"], run_loss_print_interval=config["save_interval"],
-                eval_datasets=datasets, eval_interval=config["save_interval"],
+                init_epoch=0, nr_epochs=config["nr_epochs"], run_loss_print_interval=config["eval_interval"],
+                eval_datasets=datasets, eval_interval=config["eval_interval"],
                 save_path=exp_run.paths['states'], save_interval=config["nr_epochs"])
 
     # 11. Save and print results for this experiment run

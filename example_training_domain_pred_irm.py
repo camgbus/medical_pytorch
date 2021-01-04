@@ -12,13 +12,14 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from mp.agents.segmentation_domain_pred_agent import SegmentationDomainAgent
+from mp.agents.segmentation_domain_pred_IRM_agent import SegmentationDomainIRMAgent
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
 from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg3DDataset
 from mp.eval.losses.losses_domain_prediction import ConfusionLoss
+from mp.eval.losses.losses_irm import IRMv1Loss, VRexLoss, MMRexLoss, ERMWrapper
 from mp.eval.losses.losses_segmentation import LossDiceBCE, LossClassWeighted, LossBCE
 from mp.eval.result import Result
 from mp.experiments.experiment import Experiment
@@ -43,28 +44,58 @@ nr_labels = data.nr_labels
 label_names = data.label_names
 
 configs = [
-    # {'experiment_name': 'harp_dryad_no_aug_erm', 'device': 'cuda:0',
+    # {'experiment_name': 'harp_dryad_no_aug_vrex', 'device': 'cuda:0',
     #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
     #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
     #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
     #  "nr_epochs": 120,
-    #  "beta": 10, "eval_interval": 10,
+    #  "beta": 10, "penalty_weight": 1e5,
+    #  "loss": "vrex", "eval_interval": 10,
     #  "train_ds_names": (harp.name, dryad.name)
     #  },
-    {'experiment_name': 'harp_dryad_hybrid_aug_erm', 'device': 'cuda:0',
+    # {'experiment_name': 'harp_dryad_hybrid_aug_irmv1', 'device': 'cuda:0',
+    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
+    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
+    #  "nr_epochs": 120,
+    #  "beta": 10, "penalty_weight": 1e5,
+    #  "loss": "irmv1", "eval_interval": 10,
+    #  "train_ds_names": (harp.name, dryad.name)
+    #  },
+    # {'experiment_name': 'harp_dryad_mri_aug_irmv1', 'device': 'cuda:0',
+    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
+    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
+    #  "nr_epochs": 120,
+    #  "beta": 10, "penalty_weight": 1e5,
+    #  "loss": "irmv1", "eval_interval": 10,
+    #  "train_ds_names": (harp.name, dryad.name)
+    #  },
+    # {'experiment_name': 'harp_dryad_no_aug_vrex', 'device': 'cuda:0',
+    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
+    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
+    #  "nr_epochs": 120,
+    #  "beta": 10, "penalty_weight": 1e3,
+    #  "loss": "vrex", "eval_interval": 10,
+    #  "train_ds_names": (harp.name, dryad.name)
+    #  },
+    {'experiment_name': 'harp_dryad_hybrid_aug_vrex', 'device': 'cuda:0',
      'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
      'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
      "nr_epochs": 120,
-     "beta": 10, "eval_interval": 10,
+     "beta": 10, "penalty_weight": 1e3,
+     "loss": "vrex", "eval_interval": 10,
      "train_ds_names": (harp.name, dryad.name)
      },
-    {'experiment_name': 'harp_dryad_mri_aug_erm', 'device': 'cuda:0',
+    {'experiment_name': 'harp_dryad_mri_aug_vrex', 'device': 'cuda:0',
      'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
      'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
      "nr_epochs": 120,
-     "beta": 10, "eval_interval": 10,
+     "beta": 10, "penalty_weight": 1e3,
+     "loss": "vrex", "eval_interval": 10,
      "train_ds_names": (harp.name, dryad.name)
      },
 ]
@@ -130,7 +161,15 @@ for config in configs:
         # 9. Define loss and optimizer
         loss_f_classifier = LossClassWeighted(LossDiceBCE(bce_weight=1., smooth=1., device=device),
                                               weights=config["class_weights"])
-        loss_f_domain_predictor = LossBCE()
+
+        erm_loss = LossBCE()
+        irm_losses = {"vrex": VRexLoss(erm_loss, device=device),
+                      "mmrex": MMRexLoss(erm_loss, device=device),
+                      "irmv1": IRMv1Loss(erm_loss, device=device),
+                      "erm": ERMWrapper(erm_loss, device=device)
+                      }
+        loss_f_domain_predictor = irm_losses[config["loss"]]
+
         loss_f_encoder = ConfusionLoss()
         losses = [loss_f_classifier, loss_f_domain_predictor, loss_f_encoder]
 
@@ -142,14 +181,8 @@ for config in configs:
 
         # 10. Train model
         results = Result(name='training_trajectory')
-        agent = SegmentationDomainAgent(model=model, label_names=label_names, device=device, metrics=["ScoreDice"],
-                                        verbose=False)
-        # epochs = agent.train(results, optimizers, losses, train_dataloaders=dls,
-        #                      init_epoch=0, nr_epochs=config["nr_epochs"],
-        #                      run_loss_print_interval=config["eval_interval"],
-        #                      eval_datasets=datasets, eval_interval=config["eval_interval"],
-        #                      save_path=exp_run.paths['states'], save_interval=config["nr_epochs"],
-        #                      beta=config["beta"], stage1_epochs=config["stage1_epochs"])
+        agent = SegmentationDomainIRMAgent(model=model, label_names=label_names, device=device, metrics=["ScoreDice"],
+                                           verbose=False)
 
         early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_test" for name in train_ds_names])
         epochs = agent.train_with_early_stopping(results, optimizers, losses, train_dataloaders=dls,
@@ -157,8 +190,8 @@ for config in configs:
                                                  run_loss_print_interval=config["eval_interval"],
                                                  eval_datasets=datasets, eval_interval=config["eval_interval"],
                                                  save_path=exp_run.paths['states'],
-                                                 beta=config["beta"])
-        stage1_epoch, stage2_epoch, stage3_epoch = epochs
+                                                 beta=config["beta"], penalty_weight=config["penalty_weight"])
+        (stage1_1_epoch, stage1_2_epoch), stage2_epoch, (stage3_1_epoch, stage3_2_epoch) = epochs
         # Save the stage delimitations in the obj folder
         pkl_dump(epochs, "epochs.pkl", exp_run.paths['obj'])
 
@@ -173,8 +206,8 @@ for config in configs:
 
         # Outputs the results in csv format
         # Stage 1: DICE scores and accuracy scores
-        dice = results.results["Mean_ScoreDice[hippocampus]"][stage1_epoch]
-        acc = results.results["Mean_Accuracy"][stage1_epoch]
+        dice = results.results["Mean_ScoreDice[hippocampus]"][stage1_2_epoch]
+        acc = results.results["Mean_Accuracy"][stage1_2_epoch]
         print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","), end="")
 
         # Stage 2: DICE scores and accuracy scores
@@ -184,6 +217,6 @@ for config in configs:
         print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","), end="")
 
         # Stage 3: accuracy scores
-        acc = results.results["Mean_Accuracy"][stage3_epoch]
+        acc = results.results["Mean_Accuracy"][stage3_2_epoch]
         print("\t\t\t", end="")
         print("\t".join(f"{e:.3f}" for e in acc.values()).replace(".", ","))

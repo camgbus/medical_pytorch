@@ -121,7 +121,8 @@ for run_ix in range(config['nr_runs']):
     stage1_epoch, stage2_epoch = epochs
 
     # 11. Save and print results for this experiment run
-    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice[hippocampus]'])
+    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice[hippocampus]'],
+                       plot_metrics_args={"axvlines": epochs})
 
     metric = results.results["Mean_ScoreDice[hippocampus]"][stage2_epoch]
     # Print the mean dice score for each dataset and train/test subset
