@@ -38,7 +38,7 @@ for dir in os.listdir(os.path.join('downloads','UK_Frankfurt2')):
 
     # 2.2 read out the components
     comp = 0
-    while props[comp].area > 500 and comp < number_components : 
+    while comp < number_components and props[comp].area > 500 : 
         coords = props[comp].coords
         component_mask = np.zeros(shape)
         for x,y,z in coords: 
