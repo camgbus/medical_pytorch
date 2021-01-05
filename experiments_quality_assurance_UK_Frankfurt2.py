@@ -47,11 +47,14 @@ for dir in os.listdir(os.path.join('downloads','UK_Frankfurt2')):
         seg_comp.append(component_mask)
         comp += 1
 
+seg_comp = np.array(seg_comp)
+print('Data Matrix has shape {}'.format(np.shape(seg_comp)))
 print('Beginning with transformation')
 
 # 3. transform fit this array into 2 dim 
-transformer = TruncatedSVD(n_iter=10,random_state=34)
+transformer = TruncatedSVD(n_iter=50,random_state=34)
 seg_comp = transformer.fit_transform(seg_comp)
+print('Transformed Data has shape {}'.format(np.shape(seg_comp)))
 
 # 4. plot and save 
 print('Plotting and saving')
@@ -59,6 +62,8 @@ plt.scatter(seg_comp[:,0],seg_comp[:,1])
 plt.savefig(os.path.join('storage','statistics','UK_Frankfurt2','dim_reduced_UK_Frankfurt2.png'))
 pickle.dump(transformer,open(os.path.join('storage','statistics','UK_Frankfurt2','transformer_UK_Frankfurt2.sav'),'wb'))
 pickle.dump(seg_comp,open(os.path.join('storage','statistics','UK_Frankfurt2','trans_data_UK_Frankfurt2.sav'),'wb'))
+
+
 
 
 
