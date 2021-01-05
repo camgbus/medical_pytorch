@@ -14,6 +14,9 @@ from torch.nn.functional import interpolate
 from sklearn.decomposition import TruncatedSVD
 import matplotlib.pyplot as plt 
 import pickle 
+import time 
+
+start_time = time.time()
 
 # 2. reduce dimension of images to (57,256,256) and load components into an array 
 seg_comp = []
@@ -48,20 +51,46 @@ for dir in os.listdir(os.path.join('downloads','UK_Frankfurt2')):
         comp += 1
 
 seg_comp = np.array(seg_comp)
+seg_comp_save = seg_comp
 print('Data Matrix has shape {}'.format(np.shape(seg_comp)))
-print('Beginning with transformation')
+print('Beginning with transformations at {}'.format(time.time()))
 
-# 3. transform fit this array into 2 dim 
-transformer = TruncatedSVD(n_iter=50,random_state=34)
+# repeat experiments mutiple times, with different random seeds :
+plts = 0 
+for rand_st in [34,3243242,9072347,12]:
+    print('Testing random state {}'.format(rand_st))
+    for nr_iterations in [10,30,60]:
+        plts += 1
+        print('Testing nr_iterations {} at time {}'.format(nr_iterations,time.time()))
+        # 3. transform fit this array into 2 dim 
+        seg_comp = seg_comp_save
+        transformer = TruncatedSVD(n_iter=nr_iterations,random_state=rand_st)
+        seg_comp = transformer.fit_transform(seg_comp)
+        if rand_st == 34 and nr_iterations==10 :
+            print('Transformed Data has shape {}'.format(np.shape(seg_comp)))
+
+        # 4. plot and save
+        plt.figure(plts)
+        plt.scatter(seg_comp[:,0],seg_comp[:,1])
+        plt.savefig(os.path.join('storage','statistics','UK_Frankfurt2','dim_reduced_UK_Frankfurt2_rs{}_iters{}.png'.format(rand_st,nr_iterations)))
+        pickle.dump(transformer,open(os.path.join('storage','statistics','UK_Frankfurt2','transformer_UK_Frankfurt2_rs{}_iters{}.sav'.format(rand_st,nr_iterations)),'wb'))
+        pickle.dump(seg_comp,open(os.path.join('storage','statistics','UK_Frankfurt2','trans_data_UK_Frankfurt2_rs{}_iters{}.sav'.format(rand_st,nr_iterations)),'wb'))
+
+# Use arpack 
+print('Now test with arpack at time {}'.format(time.time()))
+seg_comp = seg_comp_save
+transformer = TruncatedSVD(algorithm='arpack',random_state=42,tol=0.0001)
 seg_comp = transformer.fit_transform(seg_comp)
-print('Transformed Data has shape {}'.format(np.shape(seg_comp)))
 
-# 4. plot and save 
-print('Plotting and saving')
+#plot and save arpack
+plts += 1
+plt.figure(plts)
 plt.scatter(seg_comp[:,0],seg_comp[:,1])
-plt.savefig(os.path.join('storage','statistics','UK_Frankfurt2','dim_reduced_UK_Frankfurt2.png'))
-pickle.dump(transformer,open(os.path.join('storage','statistics','UK_Frankfurt2','transformer_UK_Frankfurt2.sav'),'wb'))
-pickle.dump(seg_comp,open(os.path.join('storage','statistics','UK_Frankfurt2','trans_data_UK_Frankfurt2.sav'),'wb'))
+plt.savefig(os.path.join('storage','statistics','UK_Frankfurt2','dim_reduced_UK_Frankfurt2_arpack.png'))
+pickle.dump(transformer,open(os.path.join('storage','statistics','UK_Frankfurt2','transformer_UK_Frankfurt2_arpack.sav'),'wb'))
+pickle.dump(seg_comp,open(os.path.join('storage','statistics','UK_Frankfurt2','trans_data_UK_Frankfurt2_arpack.sav'),'wb'))
+
+
 
 
 
