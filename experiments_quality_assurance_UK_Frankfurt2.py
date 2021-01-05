@@ -51,7 +51,7 @@ print('Beginning with transformation')
 
 # 3. transform fit this array into 2 dim 
 transformer = TruncatedSVD(n_iter=10,random_state=34)
-transformer.fit_transform(seg_comp)
+seg_comp = transformer.fit_transform(seg_comp)
 
 # 4. plot and save 
 print('Plotting and saving')
