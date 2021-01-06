@@ -11,17 +11,17 @@ import torch
 from mp.data.pytorch.transformation import resize_3d
 from skimage.measure import label,regionprops
 from torch.nn.functional import interpolate
-from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import TruncatedSVD,PCA
 import matplotlib.pyplot as plt 
 import pickle 
 import time 
 
 # Hyperparams
 MAKE_EXPERIMENT = True
-ITERATIONS = [10,20]
+ITERATIONS = [0]
 RANDOM_STATES = [34,90789]
-PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller') #for saving the models/vectors
-USE_ARPACK = True 
+PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller_int_pca') #for saving the models/vectors
+USE_ARPACK = False
 GET_COMP_INFOS = True
 
 start_time = time.time()
@@ -62,9 +62,15 @@ if MAKE_EXPERIMENT:
                 max_ax_length = round(props[comp].major_axis_length)
                 informations = [i,comp,area,centroid,convexity,min_ax_length,max_ax_length]
                 comp_infos.append(informations)
-            min_sl, min_row, min_col, max_sl, max_row, max_col = props[comp].bbox
+            min_row, min_col, min_sl, max_row, max_col, max_sl,  = props[comp].bbox
             part_of_seg = props[comp].image
-            cut_seg = seg[min_sl:max_sl,min_row:max_row,min_col:max_col]
+            cut_seg = img[min_row:max_row,min_col:max_col,min_sl:max_sl]
+            cut_shape = np.shape(cut_seg)
+            for x in range(0,shape[0]):
+                for y in range(0,shape[1]):
+                    for z in range(0,shape[2]):
+                        if not part_of_seg[x,y,z]: #if this part of the bbox is not part of the segmentation, color is black -1024
+                            cut_seg[x,y,z] = -1024                            
             cut_seg = torch.tensor(cut_seg).unsqueeze(0)
             cut_seg= resize_3d(cut_seg, size=(1,20,20,8),label=True)
             cut_seg = cut_seg.numpy()[0]
@@ -88,7 +94,7 @@ if MAKE_EXPERIMENT:
             print('Testing nr_iterations {} at time {}'.format(nr_iterations,time.time()))
             # 3. transform fit this array into 2 dim 
             seg_comp = seg_comp_save
-            transformer = TruncatedSVD(n_iter=nr_iterations,random_state=rand_st)
+            transformer = PCA(n_components=2)
             seg_comp = transformer.fit_transform(seg_comp)
             if rand_st == 34 and nr_iterations==10 :
                 print('Transformed Data has shape {}'.format(np.shape(seg_comp)))
