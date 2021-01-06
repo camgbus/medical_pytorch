@@ -17,7 +17,7 @@ import pickle
 import time 
 
 # Hyperparams
-MAKE_EXPERIMENT = False
+MAKE_EXPERIMENT = True
 ITERATIONS = []
 RANDOM_STATES = []
 PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments')
