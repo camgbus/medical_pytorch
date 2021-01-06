@@ -17,10 +17,10 @@ import pickle
 import time 
 
 # Hyperparams
-MAKE_EXPERIMENT = True
+MAKE_EXPERIMENT = False
 ITERATIONS = []
 RANDOM_STATES = []
-PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2')
+PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments')
 USE_ARPACK = False 
 GET_COMP_INFOS = True
 
@@ -69,13 +69,15 @@ if MAKE_EXPERIMENT:
             if GET_COMP_INFOS: 
                 # save informations on components
                 area = props[comp].area
-                centroid = props[comp].centroid
+                centroid = np.around(props[comp].centroid)
                 convex_area = props[comp].convex_area
-                convexity = area/convex_area
-                min_ax_length = props[comp].minor_axis_length
-                max_ax_length = props[comp].major_axis_length
+                convexity = np.around(area/convex_area,3)
+                min_ax_length = round(props[comp].minor_axis_length)
+                max_ax_length = round(props[comp].major_axis_length)
                 informations = [i,comp,area,centroid,convexity,min_ax_length,max_ax_length]
+                print(informations)
                 comp_infos.append(informations)
+                print(comp_infos)
             coords = props[comp].coords
             component_mask = np.full(shape,-1024,dtype=int)
             for x,y,z in coords: 
@@ -87,7 +89,7 @@ if MAKE_EXPERIMENT:
     seg_comp = np.array(seg_comp)
     seg_comp_save = seg_comp
     if GET_COMP_INFOS:
-        pickle.dump(informations,open(os.path.join(PATH_TO_DATA_STATISTICS,'UK_Frankfurt2_com_infos.sav'),'wb'))  
+        pickle.dump(informations,open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'wb'))  
     print('Data Matrix has shape {}'.format(np.shape(seg_comp)))
     print('Beginning with transformations at {}'.format(time.time()))
 
@@ -129,7 +131,8 @@ else:
     transformer = pickle.load(open(os.path.join(PATH_TO_DATA_STATISTICS,'transformer_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp = pickle.load(open(os.path.join(PATH_TO_DATA_STATISTICS,'trans_data_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp_int = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments_Intensity','trans_data_UK_Frankfurt2_rs34_iters10.sav'),'rb'))
-    
+    informations = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
+
     # visuelle Cluster in gruppen einteilen
     group00 = []
     group10 = []
@@ -141,23 +144,37 @@ else:
             group10.append(i)
         if x<1 and y>1:
             group01.append(i)
+    print(informations)
+    # for i in group00:
+    #     print(informations[i])
+    #     print('\n')
 
-    for el in group01:
-        plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='green')
-    for el in group10:
-        plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='red')
-    for el in group00:
-        plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='blue')
 
-    rand_img = []
-    for i in range(5):
-        img = np.random.random_integers(-1024,2000,(57,256,256))
-        img = img.flatten()
-        rand_img.append(img)
-    rand_img = np.array(rand_img)
-    reduced_rand_img = transformer.transform(rand_img)
-    plt.scatter(reduced_rand_img[:,0],reduced_rand_img[:,1],c='black')
-    plt.show()
+
+
+
+
+
+
+
+
+
+    # for el in group01:
+    #     plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='green')
+    # for el in group10:
+    #     plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='red')
+    # for el in group00:
+    #     plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='blue')
+
+    # rand_img = []
+    # for i in range(5):
+    #     img = np.random.random_integers(-1024,2000,(57,256,256))
+    #     img = img.flatten()
+    #     rand_img.append(img)
+    # rand_img = np.array(rand_img)
+    # reduced_rand_img = transformer.transform(rand_img)
+    # plt.scatter(reduced_rand_img[:,0],reduced_rand_img[:,1],c='black')
+    # plt.show()
 
 
 
