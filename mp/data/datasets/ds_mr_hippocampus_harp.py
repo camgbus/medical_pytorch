@@ -101,7 +101,7 @@ def _extract_images(source_path, target_path, subset):
     for filename in os.listdir(images_path):
         # Loading the .mnc file and converting it to a .nii.gz file
         minc = nib.load(os.path.join(images_path, filename))
-        x = nib.Nifti1Image(np.asarray(minc.dataobj), affine=affine).get_data()
+        x: np.array = nib.Nifti1Image(np.asarray(minc.dataobj), affine=affine).get_data()
 
         # We need to recover the study name of the image name to construct the name of the segmentation files
         match = re.match(r"ADNI_[0-9]+_S_[0-9]+_[0-9]+", filename)
@@ -135,5 +135,5 @@ def _extract_images(source_path, target_path, subset):
             # Save new images so they can be loaded directly
             sitk.WriteImage(sitk.GetImageFromArray(y),
                             join_path([target_path, study_name + "_gt.nii.gz"]))
-            sitk.WriteImage(sitk.GetImageFromArray(x_cropped),
-                            join_path([target_path, study_name + ".nii.gz"]))
+            nib.save(nib.Nifti1Image(x_cropped, affine),
+                     join_path([target_path, study_name + ".nii.gz"]))
