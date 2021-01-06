@@ -89,7 +89,7 @@ if MAKE_EXPERIMENT:
     seg_comp = np.array(seg_comp)
     seg_comp_save = seg_comp
     if GET_COMP_INFOS:
-        pickle.dump(informations,open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'wb'))  
+        pickle.dump(comp_infos,open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'wb'))  
     print('Data Matrix has shape {}'.format(np.shape(seg_comp)))
     print('Beginning with transformations at {}'.format(time.time()))
 
@@ -131,7 +131,7 @@ else:
     transformer = pickle.load(open(os.path.join(PATH_TO_DATA_STATISTICS,'transformer_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp = pickle.load(open(os.path.join(PATH_TO_DATA_STATISTICS,'trans_data_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp_int = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments_Intensity','trans_data_UK_Frankfurt2_rs34_iters10.sav'),'rb'))
-    informations = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
+    comp_infos = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
 
     # visuelle Cluster in gruppen einteilen
     group00 = []
@@ -144,10 +144,10 @@ else:
             group10.append(i)
         if x<1 and y>1:
             group01.append(i)
-    print(informations)
-    # for i in group00:
-    #     print(informations[i])
-    #     print('\n')
+
+    for i in group00:
+        print(comp_infos[i])
+        print('\n')
 
 
 
