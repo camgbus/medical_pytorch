@@ -66,7 +66,7 @@ if MAKE_EXPERIMENT:
             part_of_seg = props[comp].image
             cut_seg = seg[min_sl:max_sl,min_row:max_row,min_col:max_col]
             cut_seg = torch.tensor(cut_seg).unsqueeze(0)
-            cut_seg= resize_3d(cut_seg, size=(50,50,10),label=True)
+            cut_seg= resize_3d(cut_seg, size=(1,50,50,10),label=True)
             cut_seg = cut_seg.numpy()[0]
             cut_seg = cut_seg.flatten()
             seg_comp.append(cut_seg)
