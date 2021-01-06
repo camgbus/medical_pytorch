@@ -66,9 +66,9 @@ if MAKE_EXPERIMENT:
             part_of_seg = props[comp].image
             cut_seg = img[min_row:max_row,min_col:max_col,min_sl:max_sl]
             cut_shape = np.shape(cut_seg)
-            for x in range(0,shape[0]):
-                for y in range(0,shape[1]):
-                    for z in range(0,shape[2]):
+            for x in range(0,cut_shape[0]):
+                for y in range(0,cut_shape[1]):
+                    for z in range(0,cut_shape[2]):
                         if not part_of_seg[x,y,z]: #if this part of the bbox is not part of the segmentation, color is black -1024
                             cut_seg[x,y,z] = -1024                            
             cut_seg = torch.tensor(cut_seg).unsqueeze(0)
