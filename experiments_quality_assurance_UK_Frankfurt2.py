@@ -18,27 +18,13 @@ import time
 
 # Hyperparams
 MAKE_EXPERIMENT = True
-ITERATIONS = []
-RANDOM_STATES = []
-PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments')
-USE_ARPACK = False 
+ITERATIONS = [10,20]
+RANDOM_STATES = [45,90789]
+PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox')
+USE_ARPACK = True 
 GET_COMP_INFOS = True
 
 start_time = time.time()
-
-def get_random_image_crop(img,size=2000):
-    big_enough = False 
-    while not big_enough:
-        shape = np.shape(img)
-        depth = np.random.randint(0,round(shape[0]/5))
-        length = np.random.randint(0,round(shape[1]/5))
-        height = np.random.randint(0,round(shape[2]/5))
-        x = np.random.randint(0,shape[0]-depth-1)
-        y = np.random.randint(0,shape[1]-length-1)
-        z = np.random.randint(0,shape[2]-height-1)
-        if x*y*z > size:
-            big_enough = True 
-    return img[x:x+depth,y:y+length,z:z+height]
 
 if MAKE_EXPERIMENT:
     # 2. reduce dimension of images to (57,256,256) and load components into an array 
@@ -75,15 +61,15 @@ if MAKE_EXPERIMENT:
                 min_ax_length = round(props[comp].minor_axis_length)
                 max_ax_length = round(props[comp].major_axis_length)
                 informations = [i,comp,area,centroid,convexity,min_ax_length,max_ax_length]
-                print(informations)
                 comp_infos.append(informations)
-                print(comp_infos)
-            coords = props[comp].coords
-            component_mask = np.full(shape,-1024,dtype=int)
-            for x,y,z in coords: 
-                component_mask[x,y,z] = int(img[x,y,z])
-            component_mask = component_mask.flatten()
-            seg_comp.append(component_mask)
+            min_sl, min_row, min_col, max_sl, max_row, max_col = props[comp].bbox
+            part_of_seg = props[comp].image
+            cut_seg = seg[min_sl:max_sl,min_row:max_row,min_col:max_col]
+            cut_seg = torch.tensor(cut_seg).unsqueeze(0)
+            cut_seg= resize_3d(cut_seg, size=(50,50,10),label=True)
+            cut_seg = cut_seg.numpy()[0]
+            cut_seg = cut_seg.flatten()
+            seg_comp.append(cut_seg)
             comp += 1
 
     seg_comp = np.array(seg_comp)
@@ -145,9 +131,22 @@ else:
         if x<1 and y>1:
             group01.append(i)
 
+    print('group00')
     for i in group00:
         print(comp_infos[i])
-        print('\n')
+
+    print('\n')
+    print('\n')
+    print('group10')
+    for i in group10:
+        print(comp_infos[i])
+
+    print('\n')
+    print('\n')
+    print('group01')
+    for i in group01:
+        print(comp_infos[i])
+
 
 
 
