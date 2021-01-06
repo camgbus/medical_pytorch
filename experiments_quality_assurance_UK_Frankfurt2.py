@@ -19,8 +19,8 @@ import time
 # Hyperparams
 MAKE_EXPERIMENT = True
 ITERATIONS = [10,20]
-RANDOM_STATES = [45,90789]
-PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox')
+RANDOM_STATES = [34,90789]
+PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller') #for saving the models/vectors
 USE_ARPACK = True 
 GET_COMP_INFOS = True
 
@@ -66,7 +66,7 @@ if MAKE_EXPERIMENT:
             part_of_seg = props[comp].image
             cut_seg = seg[min_sl:max_sl,min_row:max_row,min_col:max_col]
             cut_seg = torch.tensor(cut_seg).unsqueeze(0)
-            cut_seg= resize_3d(cut_seg, size=(1,50,50,10),label=True)
+            cut_seg= resize_3d(cut_seg, size=(1,20,20,8),label=True)
             cut_seg = cut_seg.numpy()[0]
             cut_seg = cut_seg.flatten()
             seg_comp.append(cut_seg)
@@ -114,9 +114,10 @@ if MAKE_EXPERIMENT:
         pickle.dump(seg_comp,open(os.path.join(PATH_TO_DATA_STATISTICS,'trans_data_UK_Frankfurt2_arpack.sav'),'wb'))
 else:  
     print('Loading experiment')
-    transformer = pickle.load(open(os.path.join(PATH_TO_DATA_STATISTICS,'transformer_UK_Frankfurt2_arpack.sav'),'rb'))
-    reduced_seg_comp = pickle.load(open(os.path.join(PATH_TO_DATA_STATISTICS,'trans_data_UK_Frankfurt2_arpack.sav'),'rb'))
+    transformer = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments','transformer_UK_Frankfurt2_arpack.sav'),'rb'))
+    reduced_seg_comp = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments','trans_data_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp_int = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments_Intensity','trans_data_UK_Frankfurt2_rs34_iters10.sav'),'rb'))
+    reduced_seg_comp_bbox = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox','trans_data_UK_Frankfurt2_rs45_iters10.sav'),'rb'))
     comp_infos = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
 
     # visuelle Cluster in gruppen einteilen
@@ -131,39 +132,30 @@ else:
         if x<1 and y>1:
             group01.append(i)
 
-    print('group00')
-    for i in group00:
-        print(comp_infos[i])
+    
+    for el in group01:
+        plt.scatter(reduced_seg_comp_bbox[el,0],reduced_seg_comp_bbox[el,1],color='green')
+    for el in group10:
+        plt.scatter(reduced_seg_comp_bbox[el,0],reduced_seg_comp_bbox[el,1],color='red')
+    for el in group00:
+        plt.scatter(reduced_seg_comp_bbox[el,0],reduced_seg_comp_bbox[el,1],color='blue')
+    plt.show()
 
-    print('\n')
-    print('\n')
-    print('group10')
-    for i in group10:
-        print(comp_infos[i])
+    # print('group00')
+    # for i in group00:
+    #     print(comp_infos[i])
 
-    print('\n')
-    print('\n')
-    print('group01')
-    for i in group01:
-        print(comp_infos[i])
+    # print('\n')
+    # print('\n')
+    # print('group10')
+    # for i in group10:
+    #     print(comp_infos[i])
 
-
-
-
-
-
-
-
-
-
-
-
-    # for el in group01:
-    #     plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='green')
-    # for el in group10:
-    #     plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='red')
-    # for el in group00:
-    #     plt.scatter(reduced_seg_comp_int[el,0],reduced_seg_comp_int[el,1],color='blue')
+    # print('\n')
+    # print('\n')
+    # print('group01')
+    # for i in group01:
+    #     print(comp_infos[i])
 
     # rand_img = []
     # for i in range(5):
