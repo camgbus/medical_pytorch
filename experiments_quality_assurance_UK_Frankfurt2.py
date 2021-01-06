@@ -42,7 +42,7 @@ def get_random_image_crop(img,size=2000):
 
 if MAKE_EXPERIMENT:
     # 2. reduce dimension of images to (57,256,256) and load components into an array 
-    comp_infos = ''
+    comp_infos = []
     seg_comp = []
     for i,dir in enumerate(os.listdir(os.path.join('downloads','UK_Frankfurt2'))):
         path = os.path.join('downloads','UK_Frankfurt2',dir)
@@ -74,8 +74,8 @@ if MAKE_EXPERIMENT:
                 convexity = area/convex_area
                 min_ax_length = props[comp].minor_axis_length
                 max_ax_length = props[comp].major_axis_length
-                information_string = '\n img {}, comp {}, area {}, centroid {}, convexity {}, axis lengths {} and {}'.format(i,comp,area,centroid,convexity,min_ax_length,max_ax_length)
-                comp_infos.join(information_string)
+                informations = [i,comp,area,centroid,convexity,min_ax_length,max_ax_length]
+                comp_infos.append(informations)
             coords = props[comp].coords
             component_mask = np.full(shape,-1024,dtype=int)
             for x,y,z in coords: 
@@ -87,9 +87,7 @@ if MAKE_EXPERIMENT:
     seg_comp = np.array(seg_comp)
     seg_comp_save = seg_comp
     if GET_COMP_INFOS:
-        informaton_file = open(os.path.join(PATH_TO_DATA_STATISTICS,'point_informations.txt'))
-        informaton_file.write(information_string)
-        informaton_file.close()
+        pickle.dump(informations,open(os.path.join(PATH_TO_DATA_STATISTICS,'UK_Frankfurt2_com_infos.sav'),'wb'))  
     print('Data Matrix has shape {}'.format(np.shape(seg_comp)))
     print('Beginning with transformations at {}'.format(time.time()))
 
