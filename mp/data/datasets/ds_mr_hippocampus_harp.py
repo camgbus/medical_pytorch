@@ -128,6 +128,9 @@ def _extract_images(source_path, target_path, subset):
                 y = y[40: 104, 78: 142, 97: 145]
                 x_cropped = x[40: 104, 78: 142, 97: 145]
 
+            # Need to do some axis rolling which SimpleITK seemed to have done automatically
+            x_cropped = np.rollaxis(x_cropped, axis=2)
+
             # Changing the study name if needed
             if filename in files_with_swapped_masks:
                 study_name = match[0] + ("_R" if side == "_L" else "_L")
