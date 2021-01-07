@@ -17,7 +17,7 @@ import pickle
 import time 
 
 # Hyperparams
-MAKE_EXPERIMENT = True
+MAKE_EXPERIMENT = False
 ITERATIONS = [0]
 RANDOM_STATES = [34,90789]
 PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller_int_pca') #for saving the models/vectors
@@ -124,28 +124,60 @@ else:
     reduced_seg_comp = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments','trans_data_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp_int = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments_Intensity','trans_data_UK_Frankfurt2_rs34_iters10.sav'),'rb'))
     reduced_seg_comp_bbox = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox','trans_data_UK_Frankfurt2_rs45_iters10.sav'),'rb'))
+    reduced_seg_comp_int_pca = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller_int_pca','trans_data_UK_Frankfurt2_rs34_iters0.sav'),'rb'))
     comp_infos = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
 
-    # visuelle Cluster in gruppen einteilen
-    group00 = []
-    group10 = []
-    group01 = []
-    for i,(x,y) in enumerate(reduced_seg_comp):
-        if x<1 and y<1:
-            group00.append(i)
-        if x>1 and y<1:
-            group10.append(i)
-        if x<1 and y>1:
-            group01.append(i)
+    # clustering
+
+    #k - means 
+
+    counter = 0 
+    for i,dir in enumerate(os.listdir(os.path.join('downloads','UK_Frankfurt2'))):
+        print(i)
+        path = os.path.join('downloads','UK_Frankfurt2',dir)
+        img_path = os.path.join(path,'image.nii.gz')
+        seg_path = os.path.join(path,'mask.nii.gz')
+        img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
+        seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
+        
+        #2.1 resize 
+        img = resize_3d(img, size=(1,256,256,57))
+        seg = resize_3d(seg, size=(1,256,256,57), label=True)
+        img = img.numpy()[0]
+        seg = seg.numpy()[0]
+        
+        shape = np.shape(seg)
+        components = label(seg)
+        props = regionprops(components,img)
+        props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
+        number_components = len(props)
+        counter += number_components
+    print(counter)
+
 
     
-    for el in group01:
-        plt.scatter(reduced_seg_comp_bbox[el,0],reduced_seg_comp_bbox[el,1],color='green')
-    for el in group10:
-        plt.scatter(reduced_seg_comp_bbox[el,0],reduced_seg_comp_bbox[el,1],color='red')
-    for el in group00:
-        plt.scatter(reduced_seg_comp_bbox[el,0],reduced_seg_comp_bbox[el,1],color='blue')
-    plt.show()
+
+
+    # visuelle Cluster in gruppen einteilen
+    # group00 = []
+    # group10 = []
+    # group01 = []
+    # for i,(x,y) in enumerate(reduced_seg_comp):
+    #     if x<1 and y<1:
+    #         group00.append(i)
+    #     if x>1 and y<1:
+    #         group10.append(i)
+    #     if x<1 and y>1:
+    #         group01.append(i)
+
+    
+    # for el in group01:
+    #     plt.scatter(reduced_seg_comp_int_pca[el,0],reduced_seg_comp_int_pca[el,1],color='green')
+    # for el in group10:
+    #     plt.scatter(reduced_seg_comp_int_pca[el,0],reduced_seg_comp_int_pca[el,1],color='red')
+    # for el in group00:
+    #     plt.scatter(reduced_seg_comp_int_pca[el,0],reduced_seg_comp_int_pca[el,1],color='blue')
+    # plt.show()
 
     # print('group00')
     # for i in group00:
