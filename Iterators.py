@@ -18,12 +18,12 @@ class Dataset_Iterator():
     def __init__(self,data_path,mode='UK_Frankfurt2',resize=False,size=(1,256,256,57)):
 
         self.data_path = data_path
-        self.func = func 
         self.mode = mode 
         self.resize = resize 
         self.size = size 
     
     def iterate_images(self,func,**kwargs):
+        print('Starting iteration over images')
         output=[]
         if self.resize:
             raise NotImplementedError
@@ -33,13 +33,14 @@ class Dataset_Iterator():
                     path = os.path.join(self.data_path,dir)
                     img_path = os.path.join(path,'image.nii.gz')
                     seg_path = os.path.join(path,'mask.nii.gz')
-                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
-                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
-                    values = self.func(img,seg,**kwargs)
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+                    values = func(img,seg,**kwargs)
                     output.append(values)
         return output
     
     def iterate_components(self,func,threshold=100,**kwargs):
+        print('Starting iteration over components')
         output=[]
         if self.resize:
             raise NotImplementedError
@@ -49,8 +50,8 @@ class Dataset_Iterator():
                     path = os.path.join(self.data_path,dir)
                     img_path = os.path.join(path,'image.nii.gz')
                     seg_path = os.path.join(path,'mask.nii.gz')
-                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
-                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     labeled_image, nr_components = label(seg, return_num=True)
                     props = regionprops(labeled_image)
                     nr_components = len(props)

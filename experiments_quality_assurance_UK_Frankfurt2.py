@@ -32,27 +32,9 @@ GET_COMP_INFOS = True
 DENSITY_ESTIMATION = True
 start_time = time.time()
 
-
-
-def dataset_iterator(data_path,function,mode='UK_Frankfurt2',resize=False,size=(1,256,256,57), **kwargs):
-    output=[]
-    if resize:
-        raise NotImplementedError
-    else:
-        if mode == 'UK_Frankfurt2':
-            for dir in os.listdir(data_path):
-                path = os.path.join(data_path,dir)
-                img_path = os.path.join(path,'image.nii.gz')
-                seg_path = os.path.join(path,'mask.nii.gz')
-                img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
-                seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
-                values = func(img,seg,**kwargs)
-                output.append(values)
-    return output
-
 def draw_comp_density(img,seg,props):
     int_dens = get_int_dens(img,props.coords)
-    plt.plot(int_dens)
+    plt.plot(np.arange(start=-1024,stop=3071),int_dens)
 
     
 if DIMENSIONALITY_REDUCTION:
@@ -258,11 +240,14 @@ if DENSITY_ESTIMATION:
     plt.show()
 if DENSITY_ESTIMATION_ANALYSIS: 
     data_path = os.path.join('downloads','UK_Frankfurt2')
+    print('Loading density')
     density = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation','kde_gauss_bw_20.sav'),'rb'))
     log_density = density.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))
 
+    print('Initiating Iterator')
     ds_iterator = Dataset_Iterator(data_path)
     ds_iterator.iterate_components(draw_comp_density)
+    print('finished iterating')
     plt.plot(np.arange(start=-1024,stop=3071),np.exp(log_density))
     plt.show()
 
