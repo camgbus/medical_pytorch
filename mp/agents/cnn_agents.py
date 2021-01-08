@@ -183,11 +183,11 @@ class AlexNetAgent(Agent):
                 accuracy_detailed.extend(list(zip(y.cpu().numpy().tolist(),
                                                   yhat.cpu().numpy().tolist())))
         print('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
-        print('Accuracy of the regression model on the test set: %d %%' % (
+        print('Accuracy of the cnn model on the test set: %d %%' % (
             100 * correct / total))
         if msg_bot == True:
             self.bot.send_msg('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
-            self.bot.send_msg('Accuracy of the regression model on the test set: %d %%' % (
+            self.bot.send_msg('Accuracy of the cnn model on the test set: %d %%' % (
             100 * correct / total))
             
         # Return losses
@@ -332,11 +332,11 @@ class NetAgent(Agent):
                 accuracy_detailed.extend(list(zip(y.cpu().numpy().tolist(),
                                                   yhat.cpu().numpy().tolist())))
         print('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
-        print('Accuracy of the regression model on the test set: %d %%' % (
+        print('Accuracy of the cnn model on the test set: %d %%' % (
             100 * correct / total))
         if msg_bot == True:
             self.bot.send_msg('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
-            self.bot.send_msg('Accuracy of the regression model on the test set: %d %%' % (
+            self.bot.send_msg('Accuracy of the cnn model on the test set: %d %%' % (
             100 * correct / total))
             
         # Return losses

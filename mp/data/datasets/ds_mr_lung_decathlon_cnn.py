@@ -120,6 +120,7 @@ class DecathlonLung(CNNDataset):
         super().__init__(instances, name=global_name,
             modality='CT', nr_channels=1, hold_out_ixs=[])
 
+
 class DecathlonLungRestored(CNNDataset):
     r"""Class for the Lung decathlon challenge, contains only
     CT, found at http://medicaldecathlon.com/. This class is used
@@ -189,6 +190,7 @@ class DecathlonLungRestored(CNNDataset):
 
         super().__init__(instances, name=global_name,
                     modality='CT', nr_channels=1, hold_out_ixs=[])
+
 
 def _extract_images(source_path, target_path, img_size=(1, 299, 299)):
     r"""Extracts MRI images and saves the modified images."""

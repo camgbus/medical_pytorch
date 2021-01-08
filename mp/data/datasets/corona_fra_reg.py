@@ -11,13 +11,13 @@ import SimpleITK as sitk
 from mp.data.pytorch.transformation import centre_crop_pad_2d
 import random
 from mp.utils.load_restore import join_path
-from mp.data.datasets.dataset_cnn import CNNDataset, CNNInstance
+from mp.data.datasets.dataset_regression import RegressionDataset, RegressionInstance
 from mp.paths import storage_data_path
 import mp.data.datasets.dataset_utils as du
 from mp.data.datasets.dataset_augmentation import augment_data_in_four_intensities as augment_data
 from mp.data.datasets.dataset_augmentation import select_random_images_slices, save_dataset
 
-class FraCoronaDatasetAugmented(CNNDataset):
+class FraCoronaDatasetAugmented(RegressionDataset):
     r"""Class for the Corona dataset provided by the Uniklinik Frankfurt.
     """
     def __init__(self, subset=None, hold_out_ixs=[], augmented=False,
@@ -25,13 +25,11 @@ class FraCoronaDatasetAugmented(CNNDataset):
         noise='blur', nr_images=20, nr_slices=20, set_name='train'):
         assert subset is None, "No subsets for this dataset."
 
-        # Extract necessary paths
+        # Extract necessary paths    
         global_name = 'FRACorona'
         dataset_path = os.path.join(storage_data_path, global_name, set_name)
         original_data_path = os.path.join(du.get_original_data_path(global_name), set_name)
-        folder_name = 'randomised_data_cnn_' + str(noise)   # For random selected data
-        
-        one_hot = torch.nn.functional.one_hot(torch.arange(0, max_likert_value), num_classes=max_likert_value)
+        folder_name = 'randomised_data_regression_' + str(noise)   # For random selected data
 
         # Extract all images, if not already done
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
@@ -60,9 +58,9 @@ class FraCoronaDatasetAugmented(CNNDataset):
             msg = 'Creating dataset from SimpleITK images: '
             msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
             print (msg, end = '\r')
-            instances_full.append(CNNInstance(
+            instances_full.append(RegressionInstance(
                 x_path=os.path.join(dataset_path, study_name+'.nii.gz'),
-                y_label=one_hot[0],
+                y_label=torch.tensor([1/max_likert_value]),
                 name=study_name,
                 group_id=None
                 ))
@@ -72,10 +70,10 @@ class FraCoronaDatasetAugmented(CNNDataset):
                 msg = 'Creating dataset from random SimpleITK images and slices: '
                 msg += str(num + 1) + ' of ' + str(len(study_names_random)) + '.'
                 print (msg, end = '\r')
-                instances.append(CNNInstance(
+                instances.append(RegressionInstance(
                     x_path=os.path.join(t_path,
                                         study_name+'.nii.gz'),
-                    y_label=one_hot[0],
+                    y_label=torch.tensor([1/max_likert_value]),
                     name=study_name,
                     group_id=None
                     ))
@@ -87,7 +85,7 @@ class FraCoronaDatasetAugmented(CNNDataset):
             labels, names = augment_data(instances_full, 'FRACoronaAugmented',
                                                    True, False, storage_data_path,
                                                    max_likert_value, random_slices,
-                                                   noise, nr_images, nr_slices, 'cnn')
+                                                   noise, nr_images, nr_slices, 'regression')
 
             # Add to instances
             if random_slices:
@@ -95,10 +93,10 @@ class FraCoronaDatasetAugmented(CNNDataset):
                     msg = 'Creating dataset from random SimpleITK images and slices: '
                     msg += str(num + 1) + ' of ' + str(len(names)) + '.'
                     print (msg, end = '\r')
-                    instances.append(CNNInstance(
+                    instances.append(RegressionInstance(
                         x_path=os.path.join(storage_data_path, 'FRACoronaAugmented',
                                             folder_name, name+'.nii.gz'),
-                        y_label=one_hot[int(labels[name].item()*max_likert_value)-1],
+                        y_label=labels[name],
                         name=name,
                         group_id=None
                         ))
@@ -107,10 +105,10 @@ class FraCoronaDatasetAugmented(CNNDataset):
                     msg = 'Creating dataset from augmented SimpleITK images: '
                     msg += str(num + 1) + ' of ' + str(len(names)) + '.'
                     print (msg, end = '\r')
-                    instances.append(CNNInstance(
+                    instances.append(RegressionInstance(
                         x_path=os.path.join(storage_data_path, 'FRACoronaAugmented',
                                             'augmented_data', name+'.nii.gz'),
-                        y_label=one_hot[int(labels[name].item()*max_likert_value)-1],
+                        y_label=labels[name],
                         name=name,
                         group_id=None
                         ))
@@ -119,7 +117,7 @@ class FraCoronaDatasetAugmented(CNNDataset):
             modality='CT', nr_channels=1, hold_out_ixs=[])
 
 
-class FraCoronaDataset(CNNDataset):
+class FraCoronaDataset(RegressionDataset):
     r"""Class for the Corona dataset provided by the Uniklinik Frankfurt.
     """
     def __init__(self, subset=None, hold_out_ixs=[], augmented=False,
@@ -130,8 +128,6 @@ class FraCoronaDataset(CNNDataset):
         global_name = 'FRACorona'
         dataset_path = os.path.join(storage_data_path, global_name, set_name)
         original_data_path = os.path.join(du.get_original_data_path(global_name), set_name)
-        
-        one_hot = torch.nn.functional.one_hot(torch.arange(0, max_likert_value), num_classes=max_likert_value)
 
         # Extract all images, if not already done
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
@@ -159,9 +155,9 @@ class FraCoronaDataset(CNNDataset):
             msg = 'Creating dataset from SimpleITK images: '
             msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
             print (msg, end = '\r')
-            instances.append(CNNInstance(
+            instances.append(RegressionInstance(
                 x_path=os.path.join(dataset_path, study_name+'.nii.gz'),
-                y_label=one_hot[int(labels[name].item()*max_likert_value)-1],
+                y_label=labels[name],
                 name=study_name,
                 group_id=None
                 ))
@@ -170,12 +166,12 @@ class FraCoronaDataset(CNNDataset):
             modality='CT', nr_channels=1, hold_out_ixs=[])
 
 
-class FraCoronaDatasetRestored(CNNDataset):
-    r"""Class for the Corona dataset provided by the Uniklinik Frankfurt.
-    This class is used to train a restored model with the same data, e.g. if the training
+class FraCoronaDatasetRestored(RegressionDataset):
+    r"""Class for the Corona dataset provided by the Uniklinik Frankfurt. This class is used
+    to train a restored model with the same data, e.g. if the training
     interrupted due to an error. It is important that the original
-    images and random image folders (FRACorona/randomised_data_cnn_<noise>
-    and FRACoronaAugmented/randomised_data_cnn_<noise>) exists and are not
+    images and random image folders (FRACorona/randomised_data_regression_<noise>
+    and FRACoronaAugmented/randomised_data_regression_<noise>) exists and are not
     empty. Further the corresponding Labels, creating by augmenting images
     or performing training for first time need to present at the same location
     as created (FRACoronaAugmented/labels/labels.json).
@@ -188,11 +184,9 @@ class FraCoronaDatasetRestored(CNNDataset):
         dataset_path = os.path.join(storage_data_path, global_name, set_name)
         random_path = os.path.join(storage_data_path, global_name+'Augmented')
         original_data_path = os.path.join(du.get_original_data_path(global_name), set_name)
-        folder_name = 'randomised_data_cnn_' + str(noise)
+        folder_name = 'randomised_data_regression_' + str(noise)
         t_path = os.path.join(dataset_path, folder_name)
         r_path = os.path.join(random_path, folder_name)
-
-        one_hot = torch.nn.functional.one_hot(torch.arange(0, max_likert_value), num_classes=max_likert_value)
 
         # Fetch all patient/study names that do not begin with '._' for random and original images
         study_names_random_orig = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
@@ -216,10 +210,10 @@ class FraCoronaDatasetRestored(CNNDataset):
             msg = 'Creating dataset from random SimpleITK images and slices: '
             msg += str(num + 1) + ' of ' + str(len(study_names_random_orig)) + '.'
             print (msg, end = '\r')
-            instances.append(CNNInstance(
+            instances.append(RegressionInstance(
                 x_path=os.path.join(t_path,
                                     study_name+'.nii.gz'),
-                y_label=one_hot[0],
+                y_label=torch.tensor([1/max_likert_value]),
                 name=study_name,
                 group_id=None
                 ))
@@ -228,26 +222,26 @@ class FraCoronaDatasetRestored(CNNDataset):
             msg = 'Creating dataset from random SimpleITK images and slices: '
             msg += str(num + 1) + ' of ' + str(len(study_names_random_augm)) + '.'
             print (msg, end = '\r')
-            instances.append(CNNInstance(
+            instances.append(RegressionInstance(
                 x_path=os.path.join(r_path,
                                     study_name+'.nii.gz'),
-                y_label=one_hot[int(labels[study_name].item()*max_likert_value)-1],
+                y_label=labels[study_name],
                 name=study_name,
                 group_id=None
                 ))
-
+                
         super().__init__(instances, name=global_name,
                     modality='CT', nr_channels=1, hold_out_ixs=[])
-
+                    
 
 def _extract_images(source_path, target_path, img_size=(1, 299, 299)):
     r"""Extracts MRI images and saves the modified images."""
     images_path = source_path
 
-    # Filenames are provided in foldernames: patient_id/images.nii.gz
+    # Filenames are provided in foldernames: ptient_id/images.nii.gz
     filenames = set(file_name for file_name in os.listdir(images_path)
                     if file_name[:1] != '.')
-                    
+
     # Create directories if not existing
     if not os.path.isdir(target_path):
         os.makedirs(target_path)
@@ -278,7 +272,7 @@ def _extract_images_random(source_path, data_label, folder_name,
 
     # Extract filenames
     filenames = set(os.listdir(images_path))
-    
+
     # Define noise, in this case it is just a string contained in the filenames
     noise = 'KGU'
     # Select random images based on nr_images and random slices
@@ -299,7 +293,7 @@ def _extract_images_and_labels(source_path, target_path, img_size=(1, 299, 299))
     r"""Extracts MRI images and saves the modified images."""
     images_path = source_path
 
-    # Filenames are provided in foldernames: ptient_id/images.nii.gz
+    # Filenames are provided in foldernames: patient_id/images.nii.gz
     filenames = set(file_name for file_name in os.listdir(images_path)
                     if file_name[:1] != '.')
 
