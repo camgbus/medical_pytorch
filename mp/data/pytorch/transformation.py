@@ -42,6 +42,23 @@ AUGMENTATION_STRATEGIES = {None:None, 'none':None,
             std=(50, 50)),
         torchio.transforms.RandomBlur(p=0.1,
             std=(0, 1))
+    ]),
+    'non_geometric': torchio.transforms.Compose([
+        torchio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.1, 99.)),
+        torchio.transforms.RandomGamma(p=.5,
+            log_gamma=(-.5, .5)),
+        torchio.transforms.RandomMotion(p=0.5,
+            degrees=5, 
+            translation=5, 
+            num_transforms=1),
+        torchio.transforms.RandomBiasField(p=.5,
+            coefficients=(0.1, 0.1), 
+            order=3),
+        torchio.transforms.RandomNoise(p=.5,
+            mean=(0,0), 
+            std=(0.1, 0.1)),
+        torchio.transforms.RandomBlur(p=.5,
+            std=(0, 1))
     ])
 }
 

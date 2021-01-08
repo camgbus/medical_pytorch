@@ -17,7 +17,7 @@ class Agent:
     Args:
         model (mp.models.model.Model): a model
         label_names (list[str]): a list of label names
-        metrics (list[str]): a list of metric names. Metric names are class 
+        metrics (list[str]): a list of metric names. Metric names are class
             names for descendants of mp.eval.metrics.scores.ScoreAbstract.
             These are tracked by the track_metrics method.
         device (str): 'cpu' or a cuda-enabled gpu, e.g. 'cuda:0'

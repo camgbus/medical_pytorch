@@ -46,7 +46,7 @@ def normalize_range(img_array, max_value=255.):
     return img_array.astype(np.uint8)
 
 def overlay_images(base, overlay, alpha=0.5):
-    r"""Add transparency to mask, and make composition of image overlayed by 
+    r"""Add transparency to mask, and make composition of image overlayed by
     transparent mask.
     """
     alpha = int(255*alpha)
@@ -54,7 +54,7 @@ def overlay_images(base, overlay, alpha=0.5):
     return Image.alpha_composite(base, overlay)
 
 def stretch_mask_range(mask):
-    r"""Stretches the range of mask values to [0, 255] so that they are 
+    r"""Stretches the range of mask values to [0, 255] so that they are
     differentiable, and converts to RGBA PIL Image.
     """
     if mask.max() != 0:
@@ -84,7 +84,6 @@ def color_mask(mask):
     return mask
 
 # Visualize images, masks and dataloaders using Pillow
-    
 def plot_3d_subject_gt(subject, save_path=None):
     r"""Plot a subject with input and ground truth"""
     inputs = subject['x'].data
@@ -154,7 +153,7 @@ def get_img_grid(img_list, nr_rows, nr_cols, randomize=False):
                 img_grid[j][i] = img_list[i+j*nr_cols]
     return img_grid
 
-def create_img_grid(img_grid = [[]], img_size = (512, 512), 
+def create_img_grid(img_grid = [[]], img_size = (512, 512),
     margin = (5, 5), background_color = (255, 255, 255, 255), save_path=None):
     r"""Visualize a grid with 2d image slices, overlayed with masks."""
     bg_width = len(img_grid[0])*img_size[0] + (len(img_grid[0])+1)*margin[0]
@@ -169,7 +168,7 @@ def create_img_grid(img_grid = [[]], img_size = (512, 512),
                     img = img[0]
                 else:  # Colored images
                     if np.argpartition(img.shape, 1)[0] == 0:  # Channels first
-                        img = np.moveaxis(img, 0, 2) 
+                        img = np.moveaxis(img, 0, 2)
                 img = normalize_range(img)
                 img = Image.fromarray(img).resize(img_size).convert('RGBA')
                 new_img.paste(img, (left, top))
@@ -207,8 +206,8 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
                     mask = Image.fromarray(mask).resize(img_size).convert('RGBA')
                 else:  # Colored images
                     if np.argpartition(img.shape, 1)[0] == 0:  # If channels first
-                        img = np.moveaxis(img, 0, 2) 
-                        mask = np.moveaxis(mask, 0, 2) 
+                        img = np.moveaxis(img, 0, 2)
+                        mask = np.moveaxis(mask, 0, 2)
                     img = normalize_range(img)
                     img = Image.fromarray(
                         (img).astype(np.uint8)).resize(img_size).convert('RGBA')
@@ -228,38 +227,46 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
         new_img.save(save_path)
 
 def visualize_dataloader(
-    dataloader, max_nr_imgs=100, save_path=None, img_size=(256, 256)):
+    dataloader, max_nr_imgs=100, save_path=None, img_size=(256, 256),
+    x_key=None):
     r"""Visualize images (inputs) from dataloader."""
-    imgs = get_imgs_from_dataloader(dataloader, max_nr_imgs)
+    imgs = get_imgs_from_dataloader(dataloader, max_nr_imgs, x_key=x_key)
     grid_side = int(math.ceil(math.sqrt(len(imgs))))
     img_grid = get_img_grid(imgs, grid_side, grid_side)
     create_img_grid(img_grid=img_grid, save_path=save_path, img_size=img_size)
 
-def get_imgs_from_dataloader(dataloader, nr_imgs):
+def get_imgs_from_dataloader(dataloader, nr_imgs, x_key=None):
     r"""Get images (inputs) from dataloader and place in list."""
     imgs = []
     for x, y in dataloader:
+        if x_key is not None:
+            x = x[x_key]
         x = x.cpu().detach().numpy()
         for img in x:
             if len(imgs) < nr_imgs:
                 imgs.append(img)
         if len(imgs) == nr_imgs:
-            break  
+            break
     return imgs
 
-def visualize_dataloader_with_masks(dataloader, max_nr_imgs=100, save_path=None, 
-    img_size=(256, 256), alpha=0.5):
+def visualize_dataloader_with_masks(dataloader, max_nr_imgs=100, save_path=None,
+    img_size=(256, 256), alpha=0.5, x_key=None, y_key=None):
     r"""Visualize images and masks from dataloader."""
-    imgs = get_x_y_from_dataloader(dataloader, max_nr_imgs)
+    imgs = get_x_y_from_dataloader(dataloader, max_nr_imgs, x_key=x_key, y_key=y_key)
     grid_side = int(math.ceil(math.sqrt(len(imgs))))
     img_grid = get_img_grid(imgs, grid_side, grid_side)
     create_x_y_grid(
         img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha)
 
-def get_x_y_from_dataloader(dataloader, nr_imgs):
+def get_x_y_from_dataloader(dataloader, nr_imgs, x_key=None, y_key=None):
     r"""Get images and masks from dataloader and place in list."""
     imgs = []
     for x, y in dataloader:
+        if x_key is not None:
+            x = x[x_key]
+        if y_key is not None:
+            y = y[y_key]
+
         x = x.cpu().detach().numpy()
 
         # If one channel per label, transform into one mask
@@ -269,7 +276,7 @@ def get_x_y_from_dataloader(dataloader, nr_imgs):
         y = y.cpu().detach().numpy()
 
         if len(x.shape) == 5:  # If each x or y is a batch of volumes
-            # Go from shape (batch, 1, width, height, depth) to 
+            # Go from shape (batch, 1, width, height, depth) to
             # (batch*depth, 1, width, height) by shifting the depth channel to
             # the beginning and concatenating all volumes.
             x_batch = [np.moveaxis(volume_x, -1, 0) for volume_x in x]
@@ -281,7 +288,7 @@ def get_x_y_from_dataloader(dataloader, nr_imgs):
             if len(imgs) < nr_imgs:
                 imgs.append((img, y[ix]))
         if len(imgs) == nr_imgs:
-            break  
+            break
     return imgs
 
 # Visualize using matplotlib, deprecated
