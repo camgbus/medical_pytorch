@@ -15,18 +15,47 @@ from sklearn.decomposition import TruncatedSVD,PCA
 import matplotlib.pyplot as plt 
 import pickle 
 import time 
+from compute_metrics_on_segmentation import get_array_of_dicescores,get_dice_averages,get_int_dens,get_similarities,density_similarity
+from Iterators import Dataset_Iterator,Component_Iterator
+
 
 # Hyperparams
-MAKE_EXPERIMENT = False
+DIMENSIONALITY_REDUCTION = False
+DIMENSIONALITY_REDUCTION_ANALYSIS = False
+DENSITY_ESTIMATION = False
+DENSITY_ESTIMATION_ANALYSIS = True
 ITERATIONS = [0]
-RANDOM_STATES = [34,90789]
-PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller_int_pca') #for saving the models/vectors
+RANDOM_STATES = [34]
+PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_bbox_more_com_pca') #for saving the models/vectors
 USE_ARPACK = False
 GET_COMP_INFOS = True
-
+DENSITY_ESTIMATION = True
 start_time = time.time()
 
-if MAKE_EXPERIMENT:
+
+
+def dataset_iterator(data_path,function,mode='UK_Frankfurt2',resize=False,size=(1,256,256,57), **kwargs):
+    output=[]
+    if resize:
+        raise NotImplementedError
+    else:
+        if mode == 'UK_Frankfurt2':
+            for dir in os.listdir(data_path):
+                path = os.path.join(data_path,dir)
+                img_path = os.path.join(path,'image.nii.gz')
+                seg_path = os.path.join(path,'mask.nii.gz')
+                img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
+                seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
+                values = func(img,seg,**kwargs)
+                output.append(values)
+    return output
+
+def draw_comp_density(img,seg,props):
+    int_dens = get_int_dens(img,props.coords)
+    plt.plot(int_dens)
+
+    
+if DIMENSIONALITY_REDUCTION:
     # 2. reduce dimension of images to (57,256,256) and load components into an array 
     comp_infos = []
     seg_comp = []
@@ -51,16 +80,14 @@ if MAKE_EXPERIMENT:
 
         # 2.2 read out the components
         comp = 0
-        while comp < number_components and props[comp].area > 500 :
+        while comp < number_components and props[comp].area > 10 :
             if GET_COMP_INFOS: 
                 # save informations on components
                 area = props[comp].area
                 centroid = np.around(props[comp].centroid)
-                convex_area = props[comp].convex_area
-                convexity = np.around(area/convex_area,3)
                 min_ax_length = round(props[comp].minor_axis_length)
                 max_ax_length = round(props[comp].major_axis_length)
-                informations = [i,comp,area,centroid,convexity,min_ax_length,max_ax_length]
+                informations = [i,comp,area,centroid,min_ax_length,max_ax_length]
                 comp_infos.append(informations)
             min_row, min_col, min_sl, max_row, max_col, max_sl,  = props[comp].bbox
             part_of_seg = props[comp].image
@@ -72,7 +99,7 @@ if MAKE_EXPERIMENT:
                         if not part_of_seg[x,y,z]: #if this part of the bbox is not part of the segmentation, color is black -1024
                             cut_seg[x,y,z] = -1024                            
             cut_seg = torch.tensor(cut_seg).unsqueeze(0)
-            cut_seg= resize_3d(cut_seg, size=(1,20,20,8),label=True)
+            cut_seg= resize_3d(cut_seg, size=(1,20,20,8))
             cut_seg = cut_seg.numpy()[0]
             cut_seg = cut_seg.flatten()
             seg_comp.append(cut_seg)
@@ -81,7 +108,7 @@ if MAKE_EXPERIMENT:
     seg_comp = np.array(seg_comp)
     seg_comp_save = seg_comp
     if GET_COMP_INFOS:
-        pickle.dump(comp_infos,open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'wb'))  
+        pickle.dump(comp_infos,open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos_small.sav'),'wb'))  
     print('Data Matrix has shape {}'.format(np.shape(seg_comp)))
     print('Beginning with transformations at {}'.format(time.time()))
 
@@ -118,44 +145,34 @@ if MAKE_EXPERIMENT:
         plt.savefig(os.path.join(PATH_TO_DATA_STATISTICS,'dim_reduced_UK_Frankfurt2_arpack.png'))
         pickle.dump(transformer,open(os.path.join(PATH_TO_DATA_STATISTICS,'transformer_UK_Frankfurt2_arpack.sav'),'wb'))
         pickle.dump(seg_comp,open(os.path.join(PATH_TO_DATA_STATISTICS,'trans_data_UK_Frankfurt2_arpack.sav'),'wb'))
-else:  
+if DIMENSIONALITY_REDUCTION_ANALYSIS:  
     print('Loading experiment')
     transformer = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments','transformer_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments','trans_data_UK_Frankfurt2_arpack.sav'),'rb'))
     reduced_seg_comp_int = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','Dim_Red_Experiments_Intensity','trans_data_UK_Frankfurt2_rs34_iters10.sav'),'rb'))
     reduced_seg_comp_bbox = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox','trans_data_UK_Frankfurt2_rs45_iters10.sav'),'rb'))
     reduced_seg_comp_int_pca = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_exp_bbox_smaller_int_pca','trans_data_UK_Frankfurt2_rs34_iters0.sav'),'rb'))
+    reduced_seg_more_comp_pca = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_bbox_more_com_pca','trans_data_UK_Frankfurt2_rs34_iters0.sav'),'rb'))
     comp_infos = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
+    
+    # # clustering
+    # data = reduced_seg_more_comp_pca
+    # from sklearn.cluster import KMeans,AgglomerativeClustering
 
-    # clustering
+    # cluster = AgglomerativeClustering(n_clusters=3,compute_full_tree=False,linkage='ward')
+    # labels = cluster.fit_predict(data)
 
-    #k - means 
-
-    counter = 0 
-    for i,dir in enumerate(os.listdir(os.path.join('downloads','UK_Frankfurt2'))):
-        print(i)
-        path = os.path.join('downloads','UK_Frankfurt2',dir)
-        img_path = os.path.join(path,'image.nii.gz')
-        seg_path = os.path.join(path,'mask.nii.gz')
-        img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
-        seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
-        
-        #2.1 resize 
-        img = resize_3d(img, size=(1,256,256,57))
-        seg = resize_3d(seg, size=(1,256,256,57), label=True)
-        img = img.numpy()[0]
-        seg = seg.numpy()[0]
-        
-        shape = np.shape(seg)
-        components = label(seg)
-        props = regionprops(components,img)
-        props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
-        number_components = len(props)
-        counter += number_components
-    print(counter)
+    # for label in range(3):
+    #     print('\n \n \n')
+    #     print(label)
+    #     for i in range(len(comp_infos)):
+    #         if labels[i] == label:
+    #             print(comp_infos[i])
 
 
     
+
+
 
 
     # visuelle Cluster in gruppen einteilen
@@ -204,6 +221,51 @@ else:
     # reduced_rand_img = transformer.transform(rand_img)
     # plt.scatter(reduced_rand_img[:,0],reduced_rand_img[:,1],c='black')
     # plt.show()
+
+if DENSITY_ESTIMATION:
+
+    X = np.array([])
+    for dir in os.listdir(os.path.join('downloads','UK_Frankfurt2')):
+        path = os.path.join('downloads','UK_Frankfurt2',dir)
+        img_path = os.path.join(path,'image.nii.gz')
+        seg_path = os.path.join(path,'mask.nii.gz')
+        img = sitk.ReadImage(img_path)
+        seg = sitk.ReadImage(seg_path)
+        img = sitk.GetArrayFromImage(img)
+        seg = sitk.GetArrayFromImage(seg)
+        
+        shape = np.shape(seg)
+        components = label(seg)
+        props = regionprops(components,img)
+        props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
+        number_components = len(props)
+        
+        comp = 0
+        while comp < number_components and props[comp].area > 100:
+            coords = props[comp].coords
+            intensities = np.array([img[x,y,z] for x,y,z in coords])
+            samples = np.random.choice(intensities,2000)
+            X = np.append(X,samples)
+            comp += 1
+    
+    X = np.reshape(X, newshape=(-1,1))
+
+    from sklearn.neighbors import KernelDensity
+    kde = KernelDensity(kernel='gaussian',bandwidth=20).fit(X)
+    pickle.dump(kde,open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation','kde_gauss_bw_20.sav'),'wb'))
+    log_density = kde.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))
+    plt.plot(np.arange(start=-1024,stop=3071),np.exp(log_density))
+    plt.show()
+if DENSITY_ESTIMATION_ANALYSIS: 
+    data_path = os.path.join('downloads','UK_Frankfurt2')
+    density = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation','kde_gauss_bw_20.sav'),'rb'))
+    log_density = density.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))
+
+    ds_iterator = Dataset_Iterator(data_path)
+    ds_iterator.iterate_components(draw_comp_density)
+    plt.plot(np.arange(start=-1024,stop=3071),np.exp(log_density))
+    plt.show()
+
 
 
 

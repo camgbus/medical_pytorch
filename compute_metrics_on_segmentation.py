@@ -6,17 +6,20 @@ from skimage.measure import label, regionprops
 import os 
 from mp.paths import storage_data_path
 import math
+import pickle
+from scipy.ndimage import gaussian_filter
+from Iterators import Dataset_Iterator,Component_Iterator
 
-def get_array_of_dicescores(img): 
+def get_array_of_dicescores(seg): 
 
-    shape = np.shape(img)
+    shape = np.shape(seg)
     nr_slices = shape[0]
     arr_of_dicescores = np.array([])
 
-    first_slide = img[0, :, :]
+    first_slide = seg[0, :, :]
     first_ones = np.sum(first_slide)
     for i in range(nr_slices-1):
-        second_slide = img[i+1,:,:]
+        second_slide = seg[i+1,:,:]
         second_ones = np.sum(second_slide)
         intersection = np.dot(first_slide.flatten(),
                                  second_slide.flatten())
@@ -34,82 +37,81 @@ def get_array_of_dicescores(img):
         # update index
         first_slide = second_slide
         first_ones = second_ones
-    	return arr_of_dicescores
+    return arr_of_dicescores
 
-def compute_metrics(seg_path):
-    '''gets a 3D segmentation of a Covid consolidation and computes metrices on it.
-    Will be used to assess if segmentation is plausible'''
+def get_dice_averages(img,seg,props):
+    min_row, min_col, min_sl, max_row, max_col, max_sl,  = props.bbox
+    cut_seg = seg[min_row:max_row,min_col:max_col,min_sl:max_sl]
+    arr_of_dicescores = get_array_of_dicescores(cut_seg)
 
-    #load image
-    img = torchio.Image(seg_path, type=torchio.LABEL)
-    img = img.numpy()
-    spacing = img.spacing
-    nr_slices = img.shape[2]
-    
-    # 1. Dice scores
-    arr_of_dicescores = get_array_of_dicescores(img)
-
-    # 1.2 compute the average value of dice score
+    # compute the average value of dice score
     dice_avg_value = np.average(arr_of_dicescores)
 
-    # 1.3 compute the average value of dice score changes between slides
+    # compute the average value of dice score changes between slides
     dice_diff = np.diff(arr_of_dicescores)
     dice_diff_abs = np.absolute(dice_diff)
     dice_diff_avg_value = np.average(dice_diff_abs)
+
+    return [dice_avg_value,dice_diff_avg_value]
+
+def get_int_dens(img, coords):
+    intensities = np.array([img[x,y,z] for x,y,z in coords])
+    hist = np.histogram(intensities,density=True,bins=np.arange(start=-1024,stop=3072))[0]
+    hist = gaussian_filter(hist,sigma=20,mode='nearest',truncate=1)
+    return hist
+
+def density_similarity(p,q,mode='kl'):
+    similarity = 0
+    if mode == 'kl':
+        for i in range(len(p)):
+            pi = p[i]
+            qi = q[i]
+            if (pi < 0.000001 ):
+                continue # equal as setting the summand to zero
+            elif(qi == 0):
+                continue
+            else :
+                summand = pi * (np.log(pi/qi))
+                similarity += summand
+    return similarity
+
+def get_similarities(img,seg,props,density_values):
+    coords = props.coords
+    comp_intenity_density = get_int_dens(img,coords)
+    similarity = density_similarity(density_values,comp_intenity_density)
+    return similarity
     
+def compute_metrics(img_path,seg_path):
+    '''gets a 3D segmentation of a Covid consolidation and computes metrices on it.
+    Will be used to assess if segmentation is plausible'''
 
+    #load image and segmentation
+    img = torchio.Image(img_path, type=torchio.INTENSITY)
+    seg = torchio.Image(seg_path, type=torchio.LABEL)
+    img = img.numpy()[0]
+    seg = seg.numpy()[0]
+    shape = np.shape(img)
+    nr_slices = shape[2]
 
-    # 2.Connected components
+    # 1.Compare histograms of the components to intensity densities of segmentations
+    density = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation','kde_gauss_bw_20.sav'),'rb'))
+    density_values = np.exp(density.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))) #for computation of density similarity
+    component_iterator = Component_Iterator(img,seg)
+    similarity_scores_densities = component_iterator.iterate(get_similarities,density_values=density_values)
 
-    # 2.1 get a 3dim array
-    shape = img.shape
-    img_reshaped = np.resize(img, new_shape=(shape[1], shape[2], shape[3]))
-
-    # 2.2 compute connected components
-    labeled_image, nr_components = label(img_reshaped, return_num=True, connectivity=3)
-
-    # 2.3 closer look at single components or avg of 1/2/3/4...
-    # area 
-    # "anti-convexity" of cc (conv_hull-cc)/area
-    # eccentricity
-    # euler_number
-    # major axis length
-    # mean_intensity(how to get intensities in function?)
-
+    # 2.Dice scores for the components
+    dice_metrices = component_iterator.iterate(get_dice_averages)
     
-    # 3. Compute volumes 
-
-    # 3.1 Compute volume of segmented tissue in mm3
-    voxel_volume = spacing[0] * spacing[1] * spacing[2]
-    volume = np.sum(img) * voxel_volume
-
-    # 3.2 Compute volume in left and right lung and ratio
-    middle = math.floor(nr_slices/2)
-    volume_right = np.sum(img[:,:,middle,:]) * voxel_volume
-    volume_left = volume - volume_right
-    ratio_left_right_lung = volume_left/volume_right
-
-
-    #4. Compare to more trivial segmentation if possible. Maybe take otsu with pixel value of consolidated area(from centroid intensity of biggest cc) or smth alike 
+    return similarity_scores_densities,dice_metrices
 
 
 
-# Histogram over all values, then decide on interesting values
+# #small testing 
+# path = os.path.join('downloads','UK_Frankfurt2','KGU-1D1840AEB676')
+# img_path = os.path.join(path,'image.nii.gz')
+# seg_path = os.path.join(path,'mask.nii.gz')
+# print(compute_metrics(img_path,seg_path))
 
-
-    
-
-
-# get the images and into numpy in order to test a bit
-global_name = "VESSEL12"
-dataset_path = os.path.join(storage_data_path, global_name)
-study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name in os.listdir(dataset_path))
-x_path = os.path.join(dataset_path, 'VESSEL12_01' + '.nii.gz')
-y1_path = os.path.join(dataset_path, 'VESSEL12_01' + '_gt.nii.gz')
-y2_path = os.path.join(dataset_path, 'VESSEL12_02' + '_gt.nii.gz')
-x = torchio.Image(x_path, type=torchio.INTENSITY)
-y1 = torchio.Image(y1_path, type=torchio.LABEL)
-y2 = torchio.Image(y2_path, type=torchio.LABEL)
 
 
 
