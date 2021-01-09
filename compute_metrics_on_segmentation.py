@@ -101,8 +101,12 @@ def compute_metrics(img_path,seg_path):
 
     # 2.Dice scores for the components
     dice_metrices = component_iterator.iterate(get_dice_averages)
-    
-    return similarity_scores_densities,dice_metrices
+
+    # 3.Number of connected components 
+    _,number_components = label(seg)
+
+
+    return similarity_scores_densities , dice_metrices , number_components
 
 
 

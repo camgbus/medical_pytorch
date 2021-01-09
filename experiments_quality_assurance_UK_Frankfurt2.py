@@ -17,27 +17,63 @@ import pickle
 import time 
 from compute_metrics_on_segmentation import get_array_of_dicescores,get_dice_averages,get_int_dens,get_similarities,density_similarity
 from Iterators import Dataset_Iterator,Component_Iterator
+from sklearn.neighbors import KernelDensity
+from sklearn.cluster import KMeans,AgglomerativeClustering
 
 
 # Hyperparams
 DIMENSIONALITY_REDUCTION = False
 DIMENSIONALITY_REDUCTION_ANALYSIS = False
 DENSITY_ESTIMATION = False
-DENSITY_ESTIMATION_ANALYSIS = True
+DENSITY_ESTIMATION_ANALYSIS = False
+HISTOGRAM_ANALYSIS = True
 ITERATIONS = [0]
 RANDOM_STATES = [34]
 PATH_TO_DATA_STATISTICS = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_bbox_more_com_pca') #for saving the models/vectors
 USE_ARPACK = False
 GET_COMP_INFOS = True
-DENSITY_ESTIMATION = True
+data_path = os.path.join('downloads','UK_Frankfurt2')
 start_time = time.time()
+
+print('Set hyperparams')
 
 def draw_comp_density(img,seg,props):
     int_dens = get_int_dens(img,props.coords)
     plt.plot(np.arange(start=-1024,stop=3071),int_dens)
 
+def compute_density(data, dim1=True ,kernel='gaussian',bw=1,plot=False,intervall_plot=np.arange(start=-1024,stop=3071),descr='describtion_missing.png',save=True):
+    if not dim1:
+        raise NotImplementedError
+    else: 
+        data = np.reshape(data, newshape=(-1,1))
+        kde = KernelDensity(kernel=kernel,bandwidth=bw).fit(data)
+        if plot:
+            log_density = kde.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))
+            plt.plot(intervall_plot,np.exp(log_density))
+            plt.show()
+        if save:
+            pickle.dump(kde,open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation',descr),'wb'))
+    return kde
+
+def get_cut_seg(img,seg,props,size=(1,20,20,8)):
+    min_row, min_col, min_sl, max_row, max_col, max_sl = props.bbox
+    part_of_seg = props.image
+    cut_seg = img[min_row:max_row,min_col:max_col,min_sl:max_sl]
+    cut_shape = np.shape(cut_seg)
+    for x in range(0,cut_shape[0]):
+        for y in range(0,cut_shape[1]):
+            for z in range(0,cut_shape[2]):
+                if not part_of_seg[x,y,z]: #if this part of the bbox is not part of the segmentation, color is black -1024
+                    cut_seg[x,y,z] = -1024                            
+    cut_seg = torch.tensor(cut_seg).unsqueeze(0)
+    cut_seg= resize_3d(cut_seg, size=size)
+    cut_seg = cut_seg.numpy()[0]
+    cut_seg = cut_seg.flatten()
+    return cut_seg
+
     
 if DIMENSIONALITY_REDUCTION:
+
     # 2. reduce dimension of images to (57,256,256) and load components into an array 
     comp_infos = []
     seg_comp = []
@@ -137,12 +173,11 @@ if DIMENSIONALITY_REDUCTION_ANALYSIS:
     reduced_seg_more_comp_pca = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_bbox_more_com_pca','trans_data_UK_Frankfurt2_rs34_iters0.sav'),'rb'))
     comp_infos = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','UK_Frankfurt2_com_infos.sav'),'rb'))
     
-    # # clustering
-    # data = reduced_seg_more_comp_pca
-    # from sklearn.cluster import KMeans,AgglomerativeClustering
-
-    # cluster = AgglomerativeClustering(n_clusters=3,compute_full_tree=False,linkage='ward')
-    # labels = cluster.fit_predict(data)
+    # clustering
+    data = reduced_seg_more_comp_pca
+    
+    cluster = KMeans(n_clusters=3,verbose=1,random_state=RANDOM_STATES[0])
+    labels = cluster.fit_predict(data)
 
     # for label in range(3):
     #     print('\n \n \n')
@@ -206,38 +241,19 @@ if DIMENSIONALITY_REDUCTION_ANALYSIS:
 
 if DENSITY_ESTIMATION:
 
-    X = np.array([])
-    for dir in os.listdir(os.path.join('downloads','UK_Frankfurt2')):
-        path = os.path.join('downloads','UK_Frankfurt2',dir)
-        img_path = os.path.join(path,'image.nii.gz')
-        seg_path = os.path.join(path,'mask.nii.gz')
-        img = sitk.ReadImage(img_path)
-        seg = sitk.ReadImage(seg_path)
-        img = sitk.GetArrayFromImage(img)
-        seg = sitk.GetArrayFromImage(seg)
-        
-        shape = np.shape(seg)
-        components = label(seg)
-        props = regionprops(components,img)
-        props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
-        number_components = len(props)
-        
-        comp = 0
-        while comp < number_components and props[comp].area > 100:
-            coords = props[comp].coords
-            intensities = np.array([img[x,y,z] for x,y,z in coords])
-            samples = np.random.choice(intensities,2000)
-            X = np.append(X,samples)
-            comp += 1
-    
-    X = np.reshape(X, newshape=(-1,1))
+    def sample_intensities(img,seg,props):
+        coords = props.coords
+        intensities = np.array([img[x,y,z] for x,y,z in coords])
+        samples = np.random.choice(intensities,2000)
+        return samples 
 
-    from sklearn.neighbors import KernelDensity
-    kde = KernelDensity(kernel='gaussian',bandwidth=20).fit(X)
-    pickle.dump(kde,open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation','kde_gauss_bw_20.sav'),'wb'))
-    log_density = kde.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))
-    plt.plot(np.arange(start=-1024,stop=3071),np.exp(log_density))
-    plt.show()
+    data_path = os.path.join('downloads','UK_Frankfurt2')
+    ds_iterator = Dataset_Iterator(data_path)
+    samples = ds_iterator.iterate_components(sample_intensities,threshold=100)
+
+    X = np.array(samples)
+    
+    compute_density(X,bw=20,plot=True,descr='kde_gauss_bw_20.sav')
 if DENSITY_ESTIMATION_ANALYSIS: 
     data_path = os.path.join('downloads','UK_Frankfurt2')
     print('Loading density')
@@ -250,6 +266,45 @@ if DENSITY_ESTIMATION_ANALYSIS:
     print('finished iterating')
     plt.plot(np.arange(start=-1024,stop=3071),np.exp(log_density))
     plt.show()
+
+if HISTOGRAM_ANALYSIS:
+    print('Fitting cluster')
+    reduced_seg_more_comp_pca = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','dim_red_bbox_more_com_pca','trans_data_UK_Frankfurt2_rs34_iters0.sav'),'rb'))
+    cluster = KMeans(n_clusters=3,random_state=RANDOM_STATES[0])
+    labels = cluster.fit_predict(reduced_seg_more_comp_pca)
+
+    print('Loading Transformer')
+    transformer_path = os.path.join('storage','statistics','UK_Frankfurt2','dim_red_bbox_more_com_pca','transformer.sav')
+    transformer = pickle.load(open(transformer_path,'rb'))
+
+    def get_int_clusters(img,seg,props,comp_size,transformer=transformer):
+        coords = props.coords
+        intensities = np.array([img[x,y,z] for x,y,z in coords])
+        samples = np.random.choice(intensities,2000)
+
+        cut_seg = get_cut_seg(img,seg,props)
+        dim_red_seg = transformer.transform([cut_seg])
+        label = cluster.predict(dim_red_seg)
+
+        return [label,samples]
+    
+    print('Getting data')
+    ds_iterator = Dataset_Iterator(data_path,resize=True)
+    labeled_intensities = ds_iterator.iterate_components(get_int_clusters)
+
+    print('Starting density computation')
+    for label in range(3):
+        print('Computing density for label {}'.format(label))
+        intensities = [labeled_intensities[i,1] for i in range(len(labeled_intensities)) if labeled_intensities[0] == label]
+        intensities = np.array(intensities)
+        intensities = intensities.flatten()
+        compute_density(intensities,bw=20,plot=False,descr='cluster' + str(label) + 'int_hist.png')
+
+
+
+
+
+        
 
 
 
