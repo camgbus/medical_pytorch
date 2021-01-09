@@ -98,7 +98,7 @@ def resize_3d(img, size=(1, 56, 56, 56), label=False):
         # Interpolation in 'nearest' mode leaves the original mask values.
         img = F.interpolate(img, size=size[1:], mode='nearest')
     else:
-        img = F.interpolate(img, size=size[1:], mode='trilinear')
+        img = F.interpolate(img, size=size[1:], mode='trilinear',align_corners=False)
     return img[0]
 
 def centre_crop_pad_2d(img, size=(1, 128, 128)):

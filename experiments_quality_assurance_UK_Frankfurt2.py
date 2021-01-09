@@ -295,7 +295,7 @@ if HISTOGRAM_ANALYSIS:
     print('Starting density computation')
     for label in range(3):
         print('Computing density for label {}'.format(label))
-        intensities = [labeled_intensities[i,1] for i in range(len(labeled_intensities)) if labeled_intensities[0] == label]
+        intensities = [labeled_intensities[i][1] for i in range(len(labeled_intensities)) if labeled_intensities[i][0] == label]
         intensities = np.array(intensities)
         intensities = intensities.flatten()
         compute_density(intensities,bw=20,plot=False,descr='cluster' + str(label) + 'int_hist.png')
