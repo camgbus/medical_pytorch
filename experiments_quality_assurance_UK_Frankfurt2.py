@@ -41,7 +41,7 @@ def draw_comp_density(img,seg,props):
     int_dens = get_int_dens(img,props.coords)
     plt.plot(np.arange(start=-1024,stop=3071),int_dens)
 
-def compute_density(data, dim1=True ,kernel='gaussian',bw=1,plot=False,intervall_plot=np.arange(start=-1024,stop=3071),descr='describtion_missing.png',save=True):
+def compute_density(data, dim1=True ,kernel='gaussian',bw=1,plot=False,intervall_plot=np.arange(start=-1024,stop=3071),descr='describtion_missing',save=True):
     if not dim1:
         raise NotImplementedError
     else: 
@@ -50,9 +50,9 @@ def compute_density(data, dim1=True ,kernel='gaussian',bw=1,plot=False,intervall
         if plot:
             log_density = kde.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))
             plt.plot(intervall_plot,np.exp(log_density))
-            plt.show()
+            plt.savefig(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation',descr+'.png'))
         if save:
-            pickle.dump(kde,open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation',descr),'wb'))
+            pickle.dump(kde,open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation',descr+'.sav'),'wb'))
     return kde
 
 def get_cut_seg(img,seg,props,size=(1,20,20,8)):
@@ -64,8 +64,9 @@ def get_cut_seg(img,seg,props,size=(1,20,20,8)):
         for y in range(0,cut_shape[1]):
             for z in range(0,cut_shape[2]):
                 if not part_of_seg[x,y,z]: #if this part of the bbox is not part of the segmentation, color is black -1024
-                    cut_seg[x,y,z] = -1024                            
-    cut_seg = torch.tensor(cut_seg).unsqueeze(0)
+                    cut_seg[x,y,z] = -1024 
+    # cut_seg = cut_seg.clone().detach().unsqueeze(0)   #cut_seg is not a tensor so this should not be right                        
+    cut_seg = cut_seg.unsqueeze(0) # in order to not get error message 
     cut_seg= resize_3d(cut_seg, size=size)
     cut_seg = cut_seg.numpy()[0]
     cut_seg = cut_seg.flatten()
@@ -298,7 +299,7 @@ if HISTOGRAM_ANALYSIS:
         intensities = [labeled_intensities[i][1] for i in range(len(labeled_intensities)) if labeled_intensities[i][0] == label]
         intensities = np.array(intensities)
         intensities = intensities.flatten()
-        compute_density(intensities,bw=20,plot=False,descr='cluster' + str(label) + 'int_hist.png')
+        compute_density(intensities,bw=20,plot=True,descr='cluster' + str(label) + 'density')
 
 
 
