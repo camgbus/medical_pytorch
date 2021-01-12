@@ -8,14 +8,17 @@ from typing import Iterable, Union
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+from mp.eval.result import Result
 from mp.utils.seaborn.legend_utils import format_legend
 
 
 def plot_results(result, measures=None, save_path=None, save_name=None,
-                 title=None, ending='.png', ylog=False, figsize=(10, 5), axvlines=None):
+                 title=None, ending='.png', ylog=False, figsize=(10, 5),
+                 axvlines=None):
     """Plots a data frame as created by mp.eval.Results
 
     Args:
+        result (Result): the Result object containing the data
         measures (list[str]): list of measure names
         save_path (str): path to save plot. If None, plot is shown.
         save_name (str): name with which plot is saved
@@ -25,12 +28,22 @@ def plot_results(result, measures=None, save_path=None, save_name=None,
         figsize (tuple[int]): figure size
         axvlines (Iterable[Union[Iterable, int]]): an iterable containing other iterables
                                                     (any depth permitted) or integers (for plotting vertical lines)
+
     """
     df = result.to_pandas()
     # Filter out measures that are not to be shown
     # The default is using all measures in the df
     if measures:
         df = df.loc[df['Metric'].isin(measures)]
+
+    default_dashes = ["",
+                      (4, 1.5),
+                      (1, 1),
+                      (3, 1, 1.5, 1),
+                      (5, 1, 1, 1),
+                      (5, 1, 2, 1, 2, 1),
+                      (2, 2, 3, 1.5),
+                      (1, 2.5, 3, 1.2)]
 
     # Start a new figure so that different plots do not overlap
     plt.figure()
@@ -41,6 +54,7 @@ def plot_results(result, measures=None, save_path=None, save_name=None,
                       hue='Metric',
                       style='Data',
                       alpha=0.7,
+                      dashes=default_dashes,
                       data=df)
     ax = sns.scatterplot(x='Epoch',
                          y='Value',

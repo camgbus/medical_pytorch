@@ -8,10 +8,17 @@ from mp.eval.inference.predict import softmax
 from mp.utils.helper_functions import zip_longest_with_cycle
 from mp.utils.pytorch.pytorch_load_restore import save_optimizer_state, load_optimizer_state
 from mp.utils.early_stopping import EarlyStopping
+from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDatasetWrapper
+from mp.eval.metrics.mean_scores import get_mean_scores
 
 
 class SegmentationDomainAgent(SegmentationAgent):
     r"""An Agent for segmentation models using a classifier for the domain space using the features from the encoder"""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Bool used to select the right outputs in self.get_outputs
+        self._outputs_are_domain_predictions = False
 
     def perform_stage1_training_epoch(self, optimizer,
                                       loss_f_classifier,
@@ -181,6 +188,7 @@ class SegmentationDomainAgent(SegmentationAgent):
               optimizers,
               losses,
               train_dataloaders,
+              train_dataset_names,
               init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
               eval_datasets=None, eval_interval=10,
               save_path=None, save_interval=10,
@@ -199,6 +207,8 @@ class SegmentationDomainAgent(SegmentationAgent):
                                     - one for the domain predictor
                                     - one for the encoder (based on the domain predictions)
             train_dataloaders (list): a list of Dataloader
+            train_dataset_names (list): the list of the names of the dataset used for training
+                                        (same order as for the train_dataloaders)
         Returns:
             The the last epoch index of stages 1 to 3 as a tuple
         """
@@ -207,11 +217,16 @@ class SegmentationDomainAgent(SegmentationAgent):
         if eval_datasets is None:
             eval_datasets = dict()
 
+        # Creating the wrappers for the datasets
+        train_datasets_wrappers = {
+            key: DomainPredictionDatasetWrapper(eval_datasets[key], train_dataset_names.index(key[0]))
+            for key in eval_datasets if key[0] in train_dataset_names}
+
         loss_f_classifier, loss_f_domain_pred, loss_f_encoder = losses
 
         if init_epoch == 0:
             self.track_metrics(init_epoch, results, loss_f_classifier, eval_datasets)
-            self.track_domain_prediction_accuracy(init_epoch, results, train_dataloaders)
+            self.track_domain_prediction_accuracy(init_epoch, results, train_datasets_wrappers)
 
         # Stages 1 and 2
         for epoch in range(init_epoch, init_epoch + nr_epochs):
@@ -241,7 +256,7 @@ class SegmentationDomainAgent(SegmentationAgent):
             # Track statistics in results at interval or the end of stage 1 and 2
             if perform_tracking:
                 self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
-                self.track_domain_prediction_accuracy(epoch + 1, results, train_dataloaders)
+                self.track_domain_prediction_accuracy(epoch + 1, results, train_datasets_wrappers)
 
             # Save agent and optimizer state at interval or the end of stage 1 and 2
             if (epoch + 1) % save_interval == 0 and save_path is not None:
@@ -252,8 +267,8 @@ class SegmentationDomainAgent(SegmentationAgent):
                                 optimizer_encoder)
 
         # Stage 3
-        self.track_domain_prediction_accuracy(init_epoch, results, train_dataloaders)
-        stage3_epochs = 20
+        self.track_domain_prediction_accuracy(init_epoch + nr_epochs, results, train_datasets_wrappers)
+        stage3_epochs = min(20, nr_epochs)
         for epoch in range(init_epoch + nr_epochs, init_epoch + nr_epochs + stage3_epochs):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
@@ -266,7 +281,8 @@ class SegmentationDomainAgent(SegmentationAgent):
             perform_tracking = (epoch + 1) % eval_interval == 0 or epoch == stage3_epochs - 1
             # Track statistics in results
             if perform_tracking:
-                self.track_domain_prediction_accuracy(epoch + 1, results, train_dataloaders)
+                self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
+                self.track_domain_prediction_accuracy(epoch + 1, results, train_datasets_wrappers)
 
             # Save agent and optimizer state
             if perform_tracking and save_path is not None:
@@ -278,8 +294,8 @@ class SegmentationDomainAgent(SegmentationAgent):
 
         return stage1_epochs - 1, nr_epochs - 1, nr_epochs - 1 + stage3_epochs
 
-
-    def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, early_stopping,
+    def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, train_dataset_names,
+                                  early_stopping,
                                   init_epoch=0,
                                   run_loss_print_interval=10,
                                   eval_datasets=None, eval_interval=10,
@@ -299,6 +315,8 @@ class SegmentationDomainAgent(SegmentationAgent):
                                     - one for the domain predictor
                                     - one for the encoder (based on the domain predictions)
             train_dataloaders (list): a list of Dataloader
+            train_dataset_names (list): the list of the names of the dataset used for training
+                                        (same order as for the train_dataloaders)
             early_stopping (EarlyStopping): the early stopping criterion
         Returns:
             The the last epoch index of stages 1 to 3 as a tuple
@@ -308,7 +326,7 @@ class SegmentationDomainAgent(SegmentationAgent):
             # Track statistics in results object at interval and returns whether training should keep going
             if (epoch + 1) % eval_interval == 0:
                 self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
-                self.track_domain_prediction_accuracy(epoch + 1, results, train_dataloaders)
+                self.track_domain_prediction_accuracy(epoch + 1, results, train_datasets_wrappers)
                 return early_stopping_criterion.check_results(results, epoch + 1)
 
             return True
@@ -318,13 +336,18 @@ class SegmentationDomainAgent(SegmentationAgent):
         if eval_datasets is None:
             eval_datasets = dict()
 
+        # Creating the wrappers for the datasets
+        train_datasets_wrappers = {
+            key: DomainPredictionDatasetWrapper(eval_datasets[key], train_dataset_names.index(key[0]))
+            for key in eval_datasets if key[0] in train_dataset_names}
+
         loss_f_classifier, loss_f_domain_pred, loss_f_encoder = losses
         early_stopping.reset_counter()
 
         # Tracking metrics at step 0
         epoch = stage1_last_epoch = stage2_last_epoch = stage3_last_epoch = init_epoch
         self.track_metrics(epoch, results, loss_f_classifier, eval_datasets)
-        self.track_domain_prediction_accuracy(epoch, results, train_dataloaders)
+        self.track_domain_prediction_accuracy(epoch, results, train_datasets_wrappers)
 
         # Stage 1
         for epoch in range(epoch, 1 << 32):
@@ -375,12 +398,10 @@ class SegmentationDomainAgent(SegmentationAgent):
         # Creating a new early stopping criterion to track the accuracy of the domain predictor
         # This stage is not that important and only serves to double-check that there is
         # no more information regarding domain prediction
-        # FIXME Currently using an early stopping criterion will produce bad results:
-        #       The domain predictor will constantly predict the larger dataset
-        # early_stopping_stage3 = EarlyStopping(0, "Mean_Accuracy", ["Training dl 0", "Training dl 1"],
-        #                                       metric_min_delta=early_stopping.metric_min_delta)
-        # for epoch in range(epoch + 1, 1 << 32):
-        for epoch in range(epoch + 1, epoch + 21):
+        early_stopping_stage3 = EarlyStopping(0, "Mean_ScoreAccuracy_DomPred",
+                                              list({key[0] + "_val" for key in train_datasets_wrappers}),
+                                              metric_min_delta=early_stopping.metric_min_delta)
+        for epoch in range(epoch + 1, 1 << 32):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0 and self.verbose
 
             self.perform_stage3_training_epoch(optimizer_domain_predictor,
@@ -388,28 +409,16 @@ class SegmentationDomainAgent(SegmentationAgent):
                                                train_dataloaders,
                                                print_run_loss=print_run_loss)
 
-            if (epoch + 1) % eval_interval == 0:
-                self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
-                self.track_domain_prediction_accuracy(epoch + 1, results, train_dataloaders)
-
-            # keep_going = track_if_needed(early_stopping_stage3)
-            # if not keep_going:
-            #     stage3_last_epoch = epoch + 1
-            #     if save_path is not None:
-            #         self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-            #                         stage1_optimizer,
-            #                         optimizer_model,
-            #                         optimizer_domain_predictor,
-            #                         optimizer_encoder)
-            #     break
-
-        stage3_last_epoch = epoch + 1
-        if save_path is not None:
-            self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-                            stage1_optimizer,
-                            optimizer_model,
-                            optimizer_domain_predictor,
-                            optimizer_encoder)
+            keep_going = track_if_needed(early_stopping_stage3)
+            if not keep_going:
+                stage3_last_epoch = epoch + 1
+                if save_path is not None:
+                    self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
+                                    stage1_optimizer,
+                                    optimizer_model,
+                                    optimizer_domain_predictor,
+                                    optimizer_encoder)
+                break
 
         return stage1_last_epoch, stage2_last_epoch, stage3_last_epoch
 
@@ -432,53 +441,59 @@ class SegmentationDomainAgent(SegmentationAgent):
 
         return torch.cat(domain_targets_onehot, dim=0).to(self.device)
 
-    def track_domain_prediction_accuracy(self, epoch, results, train_dataloaders):
+    def track_domain_prediction_accuracy(self, epoch, results, train_datasets_wrappers):
         r"""Tracks the accuracy of the domain predictor (complementary to self.track_metrics)"""
-        if self.verbose:
-            print('Epoch {} accuracy domain prediction'.format(epoch))
+        self._outputs_are_domain_predictions = True
 
-        # Accumulator for the accuracy across datasets
-        overall_acc = Accumulator()
-        dl_cnt = len(train_dataloaders)
+        label_names = list({key[0] for key in train_datasets_wrappers})
 
-        # For each dataloader
-        for idx, dl in enumerate(train_dataloaders):
+        for ds_name, ds in train_datasets_wrappers.items():
+            # Modified ds_metrics
+            eval_dict = dict()
             acc = Accumulator()
-            # For each batch
-            for data in dl:
-                inputs, targets = self.get_inputs_targets(data)
+            for instance_ix, instance in enumerate(ds.instances):
+                subject_name = instance.name
+                target = instance.y.to(self.device)
+                pred = ds.predictor.get_subject_prediction(self, instance_ix)
 
-                # We create the domain targets
-                domain_targets = torch.zeros((inputs.shape[0], dl_cnt), dtype=targets.dtype).to(self.device)
-                domain_targets[:, idx] = 1
+                # Calculate metrics
+                scores_dict = get_mean_scores(target, pred, metrics=["ScoreAccuracy"],
+                                              label_names=label_names,
+                                              label_weights=None)
 
-                one_channeled_target = self.predict_from_outputs(domain_targets)
+                # Add to the accumulator and eval_dict
+                for metric_key, value in scores_dict.items():
+                    acc.add(metric_key, value, count=1)
+                    if metric_key not in eval_dict:
+                        eval_dict[metric_key] = dict()
+                    eval_dict[metric_key][subject_name] = value
+            # Add mean and std values to the eval_dict
+            for metric_key in acc.get_keys():
+                eval_dict[metric_key]['mean'] = acc.mean(metric_key)
+                eval_dict[metric_key]['std'] = acc.std(metric_key)
+            # End of modified ds_metrics
 
-                # Predicting...
-                feature = self.model.get_features_from_encoder(inputs)
-                domain_pred = self.predict_from_outputs(self.model.get_domain_prediction_from_features(feature))
-
-                # Computing the accuracy
-                # noinspection PyTypeChecker
-                score = torch.sum(domain_pred == one_channeled_target).cpu().numpy() / inputs.shape[0]
-                acc.add("Accuracy", score, inputs.shape[0])
-                overall_acc.add("Accuracy", score, inputs.shape[0])
-
-            # Add to the accumulator
-            results.add(epoch=epoch, metric='Mean_Accuracy', data=f"Training dl {idx}", value=acc.mean("Accuracy"))
-
+            for metric_key in eval_dict.keys():
+                results.add(epoch=epoch, metric='Mean_' + metric_key + "_DomPred", data=ds_name,
+                            value=eval_dict[metric_key]['mean'])
+                results.add(epoch=epoch, metric='Std_' + metric_key + "_DomPred", data=ds_name,
+                            value=eval_dict[metric_key]['std'])
             if self.verbose:
-                print(f"ScoreAccuracy[Dataloader {idx}]: {acc.mean('Accuracy')}")
-
-        if self.verbose:
-            print(f"ScoreAccuracy: {overall_acc.mean('Accuracy')}")
+                print('Epoch {} dataset {}'.format(epoch, ds_name))
+                for metric_key in eval_dict.keys():
+                    print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))
+        self._outputs_are_domain_predictions = False
 
     def get_outputs(self, inputs):
         r"""Applies a softmax transformation to the model outputs"""
         # This is here so that one can still use agent.predict
-        outputs, domain_pred = self.model(inputs)
-        outputs = softmax(outputs)
-        return outputs
+        # outputs, domain_pred = self.model(inputs)
+        features = self.model.get_features_from_encoder(inputs)
+        if self._outputs_are_domain_predictions:
+            outputs = self.model.get_domain_prediction_from_features(features)
+        else:
+            outputs = self.model.get_classification_from_features(features)
+        return softmax(outputs)
 
     def save_state(self, states_path, state_name,
                    stage1_optimizer=None,

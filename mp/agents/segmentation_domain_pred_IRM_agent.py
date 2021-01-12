@@ -1,11 +1,12 @@
 import torch
 
+from mp.agents.segmentation_domain_pred_agent import SegmentationDomainAgent
+from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDatasetWrapper
 from mp.eval.accumulator import Accumulator
 from mp.eval.inference.predict import softmax
-from mp.utils.helper_functions import zip_longest_with_cycle
-from mp.utils.early_stopping import EarlyStopping
-from mp.agents.segmentation_domain_pred_agent import SegmentationDomainAgent
 from mp.eval.losses.losses_irm import IRMLossAbstract
+from mp.utils.early_stopping import EarlyStopping
+from mp.utils.helper_functions import zip_longest_with_cycle
 
 
 class SegmentationDomainIRMAgent(SegmentationDomainAgent):
@@ -127,7 +128,8 @@ class SegmentationDomainIRMAgent(SegmentationDomainAgent):
         # within the 3 stages of the domain prediction training
         raise NotImplementedError
 
-    def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, early_stopping,
+    def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, train_dataset_names,
+                                  early_stopping,
                                   init_epoch=0,
                                   run_loss_print_interval=10,
                                   eval_datasets=None, eval_interval=10,
@@ -147,6 +149,8 @@ class SegmentationDomainIRMAgent(SegmentationDomainAgent):
                                     - one for the domain predictor
                                     - one for the encoder (based on the domain predictions)
             train_dataloaders (list): a list of Dataloader
+            train_dataset_names (list): the list of the names of the dataset used for training
+                                        (same order as for the train_dataloaders)
             early_stopping (EarlyStopping): the early stopping criterion
         Returns:
             The the last epoch index of stages 1 to 3 as a tuple
@@ -156,7 +160,7 @@ class SegmentationDomainIRMAgent(SegmentationDomainAgent):
             # Track statistics in results object at interval and returns whether training should keep going
             if (epoch + 1) % eval_interval == 0:
                 self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
-                self.track_domain_prediction_accuracy(epoch + 1, results, train_dataloaders)
+                self.track_domain_prediction_accuracy(epoch + 1, results, train_datasets_wrappers)
                 return early_stopping_criterion.check_results(results, epoch + 1)
 
             return True
@@ -166,11 +170,16 @@ class SegmentationDomainIRMAgent(SegmentationDomainAgent):
         if eval_datasets is None:
             eval_datasets = dict()
 
+        # Creating the wrappers for the datasets
+        train_datasets_wrappers = {
+            key: DomainPredictionDatasetWrapper(eval_datasets[key], train_dataset_names.index(key[0]))
+            for key in eval_datasets if key[0] in train_dataset_names}
+
         loss_f_classifier, irm_loss_f_domain_pred, loss_f_encoder = losses
         early_stopping.reset()
-        early_stopping_domain_pred = EarlyStopping(0, "Mean_Accuracy", ["Training dl 0", "Training dl 1"],
+        early_stopping_domain_pred = EarlyStopping(0, "Mean_ScoreAccuracy_DomPred",
+                                                   list({key[0] + "_val" for key in train_datasets_wrappers}),
                                                    metric_min_delta=early_stopping.metric_min_delta)
-
         # This penalty weight attribute needs to get reset between runs
         irm_loss_f_domain_pred.penalty_weight = 1.
 
@@ -180,7 +189,7 @@ class SegmentationDomainIRMAgent(SegmentationDomainAgent):
 
         # Tracking metrics
         self.track_metrics(epoch, results, loss_f_classifier, eval_datasets)
-        self.track_domain_prediction_accuracy(epoch, results, train_dataloaders)
+        self.track_domain_prediction_accuracy(epoch, results, train_datasets_wrappers)
 
         # Stage 1 Domain Prediction
         # Sub-stage 1 IRM

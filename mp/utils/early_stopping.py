@@ -6,7 +6,7 @@ class EarlyStopping:
     Stops the training early if the metric score don't improve within a given time period.
     """
 
-    def __init__(self, patience: int, metric: str, ds_names: list, metric_min_delta: float = 2e-3):
+    def __init__(self, patience: int, metric: str, ds_names: list, metric_min_delta: float = 33e-4):
         r"""
         Args:
             patience (int): the number of checks without improvement allowed, before stopping training

@@ -44,57 +44,27 @@ nr_labels = data.nr_labels
 label_names = data.label_names
 
 configs = [
-    # {'experiment_name': 'harp_dryad_no_aug_vrex', 'device': 'cuda:0',
-    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
-    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-    #  "nr_epochs": 120,
-    #  "beta": 10, "penalty_weight": 1e5,
-    #  "loss": "vrex", "eval_interval": 10,
-    #  "train_ds_names": (harp.name, dryad.name)
-    #  },
-    # {'experiment_name': 'harp_dryad_hybrid_aug_irmv1', 'device': 'cuda:0',
-    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
-    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-    #  "nr_epochs": 120,
-    #  "beta": 10, "penalty_weight": 1e5,
-    #  "loss": "irmv1", "eval_interval": 10,
-    #  "train_ds_names": (harp.name, dryad.name)
-    #  },
-    # {'experiment_name': 'harp_dryad_mri_aug_irmv1', 'device': 'cuda:0',
-    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
-    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-    #  "nr_epochs": 120,
-    #  "beta": 10, "penalty_weight": 1e5,
-    #  "loss": "irmv1", "eval_interval": 10,
-    #  "train_ds_names": (harp.name, dryad.name)
-    #  },
-    # {'experiment_name': 'harp_dryad_no_aug_vrex', 'device': 'cuda:0',
-    #  'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
-    #  'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'none',
-    #  'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-    #  "nr_epochs": 120,
-    #  "beta": 10, "penalty_weight": 1e3,
-    #  "loss": "vrex", "eval_interval": 10,
-    #  "train_ds_names": (harp.name, dryad.name)
-    #  },
-    {'experiment_name': 'harp_dryad_hybrid_aug_vrex', 'device': 'cuda:0',
-     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
-     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
+    {'experiment_name': 'harp_dryad_mri_aug_irmv1', 'device': 'cuda:0',
+     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
+     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
      'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-     "nr_epochs": 120,
+     "beta": 10, "penalty_weight": 1e5,
+     "loss": "irmv1", "eval_interval": 10,
+     "train_ds_names": (harp.name, dryad.name)
+     },
+    {'experiment_name': 'harp_dryad_mri_aug_vrex', 'device': 'cuda:0',
+     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
+     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
+     'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
      "beta": 10, "penalty_weight": 1e3,
      "loss": "vrex", "eval_interval": 10,
      "train_ds_names": (harp.name, dryad.name)
      },
-    {'experiment_name': 'harp_dryad_mri_aug_vrex', 'device': 'cuda:0',
-     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+    {'experiment_name': 'harp_dryad_mri_aug_vrex2', 'device': 'cuda:0',
+     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
      'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-     "nr_epochs": 120,
-     "beta": 10, "penalty_weight": 1e3,
+     "beta": 10, "penalty_weight": 1e5,
      "loss": "vrex", "eval_interval": 10,
      "train_ds_names": (harp.name, dryad.name)
      },
@@ -182,10 +152,11 @@ for config in configs:
         # 10. Train model
         results = Result(name='training_trajectory')
         agent = SegmentationDomainIRMAgent(model=model, label_names=label_names, device=device, metrics=["ScoreDice"],
-                                           verbose=False)
+                                           verbose=True)
 
-        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_test" for name in train_ds_names])
+        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_val" for name in train_ds_names])
         epochs = agent.train_with_early_stopping(results, optimizers, losses, train_dataloaders=dls,
+                                                 train_dataset_names=train_ds_names,
                                                  early_stopping=early_stopping,
                                                  run_loss_print_interval=config["eval_interval"],
                                                  eval_datasets=datasets, eval_interval=config["eval_interval"],
@@ -201,22 +172,24 @@ for config in configs:
         # Plotting in a separate file, because of seaborn's limited dashes style list
         plot_results(results, save_path=exp_run.paths['results'],
                      save_name="domain_prediction_accuracy.png",
-                     measures=["Mean_Accuracy"],
+                     measures=["Mean_ScoreAccuracy_DomPred"],
                      axvlines=epochs)
 
         # Outputs the results in csv format
         # Stage 1: DICE scores and accuracy scores
         dice = results.results["Mean_ScoreDice[hippocampus]"][stage1_2_epoch]
-        acc = results.results["Mean_Accuracy"][stage1_2_epoch]
-        print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","), end="")
+        acc = results.results["Mean_ScoreAccuracy_DomPred"][stage1_2_epoch]
+        print("\t".join(f"{e:.3f}" for k, e in chain(dice.items(), acc.items())
+                        if k.endswith("_test")).replace(".", ","), end="")
 
         # Stage 2: DICE scores and accuracy scores
         dice = results.results["Mean_ScoreDice[hippocampus]"][stage2_epoch]
-        acc = results.results["Mean_Accuracy"][stage2_epoch]
+        acc = results.results["Mean_ScoreAccuracy_DomPred"][stage2_epoch]
         print("\t\t\t", end="")
-        print("\t".join(f"{e:.3f}" for e in chain(dice.values(), acc.values())).replace(".", ","), end="")
+        print("\t".join(f"{e:.3f}" for k, e in chain(dice.items(), acc.items())
+                        if k.endswith("_test")).replace(".", ","), end="")
 
         # Stage 3: accuracy scores
-        acc = results.results["Mean_Accuracy"][stage3_2_epoch]
+        acc = results.results["Mean_ScoreAccuracy_DomPred"][stage3_2_epoch]
         print("\t\t\t", end="")
-        print("\t".join(f"{e:.3f}" for e in acc.values()).replace(".", ","))
+        print("\t".join(f"{e:.3f}" for k, e in acc.items() if k.endswith("_test")).replace(".", ","))

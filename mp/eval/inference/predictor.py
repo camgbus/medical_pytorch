@@ -17,13 +17,18 @@ class Predictor():
     Args:
         instances (list[Instance]): a list of instances, as for a Dataset
         size (tuple[int]): size as (channels, width, height, Opt(depth))
-        norm (torchio.transforms): a normaliztion strategy
+        norm (torchio.transforms): a normalization strategy
+        reshape_pred (bool): whether the prediction needs to be reshaped to match the shape of the original data
     """
-    def __init__(self, instances, size=(1, 56, 56, 10), norm=None):
+    def __init__(self, instances, size=(1, 56, 56, 10), norm=None, reshape_pred=True):
         self.instances = instances
         assert len(size) > 2
         self.size = size
         self.norm = norm
+        # This is currently only used for Domain Prediction,
+        # where we need to create the right Predictor (2D or 3D) on the fly,
+        # but the prediction should not be reshaped as it is a classification task
+        self.reshape_pred = reshape_pred
 
     def transform_subject(self, subject):
         r"""Apply normalization strategy to subject."""
@@ -67,17 +72,27 @@ class Predictor2D(Predictor):
                     inputs = trans.resize_2d(x[slice_idx], size=self.size).to(agent.device)
                     inputs = torch.unsqueeze(inputs, 0)
                     slice_pred = agent.predict(inputs).float()
-                    pred.append(trans.resize_2d(slice_pred, size=original_size_2d, label=True))
+                    # Check whether we need to reshape the prediction
+                    if self.reshape_pred:
+                        pred.append(trans.resize_2d(slice_pred, size=original_size_2d, label=True))
+                    else:
+                        pred.append(slice_pred)
                 else:
                     inputs = trans.centre_crop_pad_2d(x[slice_idx], size=self.size).to(agent.device)
                     inputs = torch.unsqueeze(inputs, 0)
                     slice_pred = agent.predict(inputs).float()
-                    pred.append(trans.centre_crop_pad_2d(slice_pred, size=original_size_2d))
+                    # Check whether we need to reshape the prediction
+                    if self.reshape_pred:
+                        pred.append(trans.centre_crop_pad_2d(slice_pred, size=original_size_2d))
+                    else:
+                        pred.append(slice_pred)
 
         # Merge slices and rotate so depth last
         pred = torch.stack(pred, dim=0)
-        pred = pred.permute(1, 2, 3, 0)
-        assert original_size == pred.shape
+        # Only permute if we reshaped the prediction, otherwise it doesn't make sense
+        if self.reshape_pred:
+            pred = pred.permute(1, 2, 3, 0)
+            assert original_size == pred.shape
         return pred
 
 class Predictor3D(Predictor):
@@ -95,15 +110,15 @@ class Predictor3D(Predictor):
         # Get original label size
         original_size = subject['y'].data.shape
 
-        
         if self.resize:
             # Resize to appropiate model size and make prediction
             x = trans.resize_3d(x, size=self.size).to(agent.device)
             x = torch.unsqueeze(x, 0)
             with torch.no_grad():
                 pred = agent.predict(x).float()
-            # Restore prediction to original size
-            pred = trans.resize_3d(pred, size=original_size, label=True)
+            # Check whether we need to restore the prediction to original size
+            if self.reshape_pred:
+                pred = trans.resize_3d(pred, size=original_size, label=True)
 
         else:
             # Crop or pad instead of interpolating
@@ -111,17 +126,22 @@ class Predictor3D(Predictor):
             x = torch.unsqueeze(x, 0)
             with torch.no_grad():
                 pred = agent.predict(x).float()
-            pred = trans.centre_crop_pad_3d(pred, size=original_size)
-        assert original_size == pred.shape
+            # Check whether we need to restore the prediction to original size
+            if self.reshape_pred:
+                pred = trans.centre_crop_pad_3d(pred, size=original_size)
+
+        if self.reshape_pred:
+            assert original_size == pred.shape
         return pred
 
 class GridPredictor(Predictor):
     r"""The GridPredictor deconstructs a 3D volume into patches, makes a forward 
     pass through the model and reconstructs a prediction of the output size.
     """
-    def __init__(self, *args, patch_overlap=(0,0,0), **kwargs):
-        super().__init__(*args, **kwargs)
+    def __init__(self, *args, patch_overlap=(0,0,0), reshape_pred=True, **kwargs):
+        assert reshape_pred, "Not reshaping the prediction is not available for the GridPredictor"
         assert patch_overlap[2] == 0  # Otherwise, have gotten wrong overlap
+        super().__init__(*args, reshape_pred=reshape_pred, **kwargs)
         self.patch_overlap = patch_overlap
         self.patch_size = self.size[1:]
 

@@ -4,6 +4,7 @@
 # targets in a way that affects the result.
 # ------------------------------------------------------------------------------
 
+from mp.data.pytorch.pytorch_dataset import PytorchDataset
 from mp.eval.accumulator import Accumulator
 from mp.eval.metrics.mean_scores import get_mean_scores
 
@@ -16,7 +17,7 @@ def dl_losses(dl, agent, loss_f):
         # Calculate losses
         loss_dict = loss_f.get_evaluation_dict(outputs, targets)
         # Add to the accumulator   
-        for key, value in loss_dict.items():         
+        for key, value in loss_dict.items():
             acc.add(key, value, count=len(inputs))
     return acc
 
@@ -29,11 +30,11 @@ def dl_metrics(dl, agent, metrics):
         outputs = agent.get_outputs(inputs)
         pred = agent.predict_from_outputs(outputs)
         # Calculate metrics
-        scores_dict = get_mean_scores(one_channeled_target, pred, metrics=metrics, 
-                    label_names=agent.label_names, 
+        scores_dict = get_mean_scores(one_channeled_target, pred, metrics=metrics,
+                    label_names=agent.label_names,
                     label_weights=agent.scores_label_weights)
         # Add to the accumulator      
-        for key, value in scores_dict.items():         
+        for key, value in scores_dict.items():
             acc.add(key, value, count=len(inputs))
     return acc
 
@@ -87,11 +88,11 @@ def ds_metrics(ds, agent, metrics):
         target = instance.y.tensor.to(agent.device)
         pred = ds.predictor.get_subject_prediction(agent, instance_ix)
         # Calculate metrics
-        scores_dict = get_mean_scores(target, pred, metrics=metrics, 
-                    label_names=agent.label_names, 
+        scores_dict = get_mean_scores(target, pred, metrics=metrics,
+                    label_names=agent.label_names,
                     label_weights=agent.scores_label_weights)
-        # Add to the accumulator and eval_dict   
-        for metric_key, value in scores_dict.items():         
+        # Add to the accumulator and eval_dict
+        for metric_key, value in scores_dict.items():
             acc.add(metric_key, value, count=1)
             if metric_key not in eval_dict:
                 eval_dict[metric_key] = dict()
