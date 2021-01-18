@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.experiments.experiment import Experiment
 from mp.data.data import Data
-from mp.data.datasets.ds_mr_prostate_decathlon import DecathlonProstateT2
+from mp.data.datasets.ds_ct_UKF2 import UKF2
 import mp.visualization.visualize_imgs as vis
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.models.segmentation.unet_fepegar import UNet2D
@@ -22,26 +22,26 @@ from mp.utils.load_restore import nifty_dump
 
 # 2. Define configuration
 
-config = {'experiment_name':'test_exp', 'device':'cuda:0',
-    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
+config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:0',
+    'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
     }
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
 print('Device name: {}'.format(device_name))
-input_shape = config['input_shape']  
+input_shape = config['input_shape']
 
 # 3. Create experiment directories
 exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
 
 # 4. Define data
 data = Data()
-data.add_dataset(DecathlonProstateT2(merge_labels=True))
+data.add_dataset(UKF2())
 nr_labels = data.nr_labels
 label_names = data.label_names
-train_ds = ('DecathlonProstateT2', 'train')
-test_ds = ('DecathlonProstateT2', 'test')
+train_ds = ('UKF2', 'train')
+test_ds = ('UKF2', 'test')
 
 # 5. Create data splits for each repetition
 exp.set_data_splits(data)
