@@ -86,7 +86,7 @@ for run_ix in range(config['nr_runs']):
     agent = SegmentationAgent(model=model, label_names=label_names, device=device)
     print('made SegAgent') 
     agent.train(results, optimizer, loss_f, train_dataloader=dl,
-        init_epoch=0, nr_epochs=10, run_loss_print_interval=1,
+        init_epoch=0, nr_epochs=1, run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=1, 
         save_path=exp_run.paths['states'], save_interval=1)
     print('trained')

@@ -90,7 +90,8 @@ class Agent:
                 printed.
         """
         acc = Accumulator('loss')
-        for _, data in enumerate(train_dataloader):
+        for i, data in enumerate(train_dataloader):
+            print('using data {} to train'.format(i))
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
@@ -119,6 +120,7 @@ class Agent:
         for epoch in range(init_epoch, init_epoch+nr_epochs):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
+            print(print_run_loss)
             self.perform_training_epoch(optimizer, loss_f, train_dataloader, 
                 print_run_loss=print_run_loss)
         
