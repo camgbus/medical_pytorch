@@ -15,6 +15,7 @@ from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.result import Result
 from mp.utils.load_restore import nifty_dump
+from scipy.stats import spearmanr
 
 import os
 import SimpleITK as sitk
@@ -28,6 +29,8 @@ from mp.eval.inference.predictor import Predictor3D
 import mp.data.pytorch.transformation as trans
 
 import matplotlib.pyplot as plt
+
+from compute_metrics_on_segmentation import compute_metrics
 
 # 2. Hyperparameter 
 USE_SERVER = False
@@ -58,6 +61,36 @@ agent = SegmentationAgent(model=model, label_names=label_names, device=device)
 # load data on which decomposition is trained and which contains ground truth
 data = Data()
 data.add_dataset(UKF2())
+
+# 3.1 get some helper functions
+def get_dice(name,epochs):
+    ''' computes the dice scores between the seg for img with name and its segmentations from the models using the given epochs
+    '''
+    seg_path = os.path.join(PATH_TO_IMAGES,name+'_gt.nii.gz')
+    seg = sitk.ReadImage(seg_path)
+    seg = sitk.GetArrayFromImage(seg)
+    seg = seg.flatten()
+    dices_scores = []
+    for epoch in epochs:
+        gen_seg_path = os.path.join(PATH_TO_NEW_SEGMENTATION,'epoch_{}'.format(epoch),name+'_gt.nii.gz')
+        gen_seg = sitk.ReadImage(gen_seg_path)
+        gen_seg = sitk.GetArrayFromImage(gen_seg)
+        gen_seg = gen_seg.flatten()
+        dice_score = np.dot(seg,gen_seg)
+        dice_scores.append(dice_score)
+    return dices_scores
+
+def get_hist_metric(name,epochs)):
+    img_path = os.path.join(PATH_TO_IMAGES,name+'.nii.gz')
+    hist_scores = []
+    for epoch in epochs:
+        seg_path = os.path.join(PATH_TO_NEW_SEGMENTATION,'epoch_{}'.format(epoch),name+'_gt.nii.gz')
+        hist_score,_,_,_ = compute_metrics(img_path,seg_path)
+        hist_scores.append(hist_score)
+    return hist_scores
+
+
+
 
 # 4. Segment the images using the models from the given epochs
 if not os.path.isdir(PATH_TO_NEW_SEGMENTATION):
@@ -94,7 +127,25 @@ for epoch in EPOCHS_TO_USE:
             shape = pred.shape
             pred = np.resize(pred, (shape[1], shape[2], shape[3]))
             sitk.WriteImage(sitk.GetImageFromArray(pred), os.path.join(
-                PATH_TO_NEW_SEGMENTATION, 'segmented_lung_' + str(id) + '_gt.nii.gz'))
+                path_seg_epoch, name + '_gt.nii.gz'))
         print('Images segmented and saved')
-        
+
+# 5. get all the scores 
+names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name in os.listdir(PATH_TO_IMAGES))
+dice_scores = []
+hist_scores = []
+
+for name in names:
+    dice_scores.append(get_dice(name,EPOCHS_TO_USE))
+    hist_scores.append(get_hist_metric(name,EPOCHS_TO_USE))
+
+#6. compute the ranks of the scores, take care of reverse order 
+corr,pval = spearmanr(dice_scores,hist_scores)
+print('The Spearman Correlation between the two scores is {}'.format(corr))
+
+plt.scatter(dice_scores,hist_scores)
+plt.show()
+
+
+
 

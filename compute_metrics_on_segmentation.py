@@ -98,15 +98,17 @@ def compute_metrics(img_path,seg_path):
     density_values = np.exp(density.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))) #for computation of density similarity
     component_iterator = Component_Iterator(img,seg)
     similarity_scores_densities = component_iterator.iterate(get_similarities,density_values=density_values)
+    average = np.mean(np.arry(similarity_scores_densities))
 
     # 2.Dice scores for the components
-    dice_metrices = component_iterator.iterate(get_dice_averages)
+     dice_metrices = component_iterator.iterate(get_dice_averages)
 
     # 3.Number of connected components 
-    _,number_components = label(seg)
+     _,number_components = label(seg)
 
 
-    return similarity_scores_densities , dice_metrices , number_components
+    return average , similarity_scores_densities , dice_metrices , number_components
+
 
 
 
