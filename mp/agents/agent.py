@@ -89,7 +89,9 @@ class Agent:
             print_run_loss (bool): whether a runing loss should be tracked and
                 printed.
         """
+        print('performing training step')
         acc = Accumulator('loss')
+        print('got acc')
         for i, data in enumerate(train_dataloader):
             print('using data {} to train'.format(i))
             # Get data
