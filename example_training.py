@@ -22,7 +22,7 @@ from mp.utils.load_restore import nifty_dump
 
 # 2. Define configuration
 
-config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:5',
+config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:7',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
     'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
@@ -85,10 +85,10 @@ for run_ix in range(config['nr_runs']):
     print('made results')   
     agent = SegmentationAgent(model=model, label_names=label_names, device=device)
     print('made SegAgent') 
-    agent.train(results, optimizer, loss_f, train_dataloader=dl,
-        init_epoch=0, nr_epochs=1, run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=1, 
-        save_path=exp_run.paths['states'], save_interval=1)
+    # agent.train(results, optimizer, loss_f, train_dataloader=dl,
+    #     init_epoch=0, nr_epochs=1, run_loss_print_interval=1,
+    #     eval_datasets=datasets, eval_interval=1, 
+    #     save_path=exp_run.paths['states'], save_interval=1)
     print('trained')
 
     # 11. Save and print results for this experiment run
