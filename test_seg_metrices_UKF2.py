@@ -118,6 +118,16 @@ def get_prediction(img_path,name,save_path):
     sitk.WriteImage(sitk.GetImageFromArray(pred), os.path.join(
         save_path, name + '_gt.nii.gz'))
 
+def flatten_list(alist):
+    return_list = []
+    for entry in alist:
+        if type(entry) is not list:
+            return_list.append(entry)
+        else: 
+            for ele in entry:
+                return_list.append(ele)
+    return return_list
+
 names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name in os.listdir(PATH_TO_IMAGES))
 
 # 4. Segment the images using the models from the given epochs
@@ -169,13 +179,28 @@ metric_scores_test = []
 for epoch in EPOCHS_TO_USE:
     path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC+'epoch_{}.npy'.format(epoch))
     path_to_dice = os.path.join(PATH_TO_SCORES,'dice_epoch{}.npy'.format(epoch))
-    dice_scores += pickle.load(open(path_to_dice,'rb'))
-    metric_scores += pickle.load(open(path_to_metric,'rb'))
+    dice_list_epoch = pickle.load(open(path_to_dice,'rb'))
+    metric_list_epoch = pickle.load(open(path_to_metric,'rb'))
+    flattened_scores = [flatten_list(entry) for entry in metric_list_epoch]
 
-# Now dice scores is a list of the dice scores, while metric scores is a list of corresponding features 
-# e.g. dice_scores[4] gives the dice scores of the 4th segmentation, while metric_scores[4] gives a list of features
+    dice_scores_train += dice_list_epoch[:IMG_TO_TEST]
+    dice_scores_test += dice_list_epoch[IMG_TO_TEST:]
+    metric_scores_train += flattened_scores[:IMG_TO_TEST]
+    metric_scores_test += flattened_scores[IMG_TO_TEST:]
+
+X_train = np.array(metric_scores_train)
+X_test = np.array(metric_scores_test)
+y_train = np.array(dice_scores_train)
+y_test = np.array(dice_scores_test)
+
+# 7.get visual confirmation
 if PLOT_AVG_VS_DICE:
+    dice = np.append(y_train,y_test)
+    avg_dist = [ele[0] for ele in metric_scores_test+metric_scores_train]
+    corr,pval = spearmanr(dice,avg_dist)
+    print('The correlation between the two values is {}'.format(corr))
 
-
-
+    plt.scatter(dice,avg_dist)
+    plt.show()
+    
 
