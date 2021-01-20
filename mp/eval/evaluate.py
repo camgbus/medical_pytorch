@@ -21,7 +21,7 @@ def dl_losses(dl, agent, loss_f):
             acc.add(key, value, count=len(inputs))
     return acc
 
-def dl_metrics_subject(dl, agent, metrics):
+def dl_metrics_subject(dl, agent, metrics, output_key=None):
     r"""Calculate metrics for a Dataloader, which is of a single subject.
     If data is 2d, join into one 3d volume.
     Note that this function only works if batch_nr=1, as is the case for the
@@ -33,17 +33,24 @@ def dl_metrics_subject(dl, agent, metrics):
         pred = []
         for data in dl:
             inputs, targets = agent.get_inputs_targets(data)
-            one_channeled_target.append(agent.predict_from_outputs(targets))
             outputs = agent.get_outputs(inputs)
-            pred.append(agent.predict_from_outputs(outputs))
+            if output_key is None:
+                one_channeled_target.append(agent.predict_from_outputs(targets))
+                pred.append(agent.predict_from_outputs(outputs))
+            else:
+                one_channeled_target.append(agent.predict_from_outputs(targets)[output_key])
+                pred.append(agent.predict_from_outputs(outputs)[output_key])
         one_channeled_target = torch.stack(one_channeled_target, axis=-1)
         pred = torch.stack(pred, axis=-1)
     else:
         for data in dl:
             inputs, targets = agent.get_inputs_targets(data)
-            one_channeled_target = agent.predict_from_outputs(targets)
             outputs = agent.get_outputs(inputs)
+            one_channeled_target = agent.predict_from_outputs(targets)
             pred = agent.predict_from_outputs(outputs)
+            if output_key is not None:
+                one_channeled_target = one_channeled_target[output_key]
+                pred = pred[output_key]
     # Calculate metrics
     scores_dict = get_mean_scores(one_channeled_target, pred, metrics=metrics,
         label_names=agent.label_names, label_weights=agent.scores_label_weights)
@@ -124,21 +131,24 @@ def ds_metrics_multiple(ds, agent, metrics, stored_pred_path=None):
     Here, the dataloader is used, so the original size is not restored, but a 
     3d volume is reconstructed when necessary.
     """
+    assert isinstance(metrics, dict)
     eval_dict = dict()
     acc = Accumulator()
     for instance_ix, instance in enumerate(ds.instances):
         subject_name = instance.name
         dl = ds.get_subject_dataloader(instance_ix)
-        subject_acc = dl_metrics_subject(dl, agent, metrics)
-        # Add to the accumulator and eval_dict
-        for metric_key in subject_acc.get_keys():
-            value = subject_acc.mean(metric_key)
-            acc.add(metric_key, value, count=1)
-            if metric_key not in eval_dict:
-                eval_dict[metric_key] = dict()
-            eval_dict[metric_key][subject_name] = value
+        for output_key, key_metrics in metrics.items():
+            subject_acc = dl_metrics_subject(dl, agent, key_metrics, output_key)
+            # Add to the accumulator and eval_dict
+            for metric_key in subject_acc.get_keys():
+                value = subject_acc.mean(metric_key)
+                full_metric_key = output_key + '_' + metric_key
+                acc.add(full_metric_key, value, count=1)
+                if full_metric_key not in eval_dict:
+                    eval_dict[full_metric_key] = dict()
+                eval_dict[full_metric_key][subject_name] = value
     # Add mean and std values to the eval_dict
-    for loss_key in acc.get_keys():
+    for metric_key in acc.get_keys():
         eval_dict[metric_key]['mean'] = acc.mean(metric_key)
         eval_dict[metric_key]['std'] = acc.std(metric_key)
     return eval_dict
