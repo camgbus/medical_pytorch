@@ -88,7 +88,7 @@ if not os.path.isdir(PATH_TO_NEW_SEGMENTATION):
     global_name = DATA_FOR_NEW_SEGMENTATIONS
     dataset_path = os.path.join('storage', 'data', global_name)
     for id, file in enumerate(os.listdir(dataset_path)):
-        x_path = os.path.join(dataset_path, file)
+        x_path = os.path.join(dataset_path, file + '.nii.gz')
         x = torch.tensor(torchio.Image(x_path, type=torchio.INTENSITY).numpy())
         original_size_2d = x.shape[:3]
         original_size = x.shape
