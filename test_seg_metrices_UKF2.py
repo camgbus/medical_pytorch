@@ -33,13 +33,19 @@ import matplotlib.pyplot as plt
 from compute_metrics_on_segmentation import compute_metrics
 
 # 2. Hyperparameter 
+USED_METRIC = 'average_kl_div_of_hist'
+DESCRIPTION = 'Take the average kl_div of the histograms from the estimated density. Not using clustering and density is estimated by gaussian kernel with bw 20'
 USE_SERVER = False
 CUDA_DEVICE = 1 
 EPOCHS_TO_USE = [5,10]
 PATH_TO_IMAGES = os.path.join('storage','data','UKF2')
 PATH_TO_STATES = os.path.join('storage', 'exp', 'UKF2_seg_metrices', '0', 'states')
 PATH_TO_NEW_SEGMENTATION = os.path.join('storage','data','UKF2_generated_seg')
+PATH_TO_SCORES = os.path.join('storage','statistics','UK_Frankfurt2','tests_seg_metrices')
 
+
+if not os.path.isdir(PATH_TO_SCORES):
+    os.makedirs(PATH_TO_SCORES)
 # 3.Load segmentation agent from state and load data
 if USE_SERVER:
     # device to use for computation config['device']
@@ -80,7 +86,7 @@ def get_dice(name,epochs):
         dice_scores.append(dice_score)
     return dices_scores
 
-def get_hist_metric(name,epochs)):
+def get_metric(name,epochs):
     img_path = os.path.join(PATH_TO_IMAGES,name+'.nii.gz')
     hist_scores = []
     for epoch in epochs:
@@ -132,12 +138,31 @@ for epoch in EPOCHS_TO_USE:
 
 # 5. get all the scores 
 names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name in os.listdir(PATH_TO_IMAGES))
-dice_scores = []
-hist_scores = []
 
-for name in names:
-    dice_scores.append(get_dice(name,EPOCHS_TO_USE))
-    hist_scores.append(get_hist_metric(name,EPOCHS_TO_USE))
+
+for epoch in EPOCHS_TO_USE:
+    #dice scores
+    path_to_dice = os.path.join(PATH_TO_SCORES,'dice_epoch{}.npy'.format(epoch))
+    if not os.path.isfile(os.path.join(path_to_dice)):
+        dice_scores = []
+        for name in names:
+            dice_scores.append(get_dice(name,[epoch]))    
+        np.save(path_to_dice,np.array(dice_scores))
+
+    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC+'epoch_{}.npy'.format(epoch))
+    if not os.path.isfile(os.path.join(path_to_metric)):
+        metric_scores = []
+        for name in names:
+            metric_scores.append(get_metric(name,[epoch]))
+        np.save(path_to_metric,np.array(metric_scores))
+
+describtion_name = os.path.join(PATH_TO_SCORES,USED_METRIC+'_descr.txt')
+if not os.path.isfile(describtion_name):
+    descr = open(describtion_name,'w')
+    descr.write(DESCRIPTION)
+    descr.close()
+
+
 
 #6. compute the ranks of the scores, take care of reverse order 
 corr,pval = spearmanr(dice_scores,hist_scores)

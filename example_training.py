@@ -24,7 +24,7 @@ from mp.utils.load_restore import nifty_dump
 
 config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:6',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
-    'input_shape': (1, 256, 256), 'resize': False, 'augmentation': 'none', 
+    'input_shape': (1, 256, 256), 'resize': True, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
     }
 device = config['device']
