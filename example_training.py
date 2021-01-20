@@ -22,7 +22,7 @@ from mp.utils.load_restore import nifty_dump
 
 # 2. Define configuration
 
-config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:6',
+config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:0',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
     'input_shape': (1, 256, 256), 'resize': True, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
@@ -50,7 +50,6 @@ exp.set_data_splits(data)
 for run_ix in range(config['nr_runs']):
     exp_run = exp.get_run(run_ix=0)
 
-    print('6. data into format')
     # 6. Bring data to Pytorch format
     datasets = dict()
     for ds_name, ds in data.datasets.items():
@@ -60,33 +59,26 @@ for run_ix in range(config['nr_runs']):
                 datasets[(ds_name, split)] = PytorchSeg2DDataset(ds, 
                     ix_lst=data_ixs, size=input_shape, aug_key=aug, 
                     resize=config['resize'])
-    print(datasets)
 
-    print('7. build dl')
     # 7. Build train dataloader, and visualize
     dl = DataLoader(datasets[(train_ds)], 
         batch_size=config['batch_size'], shuffle=True)
 
-    print('8. init model')
     # 8. Initialize model
     model = UNet2D(input_shape, nr_labels)
     model.to(device)
 
-    print('9.')
     # 9. Define loss and optimizer
     loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
     loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], 
         device=device)
     optimizer = optim.Adam(model.parameters(), lr=config['lr'])
 
-    print('10.')
     # 10. Train model
-    results = Result(name='training_trajectory')
-    print('made results')   
+    results = Result(name='training_trajectory')  
     agent = SegmentationAgent(model=model, label_names=label_names, device=device)
-    print('made SegAgent') 
     agent.train(results, optimizer, loss_f, train_dataloader=dl,
-        init_epoch=0, nr_epochs=1, run_loss_print_interval=1,
+        init_epoch=0, nr_epochs=5, run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=1, 
         save_path=exp_run.paths['states'], save_interval=1)
     print('trained')

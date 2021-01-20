@@ -122,7 +122,6 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
         idxs = [idx for idx, (instance_idx, slice_idx) in enumerate(self.idxs) 
             if instance_idx==subject_ix]
         for idx in idxs:
-            print('idx is {}'.format(idx))
             x, y = self.__getitem__(idx)
             dl_items.append((x.unsqueeze_(0), y.unsqueeze_(0)))
         return dl_items

@@ -53,7 +53,7 @@ def ds_losses(ds, agent, loss_f):
     eval_dict = dict()
     acc = Accumulator()
     for instance_ix, instance in enumerate(ds.instances):
-        print(instance_ix,instance)
+        print('getting losses on instance {}'.format(instance_ix))
         subject_name = instance.name
         dl = ds.get_subject_dataloader(instance_ix)
         subject_acc = dl_losses(dl, agent, loss_f)

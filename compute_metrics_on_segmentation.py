@@ -107,7 +107,7 @@ def compute_metrics(img_path,seg_path):
     _,number_components = label(seg)
 
 
-    return average , similarity_scores_densities , dice_metrices , number_components
+    return [average , similarity_scores_densities , dice_metrices , number_components]
 
 
 

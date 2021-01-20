@@ -91,9 +91,7 @@ class Agent:
         """
         print('performing training step')
         acc = Accumulator('loss')
-        print('got acc')
         for i, data in enumerate(train_dataloader):
-            print('using data {} to train'.format(i))
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
@@ -117,14 +115,11 @@ class Agent:
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
-        print('start train')
         if init_epoch == 0:
             self.track_metrics(init_epoch, results, loss_f, eval_datasets)
-        print('after if')
         for epoch in range(init_epoch, init_epoch+nr_epochs):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
             print_run_loss = print_run_loss and self.verbose
-            print(print_run_loss)
             self.perform_training_epoch(optimizer, loss_f, train_dataloader, 
                 print_run_loss=print_run_loss)
         
