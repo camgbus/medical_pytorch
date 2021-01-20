@@ -14,9 +14,8 @@ from mp.models.segmentation.unet_fepegar import UNet2D
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.agents.segmentation_agent import SegmentationAgent
 from mp.eval.result import Result
-from mp.utils.load_restore import nifty_dump
-from scipy.stats import spearmanr
 
+from scipy.stats import spearmanr
 import os
 import SimpleITK as sitk
 import numpy as np
@@ -24,8 +23,7 @@ import torchio
 import math
 import pickle
 
-from mp.eval.inference.predictor import Predictor2D
-from mp.eval.inference.predictor import Predictor3D
+from sklearn.neural_network import MLPRegressor
 
 import mp.data.pytorch.transformation as trans
 
@@ -34,8 +32,9 @@ import matplotlib.pyplot as plt
 from compute_metrics_on_segmentation import compute_metrics
 
 # 2. Hyperparameter 
-USED_METRIC = 'average_kl_div_of_hist'
-DESCRIPTION = 'Take the average kl_div of the histograms from the estimated density. Not using clustering and density is estimated by gaussian kernel with bw 20'
+USED_METRIC = 'avg_kl_dice_comp'
+DESCRIPTION = '''Take the average kl_div of the histograms from the estimated density. Not using clustering and density is estimated by gaussian kernel with bw 20
+                        Also take the avg dice of the consolidations and the avg dice differences as well as number of connected components'''
 USE_SERVER = False
 CUDA_DEVICE = 1 
 PLOT_AVG_VS_DICE = True
@@ -202,5 +201,16 @@ if PLOT_AVG_VS_DICE:
 
     plt.scatter(dice,avg_dist)
     plt.show()
+
+# 8. train a NN to predict dice from metrices
+regressor = MLPRegressor((100,100,100,60,30,10),learning_rate='adaptive',random_state=1,verbose=True)
+regressor.fit(X_train,y_train)
+
+path_regr = os.path.join(PATH_TO_SCORES,USED_METRIC+'_regr.sav')
+with open(path_regr,'wb') as saver:
+    pickle.dump(regressor,saver)
+
+regressor_score = regressor.score(X_test,y_test)
+print('The regressor has a score of {}'.format(regressor_score))
     
 
