@@ -4,6 +4,7 @@
 # targets in a way that affects the result.
 # ------------------------------------------------------------------------------
 
+import torch
 from mp.eval.accumulator import Accumulator
 from mp.eval.metrics.mean_scores import get_mean_scores
 
@@ -20,21 +21,35 @@ def dl_losses(dl, agent, loss_f):
             acc.add(key, value, count=len(inputs))
     return acc
 
-def dl_metrics(dl, agent, metrics):
-    r"""Calculate metrics for a Dataloader"""
+def dl_metrics_subject(dl, agent, metrics):
+    r"""Calculate metrics for a Dataloader, which is of a single subject.
+    If data is 2d, join into one 3d volume.
+    Note that this function only works if batch_nr=1, as is the case for the
+    subject datalaoder.
+    """
     acc = Accumulator()
-    for data in dl:
-        inputs, targets = agent.get_inputs_targets(data)
-        one_channeled_target = agent.predict_from_outputs(targets)
-        outputs = agent.get_outputs(inputs)
-        pred = agent.predict_from_outputs(outputs)
-        # Calculate metrics
-        scores_dict = get_mean_scores(one_channeled_target, pred, metrics=metrics,
-                    label_names=agent.label_names,
-                    label_weights=agent.scores_label_weights)
-        # Add to the accumulator
-        for key, value in scores_dict.items():
-            acc.add(key, value, count=len(inputs))
+    if len(dl) > 1:  # Slice-by-slice data
+        one_channeled_target = []
+        pred = []
+        for data in dl:
+            inputs, targets = agent.get_inputs_targets(data)
+            one_channeled_target.append(agent.predict_from_outputs(targets))
+            outputs = agent.get_outputs(inputs)
+            pred.append(agent.predict_from_outputs(outputs))
+        one_channeled_target = torch.stack(one_channeled_target, axis=-1)
+        pred = torch.stack(pred, axis=-1)
+    else:
+        for data in dl:
+            inputs, targets = agent.get_inputs_targets(data)
+            one_channeled_target = agent.predict_from_outputs(targets)
+            outputs = agent.get_outputs(inputs)
+            pred = agent.predict_from_outputs(outputs)
+    # Calculate metrics
+    scores_dict = get_mean_scores(one_channeled_target, pred, metrics=metrics,
+        label_names=agent.label_names, label_weights=agent.scores_label_weights)
+    # Add to the accumulator
+    for key, value in scores_dict.items():
+        acc.add(key, value, count=1)
     return acc
 
 def ds_losses(ds, agent, loss_f):
@@ -104,16 +119,17 @@ def ds_metrics(ds, agent, metrics):
         eval_dict[metric_key]['std'] = acc.std(metric_key)
     return eval_dict
 
-def ds_metrics_multiple(ds, agent, metrics):
+def ds_metrics_multiple(ds, agent, metrics, stored_pred_path=None):
     r"""Variant of ds_metrics when there are several inputs and outputs.
-    Here, the dataloader is used, so the original size is not restored.
+    Here, the dataloader is used, so the original size is not restored, but a 
+    3d volume is reconstructed when necessary.
     """
     eval_dict = dict()
     acc = Accumulator()
     for instance_ix, instance in enumerate(ds.instances):
         subject_name = instance.name
         dl = ds.get_subject_dataloader(instance_ix)
-        subject_acc = dl_metrics(dl, agent, metrics)
+        subject_acc = dl_metrics_subject(dl, agent, metrics)
         # Add to the accumulator and eval_dict
         for metric_key in subject_acc.get_keys():
             value = subject_acc.mean(metric_key)

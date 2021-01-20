@@ -8,6 +8,7 @@ import SimpleITK as sitk
 import math
 import random
 from PIL import Image
+import colorsys
 from mp.data.pytorch.transformation import one_output_channel
 
 def img_to_numpy_array(x):
@@ -83,6 +84,28 @@ def color_mask(mask):
     mask = np.array([red, green, blue]).T
     return mask
 
+def rgb_to_hls(r, g, b):
+    r, g, b = [x/255.0 for x in [r, g, b]]
+    return colorsys.rgb_to_hls(r, g, b)
+
+def hls_to_rgb(h, li, s):
+    r, g, b = colorsys.hls_to_rgb(h, li, s)
+    return [x*255.0 for x in [r, g, b]]
+
+def interpolate_colors(color_zero=(0, 0, 255), color_one=(255, 0, 1), k=0.5):
+    color_zero, color_one = rgb_to_hls(*color_zero), rgb_to_hls(*color_one)
+    color_mix = list(np.array(color_zero) * (1-k) + np.array(color_one) * k)
+    return np.array(hls_to_rgb(*color_mix))
+
+def color_cont_range(mask, color_zero=(0, 0, 255), color_one=(255, 0, 1)):
+    r"""Converts continuous values between 0 and 1 into an output where 0 is 
+    blue and 1 is red.
+    """
+    three_channeled_mask = np.stack((mask,)*3, axis=-1)
+    for index, value in np.ndenumerate(mask):
+        three_channeled_mask[index] = interpolate_colors(k=mask[index])
+    return three_channeled_mask.astype(np.uint8)
+
 # Visualize images, masks and dataloaders using Pillow
 def plot_3d_subject_gt(subject, save_path=None):
     r"""Plot a subject with input and ground truth"""
@@ -107,6 +130,7 @@ def plot_3d_img(img, save_path=None, img_size=(512, 512)):
     assert len(img.shape) == 4 and int(img.shape[0]) == 1
     # Rotate axis to (depth, 1, width, height) from (1, width, height, depth)
     img = np.moveaxis(img, -1, 0)
+    print(img.shape)
     # Create 2D image list
     imgs = []
     for ix in range(len(img)):
@@ -143,7 +167,7 @@ def plot_3d_segmentation(
         img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha)
 
 def get_img_grid(img_list, nr_rows, nr_cols, randomize=False):
-    r"""Place list items in a gris format."""
+    r"""Place list items in a grid format."""
     if randomize:
         random.shuffle(img_list)
     img_grid = [[None for i in range(nr_cols)] for j in range(nr_rows)]
@@ -182,7 +206,8 @@ def create_img_grid(img_grid = [[]], img_size = (512, 512),
         new_img.save(save_path)
 
 def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
-    margin = (5, 5), background_color = (255, 255, 255, 255), save_path=None):
+    margin = (5, 5), background_color = (255, 255, 255, 255), save_path=None,
+    cont_mask=False):
     r"""Visualize a grid with 2d image slices, overlayed with masks."""
     bg_width = len(img_grid[0])*img_size[0] + (len(img_grid[0])+1)*margin[0]
     bg_height = len(img_grid)*img_size[1] + (len(img_grid)+1)*margin[1]
@@ -200,8 +225,10 @@ def create_x_y_grid(img_grid = [[]], img_size = (512, 512), alpha=0.5,
                     img = Image.fromarray(img).resize(img_size).convert('RGBA')
                     # Stretch the mask values between 0 and 255
                     mask = mask[0]
-                    mask = color_mask(mask)
-                    Image.fromarray(mask)
+                    if cont_mask:
+                        mask = color_cont_range(mask)
+                    else:
+                        mask = color_mask(mask)
                     Image.fromarray(mask).resize(img_size)
                     mask = Image.fromarray(mask).resize(img_size).convert('RGBA')
                 else:  # Colored images
@@ -235,20 +262,6 @@ def visualize_dataloader(
     img_grid = get_img_grid(imgs, grid_side, grid_side)
     create_img_grid(img_grid=img_grid, save_path=save_path, img_size=img_size)
 
-def get_imgs_from_dataloader(dataloader, nr_imgs, x_key=None):
-    r"""Get images (inputs) from dataloader and place in list."""
-    imgs = []
-    for x, y in dataloader:
-        if x_key is not None:
-            x = x[x_key]
-        x = x.cpu().detach().numpy()
-        for img in x:
-            if len(imgs) < nr_imgs:
-                imgs.append(img)
-        if len(imgs) == nr_imgs:
-            break
-    return imgs
-
 def visualize_dataloader_with_masks(dataloader, max_nr_imgs=100, save_path=None,
     img_size=(256, 256), alpha=0.5, x_key=None, y_key=None):
     r"""Visualize images and masks from dataloader."""
@@ -257,6 +270,50 @@ def visualize_dataloader_with_masks(dataloader, max_nr_imgs=100, save_path=None,
     img_grid = get_img_grid(imgs, grid_side, grid_side)
     create_x_y_grid(
         img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha)
+
+def visualize_dataloader_continuous(dataloader, outputs, max_nr_imgs=100, save_path=None,
+    img_size=(256, 256), alpha=0.5, x_key=None):
+    r"""Visualize continual network outputs."""
+    assert len(dataloader) == len(outputs)
+    outputs = [img_to_numpy_array(output) for output in outputs]
+    imgs = get_imgs_from_dataloader(dataloader, max_nr_imgs, x_key=x_key)
+    imgs = list(zip(imgs, outputs))
+    grid_side = int(math.ceil(math.sqrt(len(imgs))))
+    img_grid = get_img_grid(imgs, grid_side, grid_side)
+    create_x_y_grid(
+        img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha, cont_mask=True)
+
+def visualize_dataloader_predictions(dataloader, preds, max_nr_imgs=100, save_path=None,
+    img_size=(256, 256), alpha=0.5, x_key=None):
+    r"""Visualize model predictions.
+
+    preds must have the shape (b, 1, w, h), where b is the number of 2d slices
+    extracted from the dataloader
+    
+    """
+    assert len(dataloader) == len(preds)
+    preds = [img_to_numpy_array(pred) for pred in preds]
+    imgs = get_imgs_from_dataloader(dataloader, max_nr_imgs, x_key=x_key)
+    imgs = list(zip(imgs, preds))
+    grid_side = int(math.ceil(math.sqrt(len(imgs))))
+    img_grid = get_img_grid(imgs, grid_side, grid_side)
+    create_x_y_grid(
+        img_grid=img_grid, save_path=save_path, img_size=img_size, alpha=alpha)
+
+def get_imgs_from_dataloader(dataloader, nr_imgs, x_key=None):
+    r"""Get images (inputs) from dataloader and place in list."""
+    imgs = []
+    for x, y in dataloader:
+        if x_key is not None:
+            x = x[x_key]
+        x = x.cpu().detach().numpy()
+        for img in x:
+            img = np.moveaxis(img, -1, -2)  # So it is not rotated
+            if len(imgs) < nr_imgs:
+                imgs.append(img)
+        if len(imgs) == nr_imgs:
+            break
+    return imgs
 
 def get_x_y_from_dataloader(dataloader, nr_imgs, x_key=None, y_key=None):
     r"""Get images and masks from dataloader and place in list."""
@@ -283,6 +340,9 @@ def get_x_y_from_dataloader(dataloader, nr_imgs, x_key=None, y_key=None):
             y_batch = [np.moveaxis(volume_y, -1, 0) for volume_y in y]
             x = np.concatenate(x_batch)
             y = np.concatenate(y_batch)
+            # So it is not rotated
+            x = np.moveaxis(x, -1, -2)
+            y = np.moveaxis(y, -1, -2)
         assert len(x.shape) == 4
         for ix, img in enumerate(x):
             if len(imgs) < nr_imgs:
@@ -328,3 +388,5 @@ def plot_2d_img(img, save_path=None, figsize=(20, 20)):
         plt.savefig(save_path)
     else:
         plt.show()
+
+# %%

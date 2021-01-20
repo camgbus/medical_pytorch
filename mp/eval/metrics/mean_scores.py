@@ -8,7 +8,7 @@ import mp.eval.metrics.scores as score_defs
 
 def get_tp_tn_fn_fp_segmentation(target, pred, class_ix=1):
     r"""Get TP, TN, FN and FP pixel values for segmentation."""
-    assert target.shape + pred.shape
+    assert target.shape == pred.shape
     device, shape = target.device, target.shape
     zeros = torch.zeros(shape).to(device)
     ones = torch.ones(shape).to(device)
