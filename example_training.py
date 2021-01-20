@@ -85,14 +85,14 @@ for run_ix in range(config['nr_runs']):
     print('made results')   
     agent = SegmentationAgent(model=model, label_names=label_names, device=device)
     print('made SegAgent') 
-    # agent.train(results, optimizer, loss_f, train_dataloader=dl,
-    #     init_epoch=0, nr_epochs=1, run_loss_print_interval=1,
-    #     eval_datasets=datasets, eval_interval=1, 
-    #     save_path=exp_run.paths['states'], save_interval=1)
+    agent.train(results, optimizer, loss_f, train_dataloader=dl,
+        init_epoch=0, nr_epochs=1, run_loss_print_interval=1,
+        eval_datasets=datasets, eval_interval=1, 
+        save_path=exp_run.paths['states'], save_interval=1)
     print('trained')
 
     # 11. Save and print results for this experiment run
-    exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice', 'Mean_ScoreDice[prostate]'])
+    exp_run.finish(results=results, plot_metrics=[])
     test_ds_key = '_'.join(test_ds)
     metric = 'Mean_ScoreDice[prostate]'
     last_dice = results.get_epoch_metric(
