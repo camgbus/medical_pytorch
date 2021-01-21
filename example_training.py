@@ -78,9 +78,9 @@ for run_ix in range(config['nr_runs']):
     results = Result(name='training_trajectory')  
     agent = SegmentationAgent(model=model, label_names=label_names, device=device)
     agent.train(results, optimizer, loss_f, train_dataloader=dl,
-        init_epoch=0, nr_epochs=5, run_loss_print_interval=1,
-        eval_datasets=datasets, eval_interval=1, 
-        save_path=exp_run.paths['states'], save_interval=1)
+        init_epoch=0, nr_epochs=100, run_loss_print_interval=1,
+        eval_datasets=datasets, eval_interval=20, 
+        save_path=exp_run.paths['states'], save_interval=10)
     print('trained')
 
     # 11. Save and print results for this experiment run
