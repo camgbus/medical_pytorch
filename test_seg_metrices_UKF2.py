@@ -148,21 +148,21 @@ for epoch in EPOCHS_TO_USE:
 
 for epoch in EPOCHS_TO_USE:
     #dice scores
-    path_to_dice = os.path.join(PATH_TO_SCORES,'dice_epoch{}.npy'.format(epoch))
+    path_to_dice = os.path.join(PATH_TO_SCORES,'dice','dice_epoch{}.npy'.format(epoch))
     if not os.path.isfile(os.path.join(path_to_dice)):
         dice_scores = []
         for name in names:
             dice_scores.append(get_dice(name,epoch))    
         pickle.dump(open(path_to_dice,'wb'),dice_scores)
 
-    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC+'epoch_{}.npy'.format(epoch))
+    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC,'metrics_epoch_{}.npy'.format(epoch))
     if not os.path.isfile(os.path.join(path_to_metric)):
         metric_scores = []
         for name in names:
             metric_scores.append(get_metric(name,epoch))
         pickle.dump(open(path_to_metric,'wb'),metric_scores)
 
-describtion_name = os.path.join(PATH_TO_SCORES,USED_METRIC+'_descr.txt')
+describtion_name = os.path.join(PATH_TO_SCORES,USED_METRIC,'metric_describtion.txt')
 if not os.path.isfile(describtion_name):
     descr = open(describtion_name,'w')
     descr.write(DESCRIPTION)
@@ -176,8 +176,8 @@ metric_scores_train = []
 metric_scores_test = []
 
 for epoch in EPOCHS_TO_USE:
-    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC+'epoch_{}.npy'.format(epoch))
-    path_to_dice = os.path.join(PATH_TO_SCORES,'dice_epoch{}.npy'.format(epoch))
+    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC,'metrics_epoch_{}.npy'.format(epoch))
+    path_to_dice = os.path.join(PATH_TO_SCORES,'dice','dice_epoch{}.npy'.format(epoch))
     dice_list_epoch = pickle.load(open(path_to_dice,'rb'))
     metric_list_epoch = pickle.load(open(path_to_metric,'rb'))
     flattened_scores = [flatten_list(entry) for entry in metric_list_epoch]
@@ -203,14 +203,31 @@ if PLOT_AVG_VS_DICE:
     plt.show()
 
 # 8. train a NN to predict dice from metrices
-regressor = MLPRegressor((100,100,100,60,30,10),learning_rate='adaptive',random_state=1,verbose=True)
-regressor.fit(X_train,y_train)
 
-path_regr = os.path.join(PATH_TO_SCORES,USED_METRIC+'_regr.sav')
-with open(path_regr,'wb') as saver:
-    pickle.dump(regressor,saver)
+regressor_name = 'first'
+path_regr = os.path.join(PATH_TO_SCORES,USED_METRIC,regressor_name+'regressor','regression_model.sav')
+regr_descr_path = os.path.join(PATH_TO_SCORES,USED_METRIC,'metric_describtion.txt')
 
-regressor_score = regressor.score(X_test,y_test)
-print('The regressor has a score of {}'.format(regressor_score))
+if os.path.isfile(path_regr):
+    regressor = pickle.load(open(path_regr,'rb'))
+    
+else:
+    regressor = MLPRegressor((100,100,100,60,30,10),learning_rate='adaptive',random_state=1,verbose=True)
+    regressor.fit(X_train,y_train)
+
+    regressor_score = regressor.score(X_test,y_test)
+    print('The regressor has a score of {}'.format(regressor_score))
+
+    with open(path_regr,'wb') as saver:
+        pickle.dump(regressor,saver)
+    
+    regression_descr = r"size=(100,100,100,60,30,10),learning_rate='adaptive',random_state=1"+ "used epochs are {}".format(EPOCHS_TO_USE) + "Has a score of {}".format(regressor_score)
+    descr = open(describtion_name,'w')
+    descr.write(regression_descr)
+    descr.close()
+
+
+
+
     
 
