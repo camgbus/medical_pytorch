@@ -24,7 +24,7 @@ class DecathlonLung(RegressionDataset):
     """
     def __init__(self, subset=None, hold_out_ixs=[], augmented=False,
         img_size=(1, 299, 299), max_likert_value=1, random_slices=False,
-        noise='blur', nr_images=200, nr_slices=20, original_perc_data=0.2):
+        noise='blur', nr_images=200, nr_slices=20):
         assert subset is None, "No subsets for this dataset."
 
         # Extract necessary paths    
@@ -41,7 +41,7 @@ class DecathlonLung(RegressionDataset):
             t_path = os.path.join(dataset_path, folder_name)
             _extract_images_random(dataset_path, global_name,
                                    folder_name, nr_images,
-                                   nr_slices, original_perc_data,
+                                   nr_slices,
                                    storage_data_path)
             
             # Fetch all random patient/study names that do not begin with '._'
@@ -124,7 +124,7 @@ class DecathlonLungOneHotLabels(RegressionDataset):
     """
     def __init__(self, subset=None, hold_out_ixs=[], augmented=False,
         img_size=(1, 299, 299), max_likert_value=1, random_slices=False,
-        noise='blur', nr_images=200, nr_slices=20, original_perc_data=0.2):
+        noise='blur', nr_images=200, nr_slices=20):
         assert subset is None, "No subsets for this dataset."
 
         # Extract necessary paths    
@@ -143,7 +143,7 @@ class DecathlonLungOneHotLabels(RegressionDataset):
             t_path = os.path.join(dataset_path, folder_name)
             _extract_images_random(dataset_path, global_name,
                                    folder_name, nr_images,
-                                   nr_slices, original_perc_data,
+                                   nr_slices,
                                    storage_data_path)
             
             # Fetch all random patient/study names that do not begin with '._'
@@ -319,13 +319,10 @@ def _extract_images(source_path, target_path, img_size=(1, 299, 299)):
             join_path([target_path, study_name+".nii.gz"]))
 
 def _extract_images_random(source_path, data_label, folder_name,
-                           nr_images, nr_slices, original_perc_data,
+                           nr_images, nr_slices,
                            storage_data_path=storage_data_path):
     r"""Extracts MRI images and slices randomly based on input and saves
         the images."""
-
-    # Calculate number of images to select
-    nr_images = int(nr_images*original_perc_data)
     # Extract filenames
     filenames = [x for x in os.listdir(source_path) if '._' not in x]
     # Define noise, in this case it is just a string contained in the filenames

@@ -263,14 +263,14 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
 
     # 4. Define labels based on augmentation method and intensity:
     for name in image_names:
-        labels[str(name) + 'downsample_2'] = 2/max_likert_value
-        labels[str(name) + 'downsample_3'] = 3/max_likert_value
-        labels[str(name) + 'downsample_4'] = 4/max_likert_value
-        labels[str(name) + 'downsample_5'] = 5/max_likert_value
         labels[str(name) + 'blur_2'] = 2/max_likert_value
         labels[str(name) + 'blur_3'] = 3/max_likert_value
         labels[str(name) + 'blur_4'] = 4/max_likert_value
         labels[str(name) + 'blur_5'] = 5/max_likert_value
+        labels[str(name) + 'downsample_2'] = 2/max_likert_value
+        labels[str(name) + 'downsample_3'] = 3/max_likert_value
+        labels[str(name) + 'downsample_4'] = 4/max_likert_value
+        labels[str(name) + 'downsample_5'] = 5/max_likert_value
         labels[str(name) + 'ghosting_2'] = 2/max_likert_value
         labels[str(name) + 'ghosting_3'] = 3/max_likert_value
         labels[str(name) + 'ghosting_4'] = 4/max_likert_value
@@ -289,6 +289,10 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
         labels[str(name) + 'spike_5'] = 5/max_likert_value
 
     # 5. Define augmentation methods
+    blur2 = random_blur(std=1, seed=42)
+    blur3 = random_blur(std=2, seed=42)
+    blur4 = random_blur(std=3, seed=42)
+    blur5 = random_blur(std=4, seed=42)
     downsample2 = random_downsample(axes=(0, 1, 2),
                                     downsampling=4,
                                     seed=42)
@@ -301,10 +305,6 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
     downsample5 = random_downsample(axes=(0, 1, 2),
                                     downsampling=10,
                                     seed=42)
-    blur2 = random_blur(std=1, seed=42)
-    blur3 = random_blur(std=2, seed=42)
-    blur4 = random_blur(std=3, seed=42)
-    blur5 = random_blur(std=4, seed=42)
     ghosting2 = random_ghosting(intensity=0.55,
                                 seed=42)
     ghosting3 = random_ghosting(intensity=0.95,
@@ -350,14 +350,14 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
         print (msg, end = "\r")
         img_names = updated_image_names[24*num:24*(num+1)]
         aug_data = list()
-        aug_data.append(downsample2(image))
-        aug_data.append(downsample3(image))
-        aug_data.append(downsample4(image))
-        aug_data.append(downsample5(image))
         aug_data.append(blur2(image))
         aug_data.append(blur3(image))
         aug_data.append(blur4(image))
         aug_data.append(blur5(image))
+        aug_data.append(downsample2(image))
+        aug_data.append(downsample3(image))
+        aug_data.append(downsample4(image))
+        aug_data.append(downsample5(image))
         aug_data.append(ghosting2(image))
         aug_data.append(ghosting3(image))
         aug_data.append(ghosting4(image))
@@ -394,6 +394,7 @@ def augment_data_in_four_intensities(data, dataset_name, is_list=False,
 
     # 9. Return labeled data
     print("Augmentation done.")
+
     # Transform label integers into torch.tensors
     for key, value in labels.items():
         labels[key] = torch.tensor([value])

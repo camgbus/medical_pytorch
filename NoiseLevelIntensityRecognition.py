@@ -43,19 +43,16 @@ def predict(model, config):
 parser = argparse.ArgumentParser(description='Train a specified model for augmented CT scans.')
 parser.add_argument('--noise_type', choices=['blur', 'downsample', 'ghosting', 'noise',
                                              'motion', 'spike'], required=True,
-                    help='Specify the CT artefact on which the model will be trained.'+
-                         ' Default: The model will be trained on blurred CT images.')
+                    help='Specify the CT artefact on which the model will be trained.')
 parser.add_argument('--model_type', choices=['cnn', 'regression', 'reg'], required=True,
-                    help='Specify the model type that will be trained.'+
-                         ' Default: A regression model will be trained.')
+                    help='Specify the model type that will be trained.')
 parser.add_argument('--mode', choices=['train', 'test', 'use'], required=True,
                     help='Specify in which mode to use the model. Either train a model or use'+
-                         ' it for predictions.'+
-                         ' Default: The model will be trained.')
-parser.add_argument('--ds', choices=['DecathlonLung', 'UK_FRA'], required=True,
+                         ' it for predictions.')
+parser.add_argument('--ds', choices=['DecathlonLung', 'UK_FRA', 'GC_Corona'], required=True,
                     help='Specify which dataset to use for the model. Either the Decathlon Lung'+
-                         ' dataset or the dataset provided by the Uniklinik Frankfurt.'+
-                         ' Default: The model will be trained on the Decathlon Lung dataset.')
+                         ' dataset, the dataset provided by the Uniklinik Frankfurt or the'+
+                         ' Corona dataset from the Grand Challenge.')
 parser.add_argument('--device', action='store', type=int, nargs=1, default=4,
                     help='Try to train the model on the GPU device with <DEVICE> ID.'+
                          ' Valid IDs: 0, 1, ..., 7'+
@@ -97,6 +94,9 @@ if cuda < 0 or cuda > 7:
 
 cuda = 'cuda:' + str(cuda)
 
+# nr_images and nr_slices: DecathlonLung - 40:25, UK_FRA - 40:25 -->
+# Note: Dataset will be nr_images x nr_slices x 5 big!
+# weight decays: DecathlonLung - 0.75, UK_FRA - 0.75
 config = {'device':cuda, 'nr_runs': 1, 'cross_validation': False, 
           'val_ratio': 0.2, 'test_ratio': 0.2, 'input_shape': (1, 299, 299),
           'resize': False, 'augmentation': 'none', 'lr': 0.001, 'batch_size': 64,
@@ -131,7 +131,7 @@ if mode == 'train':
                     if len(os.listdir(dir_name)) <= 1:
                         # Directory only contains json splitting file but no model state!
                         restore = False
-                    else:    
+                    else:
                         # Directory is not empty
                         restore = True
                 else:
@@ -144,9 +144,21 @@ if mode == 'train':
 if mode == 'test':
     # 8. Use a pretrained model for predictions and evaluate results. Send every error 
     # with Telegram Bot if desired.
-    test(model, config)
+    try:
+        test(model, config)
+    except: # catch *all* exceptions
+        e = traceback.format_exc()
+        print('Error occured during testing: {}'.format(e))
+        if msg_bot:
+            bot.send_msg('Error occured during testing: {}'.format(e))
 
 if mode == 'use':
     # 9. Use a pretrained model for predictions. Send every error 
     # with Telegram Bot if desired.
-    predict(model, config)
+    try:
+        predict(model, config)
+    except: # catch *all* exceptions
+        e = traceback.format_exc()
+        print('Error occured during the use of the model: {}'.format(e))
+        if msg_bot:
+            bot.send_msg('Error occured during the use of the model: {}'.format(e))

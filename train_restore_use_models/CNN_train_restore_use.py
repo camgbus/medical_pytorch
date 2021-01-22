@@ -9,11 +9,12 @@ from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_lung_decathlon_cnn import DecathlonLung, DecathlonLungRestored
-from mp.data.datasets.corona_fra_cnn import FraCoronaDatasetAugmented, FraCoronaDatasetRestored
+from mp.data.datasets.corona_fra_cnn import FraCoronaDatasetAugmented, FraCoronaDatasetRestored, FraCoronaDataset
+from mp.data.datasets.gc_corona_cnn import GCCorona, GCCoronaRestored
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_cnn_dataset import PytorchCNN2DDataset
-from mp.models.cnn.cnn import CNN_Net2D
+from mp.models.cnn.cnn import CNN_Net2D_UKFRA as CNN_Net2D
 from mp.eval.losses.losses_cnn import LossCEL
 from mp.agents.cnn_agents import NetAgent
 from mp.utils.save_results import save_results, save_only_test_results
@@ -52,9 +53,9 @@ def CNN_initialize_and_train(config):
                                random_slices=random_slices,
                           noise=noise, nr_images=nr_images,
                                        nr_slices=nr_slices))
-        train_ds = ('DecathlonLung', 'train')
-        val_ds = ('DecathlonLung', 'val')
-        test_ds = ('DecathlonLung', 'test')
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
         dataset_name = 'FRACorona'
@@ -65,9 +66,20 @@ def CNN_initialize_and_train(config):
                                       noise=noise, nr_images=nr_images,
                                                    nr_slices=nr_slices,
                                                      set_name='train'))
-        train_ds = ('FRACorona', 'train')
-        val_ds = ('FRACorona', 'val')
-        test_ds = ('FRACorona', 'test')
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
+
+    if dataset_name == 'GC_Corona':
+        data.add_dataset(GCCorona(augmented=augmented,
+                                 img_size=input_shape,
+                    max_likert_value=max_likert_value,
+                          random_slices=random_slices,
+                     noise=noise, nr_images=nr_images,
+                                 nr_slices=nr_slices))
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
 
     # 3. Split data and define path
@@ -179,9 +191,9 @@ def CNN_restore_and_train(config):
         data.add_dataset(DecathlonLungRestored(img_size=input_shape,
                                 max_likert_value=max_likert_value,
                                                     noise=noise))
-        train_ds = ('DecathlonLung', 'train')
-        val_ds = ('DecathlonLung', 'val')
-        test_ds = ('DecathlonLung', 'test')
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
         
     if dataset_name == 'UK_FRA':
         dataset_name = 'FRACorona'
@@ -189,9 +201,17 @@ def CNN_restore_and_train(config):
                                      max_likert_value=max_likert_value,
                                                            noise=noise,
                                                      set_name='train'))
-        train_ds = ('FRACorona', 'train')
-        val_ds = ('FRACorona', 'val')
-        test_ds = ('FRACorona', 'test')
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
+
+    if dataset_name == 'GC_Corona':
+        data.add_dataset(GCCoronaRestored(img_size=input_shape,
+                             max_likert_value=max_likert_value,
+                                                  noise=noise))
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
 
     # 3. Restore and define path
@@ -223,7 +243,7 @@ def CNN_restore_and_train(config):
             num_workers=1)
 
         # 7. Initialize model
-        model = CNN_Net2D(output_features)
+        model = CNN_Net2D(output_features) 
         model.to(device)
 
         # 8. Define loss and optimizer
@@ -309,10 +329,17 @@ def CNN_test(config):
                                         random_slices=True,
                           noise=noise, nr_images=nr_images,
                                        nr_slices=nr_slices))
-        test_ds = ('DecathlonLung', 'test')
+        test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
         dataset_name = 'FRACorona'
+        """
+        # Use for real data (assessment)
+        data.add_dataset(FraCoronaDataset(augmented=False,
+                                     img_size=input_shape,
+                        max_likert_value=max_likert_value,
+                            noise=noise, set_name='test'))"""
+        # Use for augmented data
         data.add_dataset(FraCoronaDatasetAugmented(augmented=False,
                                               img_size=input_shape,
                                  max_likert_value=max_likert_value,
@@ -320,7 +347,17 @@ def CNN_test(config):
                                   noise=noise, nr_images=nr_images,
                                                nr_slices=nr_slices,
                                                   set_name='test'))
-        test_ds = ('FRACorona', 'test')
+        test_ds = (dataset_name, 'test')
+        test_ds = (dataset_name, 'test') 
+
+    if dataset_name == 'GC_Corona':
+        data.add_dataset(GCCorona(augmented=False,
+                             img_size=input_shape,
+                max_likert_value=max_likert_value,
+                               random_slices=True,
+                 noise=noise, nr_images=nr_images,
+                             nr_slices=nr_slices))
+        test_ds = (dataset_name, 'test')
 
     # 3. Split data (0% train, 100% test) and define path
     splits = dict()

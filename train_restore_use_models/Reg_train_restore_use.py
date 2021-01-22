@@ -10,6 +10,7 @@ import torch.optim as optim
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_lung_decathlon_reg import DecathlonLung, DecathlonLungRestored
 from mp.data.datasets.corona_fra_reg import FraCoronaDatasetAugmented, FraCoronaDatasetRestored
+from mp.data.datasets.gc_corona_reg import GCCorona, GCCoronaRestored
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_reg_dataset import PytorchReg2DDataset
@@ -51,11 +52,10 @@ def Reg_initialize_and_train(config):
                          max_likert_value=max_likert_value,
                                random_slices=random_slices,
                           noise=noise, nr_images=nr_images,
-                                       nr_slices=nr_slices,
-                    original_perc_data=1/max_likert_value))
-        train_ds = ('DecathlonLung', 'train')
-        val_ds = ('DecathlonLung', 'val')
-        test_ds = ('DecathlonLung', 'test')
+                                      nr_slices=nr_slices))
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
         dataset_name = 'FRACorona'
@@ -66,9 +66,20 @@ def Reg_initialize_and_train(config):
                                       noise=noise, nr_images=nr_images,
                                                    nr_slices=nr_slices,
                                                       set_name='train'))
-        train_ds = ('FRACorona', 'train')
-        val_ds = ('FRACorona', 'val')
-        test_ds = ('FRACorona', 'test')
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
+
+    if dataset_name == 'GC_Corona':
+        data.add_dataset(GCCorona(augmented=augmented,
+                                 img_size=input_shape,
+                    max_likert_value=max_likert_value,
+                          random_slices=random_slices,
+                     noise=noise, nr_images=nr_images,
+                                 nr_slices=nr_slices))
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
 
     # 3. Split data and define path
@@ -178,11 +189,11 @@ def Reg_restore_and_train(config):
     data = Data()
     if dataset_name == 'DecathlonLung':
         data.add_dataset(DecathlonLungRestored(img_size=input_shape,
-                                max_likert_value=max_likert_value,
-                                                    noise=noise))
-        train_ds = ('DecathlonLung', 'train')
-        val_ds = ('DecathlonLung', 'val')
-        test_ds = ('DecathlonLung', 'test')
+                                  max_likert_value=max_likert_value,
+                                                       noise=noise))
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
         dataset_name = 'FRACorona'
@@ -190,9 +201,17 @@ def Reg_restore_and_train(config):
                                      max_likert_value=max_likert_value,
                                                            noise=noise,
                                                      set_name='train'))
-        train_ds = ('FRACorona', 'train')
-        val_ds = ('FRACorona', 'val')
-        test_ds = ('FRACorona', 'test')
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test') 
+
+    if dataset_name == 'GCCorona':
+        data.add_dataset(DecathlonLungRestored(img_size=input_shape,
+                                  max_likert_value=max_likert_value,
+                                                       noise=noise))
+        train_ds = (dataset_name, 'train')
+        val_ds = (dataset_name, 'val')
+        test_ds = (dataset_name, 'test')
 
 
     # 3. Restore and define path
@@ -310,9 +329,8 @@ def Reg_test(config):
                      max_likert_value=max_likert_value,
                                     random_slices=True,
                       noise=noise, nr_images=nr_images,
-                                   nr_slices=nr_slices,
-                original_perc_data=1/max_likert_value))
-        test_ds = ('DecathlonLung', 'test')
+                                  nr_slices=nr_slices))
+        test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
         dataset_name = 'FRACorona'
@@ -323,7 +341,16 @@ def Reg_test(config):
                                   noise=noise, nr_images=nr_images,
                                                nr_slices=nr_slices,
                                                   set_name='test'))
-        test_ds = ('FRACorona', 'test')
+        test_ds = (dataset_name, 'test')
+
+    if dataset_name == 'GCCorona':
+        data.add_dataset(DecathlonLung(augmented=False,
+                                  img_size=input_shape,
+                     max_likert_value=max_likert_value,
+                                    random_slices=True,
+                      noise=noise, nr_images=nr_images,
+                                  nr_slices=nr_slices))
+        test_ds = (dataset_name, 'test')
 
     # 3. Split data (0% train, 100% test) and define path
     splits = dict()
