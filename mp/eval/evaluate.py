@@ -17,7 +17,9 @@ def dl_losses(dl, agent, loss_f):
         loss_dict = loss_f.get_evaluation_dict(outputs, targets)
         # Add to the accumulator   
         for key, value in loss_dict.items():         
-            acc.add(key, value, count=len(inputs))
+            acc.add(key, value, count=len(inputs)
+        del inputs, targets
+        torch.cuda.empty_cache()
     return acc
 
 def dl_metrics(dl, agent, metrics):
@@ -64,6 +66,8 @@ def ds_losses(ds, agent, loss_f):
             if loss_key not in eval_dict:
                 eval_dict[loss_key] = dict()
             eval_dict[loss_key][subject_name] = value
+        del dl 
+        torch.cuda.empty_cache()
     # Add mean and std values to the eval_dict
     for loss_key in acc.get_keys():
         eval_dict[loss_key]['mean'] = acc.mean(loss_key)
