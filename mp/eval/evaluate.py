@@ -6,6 +6,7 @@
 
 from mp.eval.accumulator import Accumulator
 from mp.eval.metrics.mean_scores import get_mean_scores
+import torch
 
 def dl_losses(dl, agent, loss_f):
     r"""Calculate components of the given loss for a Dataloader"""
@@ -17,8 +18,8 @@ def dl_losses(dl, agent, loss_f):
         loss_dict = loss_f.get_evaluation_dict(outputs, targets)
         # Add to the accumulator   
         for key, value in loss_dict.items():         
-            acc.add(key, value, count=len(inputs)
-        del inputs, targets
+            acc.add(key, value, count=len(inputs))
+        del inputs, outputs
         torch.cuda.empty_cache()
     return acc
 
