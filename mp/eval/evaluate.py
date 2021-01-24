@@ -126,7 +126,7 @@ def ds_metrics(ds, agent, metrics):
         eval_dict[metric_key]['std'] = acc.std(metric_key)
     return eval_dict
 
-def ds_metrics_multiple(ds, agent, metrics, stored_pred_path=None):
+def ds_metrics_multiple(ds, agent, metrics):
     r"""Variant of ds_metrics when there are several inputs and outputs.
     Here, the dataloader is used, so the original size is not restored, but a 
     3d volume is reconstructed when necessary.

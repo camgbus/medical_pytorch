@@ -44,6 +44,16 @@ class ScorePrecision(ScoreAbstract):
                 return 1.
         return tp/(tp+fp)
 
+class ScoreAccuracy(ScoreAbstract):
+    r"""Accuracy."""
+    def eval(self, tp, tn, fn, fp):
+        if tp == 0:
+            if fp > 0:
+                return 0.
+            else:
+                return 1.
+        return (tp+tn)/(tp+tn+fn+fp)
+
 class ScorePPV(ScorePrecision):
     r"""Positive predictve value, equivalent to precision."""
     pass

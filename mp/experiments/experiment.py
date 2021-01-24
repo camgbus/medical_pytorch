@@ -64,6 +64,7 @@ class Experiment:
         else:
             try:
                 self.splits = lr.load_json(path=self.path, name='splits')
+                print('Restored existing splits')
             except FileNotFoundError:
                 print('Dividing dataset')
                 # If the data consists of several datasets, then the splits are a
