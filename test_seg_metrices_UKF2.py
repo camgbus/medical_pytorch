@@ -84,13 +84,12 @@ def get_dice(name,epoch):
     gen_seg = sitk.GetArrayFromImage(gen_seg)
     gen_seg = gen_seg.flatten()
     dice_score = np.dot(seg,gen_seg)
-    return dices_score
+    return dice_score
 
 def get_metric(name,epoch):
     img_path = os.path.join(PATH_TO_IMAGES,name+'.nii.gz')
     seg_path = os.path.join(PATH_TO_NEW_SEGMENTATION,'epoch_{}'.format(epoch),name+'_gt.nii.gz')
     hist_score,_,dice,comp = compute_metrics(img_path,seg_path)
-    hist_scores.append(hist_score)
     return [hist_score,dice,comp]
 
 def get_prediction(img_path,name,save_path):
@@ -126,6 +125,15 @@ def flatten_list(alist):
             for ele in entry:
                 return_list.append(ele)
     return return_list
+
+def l2_loss(pred,truth):
+    result = np.sum(np.power((pred-truth),2))
+    return result
+
+def get_l2_loss(X_test,y_test,predictor):
+    y_pred = predictor.predict(X_test)
+    loss = l2_loss(y_pred,y_test)
+    return loss 
 
 names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name in os.listdir(PATH_TO_IMAGES))
 
@@ -203,28 +211,38 @@ if PLOT_AVG_VS_DICE:
     plt.show()
 
 # 8. train a NN to predict dice from metrices
+# A list of setting for the MLP to be trained with 
 
-regressor_name = 'first'
-path_regr = os.path.join(PATH_TO_SCORES,USED_METRIC,regressor_name+'regressor','regression_model.sav')
-regr_descr_path = os.path.join(PATH_TO_SCORES,USED_METRIC,'metric_describtion.txt')
+settings = [{'name':'first','size':(100,100,100,60,30,10),'lr':'adaptive','solver':'adam'},
+            {'name':'smaller','size':(50,50,30,10),'lr':'adaptive','solver':'adam'},
+            {'name':'very_smal','size':(20,20),'lr':'adaptive','solver':'adam'}]
 
-if os.path.isfile(path_regr):
-    regressor = pickle.load(open(path_regr,'rb'))
-    
-else:
-    regressor = MLPRegressor((100,100,100,60,30,10),learning_rate='adaptive',random_state=1,verbose=True)
-    regressor.fit(X_train,y_train)
+for setting in settings:
+    regressor_name = setting['name']
+    path_regr = os.path.join(PATH_TO_SCORES,USED_METRIC,regressor_name+'regressor','regression_model.sav')
+    regr_descr_path = os.path.join(PATH_TO_SCORES,USED_METRIC,regressor_name+'regressor','describtion.txt')
+    size = setting['size']
+    lr = setting['lr']
+    solver = setting['solver']
 
-    regressor_score = regressor.score(X_test,y_test)
-    print('The regressor has a score of {}'.format(regressor_score))
+    if os.path.isfile(path_regr):
+        regressor = pickle.load(open(path_regr,'rb'))  
+    else:
+        regressor = MLPRegressor(size,learning_rate=lr,random_state=1,verbose=False,solver=solver )
+        regressor.fit(X_train,y_train)
 
-    with open(path_regr,'wb') as saver:
-        pickle.dump(regressor,saver)
-    
-    regression_descr = r"size=(100,100,100,60,30,10),learning_rate='adaptive',random_state=1"+ "used epochs are {}".format(EPOCHS_TO_USE) + "Has a score of {}".format(regressor_score)
-    descr = open(describtion_name,'w')
-    descr.write(regression_descr)
-    descr.close()
+        regressor_score = regressor.score(X_test,y_test)
+        l2_loss = get_l2_loss(X_test,y_test,regressor)
+        losses_string = 'The regressor {} has a score of {} and an l2 loss of {}'.format(regressor_name,regressor_score,l2_loss)
+        print()
+
+        with open(path_regr,'wb') as saver:
+            pickle.dump(regressor,saver)
+        
+        regression_descr = r"size={},learning_rate={},solver={}".format(size,lr,solver)+ "used epochs are {}".format(EPOCHS_TO_USE) + losses_string
+        descr = open(regr_descr_path,'w')
+        descr.write(regression_descr)
+        descr.close()
 
 
 

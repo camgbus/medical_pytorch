@@ -19,7 +19,7 @@ def dl_losses(dl, agent, loss_f):
         # Add to the accumulator   
         for key, value in loss_dict.items():         
             acc.add(key, value, count=len(inputs))
-        del inputs, outputs
+        del inputs, outputs, loss_dict
         torch.cuda.empty_cache()
     return acc
 

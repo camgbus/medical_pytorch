@@ -22,7 +22,7 @@ from mp.utils.load_restore import nifty_dump
 
 # 2. Define configuration
 
-config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:0',
+config = {'experiment_name':'UKF2_seg_metrices', 'device':'cuda:1',
     'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.2,
     'input_shape': (1, 256, 256), 'resize': True, 'augmentation': 'none', 
     'class_weights': (0.,1.), 'lr': 0.0001, 'batch_size': 8
@@ -80,7 +80,7 @@ for run_ix in range(config['nr_runs']):
     agent.train(results, optimizer, loss_f, train_dataloader=dl,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=1,
         eval_datasets=datasets, eval_interval=20, 
-        save_path=exp_run.paths['states'], save_interval=10)
+        save_path=exp_run.paths['states'], save_interval=10, track_metrics=False)
     print('trained')
 
     # 11. Save and print results for this experiment run

@@ -111,11 +111,11 @@ class Agent:
     def train(self, results, optimizer, loss_f, train_dataloader,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
         eval_datasets=dict(), eval_interval=10, 
-        save_path=None, save_interval=10):
+        save_path=None, save_interval=10,track_metrics=True):
         r"""Train a model through its agent. Performs training epochs, 
         tracks metrics and saves model states.
         """
-        if init_epoch == 0:
+        if init_epoch == 0 and track_metrics:
             self.track_metrics(init_epoch, results, loss_f, eval_datasets)
         for epoch in range(init_epoch, init_epoch+nr_epochs):
             print_run_loss = (epoch + 1) % run_loss_print_interval == 0
@@ -124,7 +124,7 @@ class Agent:
                 print_run_loss=print_run_loss)
         
             # Track statistics in results
-            if (epoch + 1) % eval_interval == 0:
+            if (epoch + 1) % eval_interval == 0 and track_metrics:
                 self.track_metrics(epoch + 1, results, loss_f, eval_datasets)
 
             # Save agent and optimizer state
