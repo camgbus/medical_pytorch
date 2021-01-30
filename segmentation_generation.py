@@ -2,6 +2,7 @@ import os
 import argparse
 import traceback
 from mp.paths import storage_data_path
+from train_restore_use_models.UNET_train import UNet2D_initialize_and_train
 
 
 parser = argparse.ArgumentParser(description='Train a specified model for augmented CT scans.')
@@ -22,4 +23,4 @@ config = {'device':device, 'nr_runs': 1, 'cross_validation': False,
           'class_weights': (0.,1.)
          }
 
-#now train the model, either init and train or restore and train 
+UNet2D_initialize_and_train(config) 
