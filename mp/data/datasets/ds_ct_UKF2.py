@@ -4,11 +4,13 @@ import re
 import SimpleITK as sitk
 import nibabel as nib
 import numpy as np
+import torch
 
 import mp.data.datasets.dataset_utils as du
 from mp.data.datasets.dataset_segmentation import SegmentationDataset, SegmentationInstance
 from mp.paths import storage_data_path
 from mp.utils.load_restore import join_path
+import mp.data.pytorch.transformation as trans
 
 
 class UKF2(SegmentationDataset):
@@ -66,8 +68,31 @@ def _extract_images(source_path, target_path):
         # No specific processing
         x = sitk.ReadImage(image_path)
         x = sitk.GetArrayFromImage(x)
+        shape = np.size(x)
+        x = torch.from_numpy(x)
+        x = torch.unsqueeze(x,0)
         y = sitk.ReadImage(label_path)
         y = sitk.GetArrayFromImage(y)
+        y = torch.from_numpy(y)
+        y = torch.unsqueeze(y,0)
+        img_size = (1,shape[0],256,256)
+
+        try:
+            x = trans.resize_3d(x, img_size)
+        except:
+            print('Image could not be resized and will therefore be skipped: {}.'
+            .format(filename))
+            continue
+        x = torch.squeeze(x)
+        
+        try:
+            y = trans.resize_3d(y, img_size, label=True)
+        except:
+            print('Image could not be resized and will therefore be skipped: {}.'
+            .format(filename))
+            continue
+        y = torch.squeeze(y)
+
 
         # Save new images so they can be loaded directly
         study_name = filename
