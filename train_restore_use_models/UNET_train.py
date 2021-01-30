@@ -17,6 +17,7 @@ from mp.utils.save_results import save_results, save_only_test_results
 from mp.data.datasets.corona_fra_seg import UKF2
 from mp.models.segmentation.unet_fepegar import UNet2D
 from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
+from mp.visualization.plot_results import plot_dataframe
 
 def UNet2D_initialize_and_train(config):
     r"""This function selects random images etc. based on the confi file
@@ -118,6 +119,23 @@ def UNet2D_initialize_and_train(config):
         losses_test, losses_cum_test = agent.test(loss_f, dl, msg_bot=False)
 
     # 12. Save results
-    save_results(model, 'cnn', dataset_name, paths, pathr, losses_train, losses_val,
-                     losses_test, losses_cum_train, losses_cum_val,losses_cum_test)
+    torch.save(model.state_dict(), os.path.join(paths, 'model_state_dict.zip'))
+    torch.save(model, os.path.join(storage_data_path, 'models', 'UNet2D',dataset_name ,'model.zip'))
+    np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
+    np.save(os.path.join(pathr, 'losses_cum_train.npy'), np.array(losses_cum_train))
+    np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_val))
+    np.save(os.path.join(pathr, 'losses_cum_validation.npy'), np.array(losses_cum_val))
+    np.save(os.path.join(pathr, 'losses_test.npy'), np.array(losses_test))
+    plot_dataframe(pd.DataFrame(losses_cum_train, columns = ['Epoch', 'Loss']),
+        save_path=pathr, save_name='losses_train', title='Losses [train dataset]',
+        x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+        xints=float, yints=float)
+    plot_dataframe(pd.DataFrame(losses_cum_val, columns = ['Epoch', 'Loss']),
+        save_path=pathr, save_name='losses_val', title='Losses [validation dataset]',
+        x_name='Epoch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+        xints=float, yints=float)
+    plot_dataframe(pd.DataFrame(losses_test, columns = ['Batch', 'Loss']),
+        save_path=pathr, save_name='losses_test', title='Losses [test dataset]',
+        x_name='Batch', y_name='Loss', ending='.png', ylog=False, figsize=(10,5),
+        xints=float, yints=float)
 
