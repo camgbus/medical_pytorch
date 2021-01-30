@@ -71,7 +71,7 @@ def _extract_images(source_path, target_path,resized):
         # No specific processing
         x = sitk.ReadImage(image_path)
         x = sitk.GetArrayFromImage(x)
-        shape = np.size(x)
+        shape = np.shape(x)
         x = torch.from_numpy(x)
         x = torch.unsqueeze(x,0)
         y = sitk.ReadImage(label_path)
