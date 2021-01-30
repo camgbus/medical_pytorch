@@ -89,25 +89,18 @@ class Agent:
             print_run_loss (bool): whether a runing loss should be tracked and
                 printed.
         """
-        print('performing training step')
         acc = Accumulator('loss')
         for i, data in enumerate(train_dataloader):
-            print('performing step on data {}'.format(i))
             # Get data
             inputs, targets = self.get_inputs_targets(data)
 
             # Forward pass
-            print('forward pass')
             outputs = self.get_outputs(inputs)
 
             # Optimization step
-            print('opt step')
             optimizer.zero_grad()
-            print('loss')
             loss = loss_f(outputs, targets)
-            print('backwards')
             loss.backward()
-            print('step')
             optimizer.step()
             acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
 
