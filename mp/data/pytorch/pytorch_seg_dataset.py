@@ -1,8 +1,8 @@
 # ------------------------------------------------------------------------------
-# From an mp.data.datasets.dataset_segmentation.SegmentationDataset, create a 
+# From an mp.data.datasets.dataset_segmentation.SegmentationDataset, create a
 # mp.data.pytorch.PytorchDataset. There are different types of datasets:
 #
-# PytorchSeg2DDataset: the length of the dataset is the total number of slices 
+# PytorchSeg2DDataset: the length of the dataset is the total number of slices
 # (forth dimension) in the data base. A resized slice is returned by __getitem__
 #
 # PytorchSeg3DDataset: __getitem__ returnes the next instance, resized to the
@@ -21,17 +21,17 @@ import mp.data.pytorch.transformation as trans
 import mp.eval.inference.predictor as pred
 
 class PytorchSegmnetationDataset(PytorchDataset):
-    def __init__(self, dataset, ix_lst=None, size=None, norm_key='rescaling', 
+    def __init__(self, dataset, ix_lst=None, size=None, norm_key='rescaling',
         aug_key='standard', channel_labels=True):
         r"""A torch.utils.data.Dataset for segmentation data.
         Args:
             dataset (SegmentationDataset): a SegmentationDataset
-            ix_lst (list[int)]): list specifying the instances of the dataset. 
+            ix_lst (list[int)]): list specifying the instances of the dataset.
                 If 'None', all not in the hold-out dataset are incuded.
             size (tuple[int]): size as (channels, width, height, Opt(depth))
-            norm_key (str): Normalization strategy, from 
+            norm_key (str): Normalization strategy, from
                 mp.data.pytorch.transformation
-            aug_key (str): Augmentation strategy, from 
+            aug_key (str): Augmentation strategy, from
                 mp.data.pytorch.transformation
             channel_labels (bool): if True, the output has one channel per label
         """
@@ -74,15 +74,15 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
     r"""Divides images into 2D slices. If resize=True, the slices are resized to
     the specified size, otherwise they are center-cropped and padded if needed.
     """
-    def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
+    def __init__(self, dataset, ix_lst=None, size=(1, 256, 256),
         norm_key='rescaling', aug_key='standard', channel_labels=True, resize=False):
         if isinstance(size, int):
             size = (1, size, size)
-        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
+        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size,
             norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels)
         assert len(self.size)==3, "Size should be 2D"
         self.resize = resize
-        self.predictor = pred.Predictor2D(self.instances, size=self.size, 
+        self.predictor = pred.Predictor2D(self.instances, size=self.size,
             norm=self.norm, resize=resize)
 
         self.idxs = []
@@ -95,6 +95,9 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
 
     def __getitem__(self, idx):
         r"""Returns x and y values each with shape (c, w, h)"""
+        if self.restore_items:
+            return self._get_saved_item(idx)
+
         instance_idx, slice_idx = self.idxs[idx]
 
         subject = copy.deepcopy(self.instances[instance_idx].get_subject())
@@ -118,7 +121,7 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
 
     def get_subject_dataloader(self, subject_ix):
         dl_items = []
-        idxs = [idx for idx, (instance_idx, slice_idx) in enumerate(self.idxs) 
+        idxs = [idx for idx, (instance_idx, slice_idx) in enumerate(self.idxs)
             if instance_idx==subject_ix]
         for idx in idxs:
             x, y = self.__getitem__(idx)
@@ -127,22 +130,24 @@ class PytorchSeg2DDataset(PytorchSegmnetationDataset):
 
 class PytorchSeg3DDataset(PytorchSegmnetationDataset):
     r"""Each 3D image is an item in the dataloader. If resize=True, the volumes
-    are resized to the specified size, otherwise they are center-cropped and 
+    are resized to the specified size, otherwise they are center-cropped and
     padded if needed.
     """
-    def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), 
+    def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10),
         norm_key='rescaling', aug_key='standard', channel_labels=True, resize=False):
         if isinstance(size, int):
             size = (1, size, size, size)
-        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
+        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size,
             norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels)
         assert len(self.size)==4, "Size should be 3D"
         self.resize=resize
-        self.predictor = pred.Predictor3D(self.instances, size=self.size, 
+        self.predictor = pred.Predictor3D(self.instances, size=self.size,
             norm=self.norm, resize=resize)
 
     def __getitem__(self, idx):
         r"""Returns x and y values each with shape (c, w, h, d)"""
+        if self.restore_items:
+            return self._get_saved_item(idx)
 
         subject = copy.deepcopy(self.instances[idx].get_subject())
         subject.load()
@@ -169,22 +174,22 @@ class PytorchSeg3DDataset(PytorchSegmnetationDataset):
         return [(x.unsqueeze_(0), y.unsqueeze_(0))]
 
 class Pytorch3DQueue(PytorchSegmnetationDataset):
-    r"""Divides images into patches. If there are subjects with less depth than 
+    r"""Divides images into patches. If there are subjects with less depth than
     self.size[-1], these are padded.
     """
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), sampler=None,
-        max_length=300, samples_per_volume=10, norm_key='rescaling', 
+        max_length=300, samples_per_volume=10, norm_key='rescaling',
         aug_key='standard', channel_labels=True):
         r"""The number of patches is determined by samples_per_volume """
         if isinstance(size, int):
             size = (1, size, size, size)
-        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 
+        super().__init__(dataset=dataset, ix_lst=ix_lst, size=size,
             norm_key=norm_key, aug_key=aug_key, channel_labels=channel_labels)
         assert len(self.size)==4, "Size should be 3D"
         self.predictor = pred.GridPredictor(self.instances, size=self.size, norm=self.norm)
 
         # If there are subjects with less depth than self.size[-1], pad
-        self.instances = [trans.pad_3d_if_required(instance, self.size) 
+        self.instances = [trans.pad_3d_if_required(instance, self.size)
             for instance in self.instances]
         # Create an instance of torchio.data.SubjectsDataset
         subjects_dataset = torchio.data.SubjectsDataset(
@@ -209,6 +214,9 @@ class Pytorch3DQueue(PytorchSegmnetationDataset):
         return self.queue.__len__()
 
     def __getitem__(self, idx):
+        if self.restore_items:
+            return self._get_saved_item(idx)
+            
         r"""Returns x and y values each with shape (c, w, h, d)
         Class torchio.Queue descends from torch.utils.data.Dataset."""
 
@@ -238,7 +246,7 @@ class Pytorch3DQueue(PytorchSegmnetationDataset):
 
         dl_items = []
         patch_loader = torch.utils.data.DataLoader(grid_sampler, batch_size=1)
-        for patches_batch in patch_loader:            
+        for patches_batch in patch_loader:
             input_tensor = patches_batch['x'][torchio.DATA]
             target_tensor = patches_batch['y'][torchio.DATA]
             dl_items.append((input_tensor, target_tensor))
