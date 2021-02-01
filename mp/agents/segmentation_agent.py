@@ -100,16 +100,10 @@ class UNet2DAgent(SegmentationAgent):
                 losses_val.append(epoch_loss_val)
                 losses_cum_val.append([epoch+1, sum(epoch_loss_val) / total_val])
 
-            print(('Epoch --> Loss --> : {} --> {:.4} .\n'
+            print('Epoch --> Loss --> : {} --> {:.4} .\n'
                    'Val_Loss --> :{:.4} )'.format(epoch + 1,
                                                     sum(epoch_loss) / total,
-                                                    sum(epoch_loss_val) / total_val)
-            if (epoch + 1) % bot_msg_interval == 0 and msg_bot:
-                self.bot.send_msg(('Epoch --> Loss : {} --> {:.4}.\n'
-                                   'Val_Loss : {:.4} .').format(epoch + 1,
-                                                                    sum(epoch_loss) / total,
-
-                                                                    sum(epoch_loss_val) / total_val)
+                                                    sum(epoch_loss_val) / total_val))
             # Save agent and optimizer state
             if (epoch + 1) % save_interval == 0 and save_path is not None:
                 print('Saving current state after epoch: {}.'.format(epoch + 1))
@@ -137,8 +131,6 @@ class UNet2DAgent(SegmentationAgent):
         print('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
         if msg_bot == True:
             self.bot.send_msg('Testset --> Overall Loss: {:.4}.'.format(losses_cum / total))
-            self.bot.send_msg('Accuracy of the cnn model on the test set: %d %%' % (
-            100 * correct / total))
             
         # Return losses
         return losses, losses_cum

@@ -74,6 +74,7 @@ def _extract_images(source_path, target_path,resized):
         shape = np.shape(x)
         x = torch.from_numpy(x)
         x = torch.unsqueeze(x,0)
+        x = x.type(torch.float32)
         y = sitk.ReadImage(label_path)
         y = sitk.GetArrayFromImage(y)
         y = torch.from_numpy(y)
@@ -90,7 +91,7 @@ def _extract_images(source_path, target_path,resized):
             try:
                 y = trans.resize_3d(y, img_size, label=True)
             except:
-                print('Image could not be resized and will therefore be skipped: {}.'
+                print('Label image could not be resized and will therefore be skipped: {}.'
                 .format(filename))
                 continue
         y = torch.squeeze(y)
