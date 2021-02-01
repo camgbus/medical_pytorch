@@ -38,7 +38,6 @@ class PytorchSegmnetationDataset(PytorchDataset):
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size)
         self.norm = trans.NORMALIZATION_STRATEGIES[norm_key]
         self.aug = trans.AUGMENTATION_STRATEGIES[aug_key]
-        self.nr_labels = dataset.nr_labels
         self.channel_labels = channel_labels
         self.predictor = None
 
@@ -216,7 +215,6 @@ class Pytorch3DQueue(PytorchSegmnetationDataset):
     def __getitem__(self, idx):
         if self.restore_items:
             return self._get_saved_item(idx)
-            
         r"""Returns x and y values each with shape (c, w, h, d)
         Class torchio.Queue descends from torch.utils.data.Dataset."""
 

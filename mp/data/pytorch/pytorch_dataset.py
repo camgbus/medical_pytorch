@@ -1,5 +1,5 @@
 # ------------------------------------------------------------------------------
-# This class builds a descendant of torch.utils.data.Dataset from a 
+# This class builds a descendant of torch.utils.data.Dataset from a
 # mp.data.datasets.dataset.Dataset and a list of instance indexes.
 # ------------------------------------------------------------------------------
 
@@ -10,7 +10,7 @@ from mp.paths import storage_data_path
 from torch.utils.data import Dataset
 
 class PytorchDataset(Dataset):
-    def __init__(self, dataset, ix_lst=None, size=None, save_restore_k=None):
+    def __init__(self, dataset, ix_lst=None, size=None):
         r"""A dataset which is compatible with PyTorch.
 
         Args:
@@ -35,34 +35,39 @@ class PytorchDataset(Dataset):
             if ix in ix_lst]
         self.size = size
         self.ds_name = dataset.name
-        # To save and restore items
+        self.nr_labels = dataset.nr_labels
         self.restore_items = False
-        if save_restore_k is not None:
-            self.restore_items = True
-            self.k = save_restore_k
-            self.save_path = os.path.join(storage_data_path, 'static_data',
-            super().__class__.__name__, self.ds_name)
-            if not os.path.isdir(self.save_path):
-                self._save_items()
 
     def __len__(self):
         return len(self.instances)
 
-    def _save_items(self, original_dataset):
-        for kix in self.k:
+    def set_item_saving(self, save_restore_k, subset_name='Run_0_train'):
+        self.restore_items = False
+        if save_restore_k is not None:
+            self.k = save_restore_k
+            self.save_path = os.path.join(storage_data_path, 'static_data',
+            self.__class__.__name__, self.ds_name, subset_name)
+            if not os.path.isdir(self.save_path):
+                os.makedirs(self.save_path)
+                self._save_items()
+            self.restore_items = True  # __getitem__ checks whether this is set to decide whether to load or produce items.
+
+    def _save_items(self):
+        for kix in range(self.k):
+            print(kix)
             for idx in range(self.__len__()):
                 inputs, outputs = self.__getitem__(idx)
                 inputs_name = 'X_'+str(idx)+'_'+str(kix)+'.pt'
                 outputs_name = 'Y_'+str(idx)+'_'+str(kix)+'.pt'
-                torch.save(inputs, inputs_name)
-                torch.save(outputs, outputs_name)
+                torch.save(inputs, os.path.join(self.save_path, inputs_name))
+                torch.save(outputs, os.path.join(self.save_path, outputs_name))
 
     def _get_saved_item(self, idx):
         # Select ix in [0, k-1]
-        kix = random.randint(0, self.k)
+        kix = random.randint(0, self.k-1)
         # Load data
         inputs_name = 'X_'+str(idx)+'_'+str(kix)+'.pt'
         outputs_name = 'Y_'+str(idx)+'_'+str(kix)+'.pt'
-        inputs = torch.load(inputs_name)
-        outputs = torch.load(outputs_name)
+        inputs = torch.load(os.path.join(self.save_path, inputs_name))
+        outputs = torch.load(os.path.join(self.save_path, outputs_name))
         return inputs, outputs
