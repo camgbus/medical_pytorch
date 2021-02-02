@@ -8,7 +8,6 @@ import shutil
 from mp.utils.load_restore import pkl_dump, pkl_load
 from mp.utils.pytorch.pytorch_load_restore import save_model_state, load_model_state, save_optimizer_state, load_optimizer_state
 from mp.eval.inference.predict import arg_max
-from mp.eval.evaluate import ds_losses_metrics
 
 class Agent:
     r"""An Agent, which includes a model and extended fields and logic.
@@ -117,17 +116,7 @@ class Agent:
         r"""Tracks metrics. Losses and scores are calculated for each 3D subject, 
         and averaged over the dataset.
         """
-        for ds_name, ds in datasets.items():
-            eval_dict = ds_losses_metrics(ds, self, loss_f, self.metrics)
-            for metric_key in eval_dict.keys():
-                results.add(epoch=epoch, metric='Mean_'+metric_key, data=ds_name, 
-                    value=eval_dict[metric_key]['mean'])
-                results.add(epoch=epoch, metric='Std_'+metric_key, data=ds_name, 
-                    value=eval_dict[metric_key]['std'])
-            if self.verbose:
-                print('Epoch {} dataset {}'.format(epoch, ds_name))
-                for metric_key in eval_dict.keys():
-                    print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))
+        raise NotImplementedError
 
     def save_state(self, states_path, state_name, optimizer=None, overwrite=False):
         r"""Saves an agent state. Raises an error if the directory exists and 
