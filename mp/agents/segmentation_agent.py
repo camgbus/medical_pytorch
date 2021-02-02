@@ -70,12 +70,12 @@ class UNet2DAgent(SegmentationAgent):
             epoch_loss = list()
             #total = number of slices used
             for idx, (x, y) in enumerate(train_dataloader):
+                x, y = x.type(torch.float32), y.type(torch.float32)
                 x, y = x.to(self.device), y.to(self.device)
                 yhat = self.model(x)
                 # i assume the dataloader loads the images in normal format 
                 # not as multichannel in which case #torch.max(y, 1)[1]
-                print(type(yhat[0,0,0,0]),type(y[0,0,0,0]))
-                sys.exit('its all ogre now')
+
                 loss = loss_f(torch.max(yhat,1)[1], torch.max(y,1)[1]) 
                 total += y.size(0)
                 epoch_loss.append(loss.item())
