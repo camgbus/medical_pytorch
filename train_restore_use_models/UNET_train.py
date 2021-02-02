@@ -12,7 +12,7 @@ from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.eval.losses.losses_cnn import LossCEL
-from mp.agents.cnn_agents import NetAgent
+from mp.agents.segmentation_agent import UNet2DAgent
 from mp.utils.save_results import save_results, save_only_test_results
 from mp.data.datasets.corona_fra_seg import UKF2
 from mp.models.segmentation.unet_fepegar import UNet2D
@@ -104,7 +104,7 @@ def UNet2D_initialize_and_train(config):
         # 9. Train model
         print('Training model in batches of {}..'.format(batch_size))
 
-        agent = NetAgent(model=model, device=device)
+        agent = UNet2DAgent(model=model, device=device)
         losses_train, losses_cum_train, losses_val, losses_cum_val = agent.train(optimizer, loss_f, dl,
                        dl_val, nr_epochs=config['nr_epochs'],
                        msg_bot=False, save_path=paths,
