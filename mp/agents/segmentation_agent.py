@@ -69,6 +69,7 @@ class UNet2DAgent(SegmentationAgent):
             print (msg, end = "\r")
             epoch_loss = list()
             #total = number of slices used
+            total = 0
             for idx, (x, y) in enumerate(train_dataloader):
                 # trying to get right data format for bce computation
                 # x, y = x.type(torch.float32), y.type(torch.float32)
