@@ -85,7 +85,6 @@ class UNet2DAgent(SegmentationAgent):
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-                sys.exit("optimiser stop has been done")
             losses.append(epoch_loss)
             losses_cum.append([epoch+1, sum(epoch_loss) / total])
 
