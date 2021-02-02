@@ -46,7 +46,8 @@ class PytorchDataset(Dataset):
         if save_restore_k is not None:
             self.k = save_restore_k
             self.save_path = os.path.join(storage_data_path, 'static_data',
-            self.__class__.__name__, self.ds_name, subset_name)
+            self.__class__.__name__, self.ds_name.replace(':', '-'), subset_name)
+            print(self.save_path)
             if not os.path.isdir(self.save_path):
                 os.makedirs(self.save_path)
                 self._save_items()
@@ -54,7 +55,7 @@ class PytorchDataset(Dataset):
 
     def _save_items(self):
         for kix in range(self.k):
-            print(kix)
+            print("Saving items with k: {}".format(kix))
             for idx in range(self.__len__()):
                 inputs, outputs = self.__getitem__(idx)
                 inputs_name = 'X_'+str(idx)+'_'+str(kix)+'.pt'

@@ -2,8 +2,8 @@
 # Collection of loss metrics that can be used during training, including binary
 # cross-entropy and dice. Class-wise weights can be specified.
 # Losses receive a 'target' array with shape (batch_size, channel_dim, etc.)
-# and channel dimension equal to nr. of classes that has been previously 
-# transformed (through e.g. softmax) so that values lie between 0 and 1, and an 
+# and channel dimension equal to nr. of classes that has been previously
+# transformed (through e.g. softmax) so that values lie between 0 and 1, and an
 # 'output' array with the same dimension and values that are either 0 or 1.
 # The results of the loss is always averaged over batch items (the first dim).
 # ------------------------------------------------------------------------------
@@ -36,9 +36,9 @@ class LossBCE(LossAbstract):
         return self.bce(output, target)
 
 class LossBCEWithLogits(LossAbstract):
-    r"""More stable than following applying a sigmoid function to the output 
-    before applying the loss (see 
-    https://pytorch.org/docs/stable/generated/torch.nn.LossBCEWithLogits.html), 
+    r"""More stable than following applying a sigmoid function to the output
+    before applying the loss (see
+    https://pytorch.org/docs/stable/generated/torch.nn.LossBCEWithLogits.html),
     but only use if applicable."""
     def __init__(self, device='cuda:0'):
         super().__init__(device=device)
@@ -76,13 +76,13 @@ class LossCombined(LossAbstract):
 class LossDiceBCE(LossCombined):
     r"""A combination of Dice and Binary cross entropy."""
     def __init__(self, bce_weight=1., smooth=1., device='cuda:0'):
-        super().__init__(losses=[LossDice(smooth=smooth), LossBCE()], 
+        super().__init__(losses=[LossDice(smooth=smooth), LossBCE()],
             weights=[1., bce_weight], device=device)
 
 class LossClassWeighted(LossAbstract):
     r"""A loss that weights different labels differently. Often, weights should
     be set inverse to the ratio of pixels of that class in the data so that
-    classes with high representation (e.g. background) do not monopolize the 
+    classes with high representation (e.g. background) do not monopolize the
     loss."""
     def __init__(self, loss, weights=None, nr_labels=None, device='cuda:0'):
         super().__init__(device)
@@ -98,13 +98,13 @@ class LossClassWeighted(LossAbstract):
         # Set tensor class weights
         self.class_weights = torch.tensor(self.class_weights).to(self.device)
         self.added_weights = self.class_weights.sum()
-        
+
     def forward(self, output, target):
         batch_loss = torch.tensor(0.0).to(self.device)
         for instance_output, instance_target in zip(output, target):
             instance_loss = torch.tensor(0.0).to(self.device)
             for out_channel_output, out_channel_target, weight in zip(instance_output, instance_target, self.class_weights):
-                instance_loss += weight * self.loss(out_channel_output, 
+                instance_loss += weight * self.loss(out_channel_output,
                     out_channel_target)
             batch_loss += instance_loss / self.added_weights
         return batch_loss / len(output)
