@@ -74,6 +74,8 @@ class UNet2DAgent(SegmentationAgent):
                 yhat = self.model(x)
                 # i assume the dataloader loads the images in normal format 
                 # not as multichannel in which case #torch.max(y, 1)[1]
+                print(type(yhat[0,0,0,0]),type(y[0,0,0,0]))
+                sys.exit('its all ogre now')
                 loss = loss_f(torch.max(yhat,1)[1], torch.max(y,1)[1]) 
                 total += y.size(0)
                 epoch_loss.append(loss.item())
