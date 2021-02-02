@@ -12,6 +12,7 @@ from mp.paths import telegram_login
 from mp.utils.update_bots.telegram_bot import TelegramBot
 from mp.utils.agents.save_restore import save_state as external_save_state
 from mp.utils.agents.save_restore import restore_state as external_restore_state
+import sys 
 
 class SegmentationAgent(Agent):
     r"""An Agent for segmentation models."""
@@ -73,7 +74,9 @@ class UNet2DAgent(SegmentationAgent):
                 yhat = self.model(x)
                 # i assume the dataloader loads the images in normal format 
                 # not as multichannel in which case #torch.max(y, 1)[1]
-                loss = loss_f(torch.max(yhat,1)[1], y) 
+                print(type(yhat),yhat.shape,type(y),y.shape)
+                sys.exit('do what you do')
+                loss = loss_f(torch.max(yhat,1)[1], torch.max(y,1)[1]) 
                 total += y.size(0)
                 epoch_loss.append(loss.item())
                 optimizer.zero_grad()

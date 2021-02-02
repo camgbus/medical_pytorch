@@ -11,7 +11,6 @@ from mp.data.data import Data
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
-from mp.eval.losses.losses_cnn import LossCEL
 from mp.agents.segmentation_agent import UNet2DAgent
 from mp.utils.save_results import save_results, save_only_test_results
 from mp.data.datasets.corona_fra_seg import UKF2
