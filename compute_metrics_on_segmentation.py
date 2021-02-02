@@ -8,7 +8,7 @@ from mp.paths import storage_data_path
 import math
 import pickle
 from scipy.ndimage import gaussian_filter
-from Iterators import Dataset_Iterator,Component_Iterator
+from mp.utils.Iterators import Dataset_Iterator,Component_Iterator
 
 def get_array_of_dicescores(seg): 
 
