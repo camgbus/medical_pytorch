@@ -5,7 +5,6 @@
 
 import os
 import shutil
-from mp.eval.accumulator import Accumulator
 from mp.utils.load_restore import pkl_dump, pkl_load
 from mp.utils.pytorch.pytorch_load_restore import save_model_state, load_model_state, save_optimizer_state, load_optimizer_state
 from mp.eval.inference.predict import arg_max
@@ -82,30 +81,7 @@ class Agent:
         return self.predict_from_outputs(outputs)
 
     def perform_training_epoch(self, optimizer, loss_f, train_dataloader, 
-        print_run_loss=False):
-        r"""Perform a training epoch
-        
-        Args:
-            print_run_loss (bool): whether a running loss should be tracked and
-                printed.
-        """
-        acc = Accumulator('loss')
-        for _, data in enumerate(train_dataloader):
-            # Get data
-            inputs, targets = self.get_inputs_targets(data)
-
-            # Forward pass
-            outputs = self.get_outputs(inputs)
-
-            # Optimization step
-            optimizer.zero_grad()
-            loss = loss_f(outputs, targets)
-            loss.backward()
-            optimizer.step()
-            acc.add('loss', float(loss.detach().cpu()), count=len(inputs))
-
-        if print_run_loss:
-            print('\nRunning loss: {}'.format(acc.mean('loss')))
+        raise NotImplementedError
 
     def train(self, results, optimizer, loss_f, train_dataloader,
         init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
