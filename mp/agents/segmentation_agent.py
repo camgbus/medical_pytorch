@@ -70,7 +70,8 @@ class UNet2DAgent(SegmentationAgent):
             epoch_loss = list()
             #total = number of slices used
             for idx, (x, y) in enumerate(train_dataloader):
-                x, y = x.type(torch.float32), y.type(torch.float32)
+                # trying to get right data format for bce computation
+                # x, y = x.type(torch.float32), y.type(torch.float32)
                 x, y = x.to(self.device), y.to(self.device)
                 yhat = self.model(x)
                 # i assume the dataloader loads the images in normal format 

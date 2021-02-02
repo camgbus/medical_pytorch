@@ -15,7 +15,7 @@ from mp.agents.segmentation_agent import UNet2DAgent
 from mp.utils.save_results import save_results, save_only_test_results
 from mp.data.datasets.corona_fra_seg import UKF2
 from mp.models.segmentation.unet_fepegar import UNet2D
-from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
+from mp.eval.losses.losses_segmentation import LossDice, LossClassWeighted, LossDiceBCE
 from mp.visualization.plot_results import plot_dataframe
 
 def UNet2D_initialize_and_train(config):
@@ -95,9 +95,10 @@ def UNet2D_initialize_and_train(config):
         model.to(device)
 
         # 8. Define loss and optimizer
-        loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
-        loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], 
-            device=device)
+        # loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
+        # loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], 
+        #    device=device)
+        loss_f = LossDice(device=device)
         optimizer = optim.Adam(model.parameters(), lr=config['lr'])
 
         # 9. Train model
