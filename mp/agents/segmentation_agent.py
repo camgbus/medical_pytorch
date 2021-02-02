@@ -67,11 +67,7 @@ class UNet2DAgent(SegmentationAgent):
             msg += str(epoch + 1) + " of " + str(nr_epochs) + "."
             print (msg, end = "\r")
             epoch_loss = list()
-            results_y = list()
-            results_yhat = list()
             #total = number of slices used
-            total = 0
-            correct = 0
             for idx, (x, y) in enumerate(train_dataloader):
                 x, y = x.to(self.device), y.to(self.device)
                 yhat = self.model(x)
@@ -89,7 +85,6 @@ class UNet2DAgent(SegmentationAgent):
             # Validate current model based on validation dataloader
             epoch_loss_val = list()
             total_val = 0
-            correct_val = 0
             with torch.no_grad():
                 for idx, (x, y) in enumerate(val_dataloader):
                     x_val, y_val = x.to(self.device), y.to(self.device)
