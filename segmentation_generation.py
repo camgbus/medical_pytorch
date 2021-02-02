@@ -14,7 +14,7 @@ parser.add_argument('--device', action='store', type=int, nargs=1, default=4,
 args = parser.parse_args()
 device = args.device
 
-config = {'device':device, 'nr_runs': 1, 'cross_validation': False, 
+config = {'device':'cuda:{}'.format(device[0]), 'nr_runs': 1, 'cross_validation': False, 
           'val_ratio': 0.2, 'test_ratio': 0.2, 'input_shape': (1, 256,256),
           'resize': True, 'augmentation': 'none', 'lr': 0.001, 'batch_size': 8,
           'nr_epochs': 100, 
