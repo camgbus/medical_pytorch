@@ -80,7 +80,14 @@ class Agent:
         outputs = self.get_outputs(inputs)
         return self.predict_from_outputs(outputs)
 
-    def perform_training_epoch(self, optimizer, loss_f, train_dataloader, 
+    def perform_training_epoch(self, optimizer, loss_f, train_dataloader,
+        print_run_loss=False):
+        r"""Perform a training epoch
+        
+        Args:
+            print_run_loss (bool): whether a runing loss should be tracked and
+                printed.
+        """ 
         raise NotImplementedError
 
     def train(self, results, optimizer, loss_f, train_dataloader,
