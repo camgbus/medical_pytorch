@@ -19,7 +19,7 @@ config = {'device':'cuda:{}'.format(device[0]), 'nr_runs': 1, 'cross_validation'
           'resize': True, 'augmentation': 'none', 'lr': 0.001, 'batch_size': 8,
           'nr_epochs': 100, 
           'weight_decay': 0.75, 'save_interval': 1,
-          'augmented': False, 'dataset': 'UKF2',
+          'augmented': True, 'dataset': 'UKF2',
           'class_weights': (0.,1.)
          }
 
