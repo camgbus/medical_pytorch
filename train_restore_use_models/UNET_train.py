@@ -95,10 +95,10 @@ def UNet2D_initialize_and_train(config):
         model.to(device)
 
         # 8. Define loss and optimizer
-        # loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
-        # loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], 
-        #    device=device)
-        loss_f = LossDice(device=device)
+        loss_g = LossDiceBCE(bce_weight=1., smooth=1., device=device)
+        loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'], 
+           device=device)
+        # loss_f = LossDice(device=device)
         optimizer = optim.Adam(model.parameters(), lr=config['lr'])
 
         # 9. Train model

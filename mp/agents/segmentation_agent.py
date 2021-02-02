@@ -75,11 +75,9 @@ class UNet2DAgent(SegmentationAgent):
                 # x, y = x.type(torch.float32), y.type(torch.float32)
                 x, y = x.to(self.device), y.to(self.device)
                 yhat = self.model(x)
-                labels = torch.max(yhat,1)[1].type(torch.float32)
-                labels.requires_grad = True
                 # i assume the dataloader loads the images in normal format 
                 # not as multichannel in which case #torch.max(y, 1)[1]                
-                loss = loss_f(labels, torch.max(y,1)[1]) 
+                loss = loss_f(yhat, y.float()) 
                 total += y.size(0)
                 epoch_loss.append(loss.item())
                 optimizer.zero_grad()
@@ -95,7 +93,7 @@ class UNet2DAgent(SegmentationAgent):
                 for idx, (x, y) in enumerate(val_dataloader):
                     x_val, y_val = x.to(self.device), y.to(self.device)
                     yhat_val = self.model(x_val)
-                    loss = loss_f(torch.max(yhat_val,1)[1], torch.max(y_val,1)[1])
+                    loss = loss_f(yhat_val,y_val.float())
                     total_val += y_val.size(0)
                     epoch_loss_val.append(loss.item())
                 losses_val.append(epoch_loss_val)
@@ -125,7 +123,7 @@ class UNet2DAgent(SegmentationAgent):
             for idx, (x, y) in enumerate(test_dataloader):
                 x, y = x.to(self.device), y.to(self.device)
                 yhat = self.model(x)
-                loss = loss_f(torch.max(yhat,1)[1], torch.max(y,1)[1])
+                loss = loss_f(yhat, y.float())
                 losses.append([idx+1, loss.item()])
                 total += y.size(0)
                 losses_cum += loss.item()
