@@ -74,7 +74,7 @@ class UNet2DAgent(SegmentationAgent):
                 # trying to get right data format for bce computation
                 # x, y = x.type(torch.float32), y.type(torch.float32)
                 x, y = x.to(self.device), y.to(self.device)
-                yhat = self.get_outputs(x_val)
+                yhat = self.get_outputs(x)
                 sys.exit("he told me to do this")
                 # i assume the dataloader loads the images in normal format 
                 # not as multichannel in which case #torch.max(y, 1)[1]                
