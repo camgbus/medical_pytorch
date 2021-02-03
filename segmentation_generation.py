@@ -19,8 +19,7 @@ resize = bool(args.resize)
 config = {'device':'cuda:{}'.format(device[0]), 'nr_runs': 1, 'cross_validation': False, 
           'val_ratio': 0.2, 'test_ratio': 0.2, 'input_shape': (1, 256,256),
           'resize': resize, 'augmentation': 'none', 'lr': 0.001, 'batch_size':64,
-          'nr_epochs': 30, 
-          'weight_decay': 0.75, 'save_interval': 1,
+          'nr_epochs': 30,  'save_interval': 1,
           'augmented': True, 'dataset': 'UKF2',
           'class_weights': (0.,1.)
          }
