@@ -142,7 +142,7 @@ def ds_metrics_multiple(ds, agent, metrics):
             # Add to the accumulator and eval_dict
             for metric_key in subject_acc.get_keys():
                 value = subject_acc.mean(metric_key)
-                full_metric_key = output_key + '_' + metric_key
+                full_metric_key = str(output_key) + '_' + str(metric_key)
                 acc.add(full_metric_key, value, count=1)
                 if full_metric_key not in eval_dict:
                     eval_dict[full_metric_key] = dict()
