@@ -307,6 +307,11 @@ def get_imgs_from_dataloader(dataloader, nr_imgs, x_key=None):
         if x_key is not None:
             x = x[x_key]
         x = x.cpu().detach().numpy()
+
+        if len(x.shape) == 5:  # If three-dim data
+            x_batch = [np.moveaxis(volume_x, -1, 0) for volume_x in x]
+            x = np.concatenate(x_batch)
+            # So it is not rotated
         for img in x:
             img = np.moveaxis(img, -1, -2)  # So it is not rotated
             if len(imgs) < nr_imgs:
