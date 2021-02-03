@@ -74,7 +74,7 @@ class UNet2DAgent(SegmentationAgent):
                 # trying to get right data format for bce computation
                 # x, y = x.type(torch.float32), y.type(torch.float32)
                 x, y = x.to(self.device), y.to(self.device)
-                yhat = self.model(x)
+                yhat = self.get_outputs(x_val)
                 print(torch.max(yhat),torch.min(yhat),torch.max(y),torch.min(y))
                 sys.exit("he told me to do this")
                 # i assume the dataloader loads the images in normal format 
@@ -94,7 +94,7 @@ class UNet2DAgent(SegmentationAgent):
             with torch.no_grad():
                 for idx, (x, y) in enumerate(val_dataloader):
                     x_val, y_val = x.to(self.device), y.to(self.device)
-                    yhat_val = self.model(x_val)
+                    yhat_val = self.get_outputs(x_val)
                     loss = loss_f(yhat_val,y_val.float())
                     total_val += y_val.size(0)
                     epoch_loss_val.append(loss.item())
@@ -124,7 +124,7 @@ class UNet2DAgent(SegmentationAgent):
         with torch.no_grad():
             for idx, (x, y) in enumerate(test_dataloader):
                 x, y = x.to(self.device), y.to(self.device)
-                yhat = self.model(x)
+                yhat = self.get_outputs(x)
                 loss = loss_f(yhat, y.float())
                 losses.append([idx+1, loss.item()])
                 total += y.size(0)
