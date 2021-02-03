@@ -29,8 +29,6 @@ def UNet2D_initialize_and_train(config):
     print('Device name: {}'.format(device_name))
     input_shape = config['input_shape']
     batch_size = config['batch_size'] 
-    augmented = config['augmented']
-    weight_decay = config['weight_decay']
     save_interval = config['save_interval']
     dataset_name = config['dataset']
 
