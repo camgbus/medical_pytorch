@@ -36,15 +36,20 @@ USED_METRIC = 'avg_kl_dice_comp'
 DESCRIPTION = '''Take the average kl_div of the histograms from the estimated density. Not using clustering and density is estimated by gaussian kernel with bw 20
                         Also take the avg dice of the consolidations and the avg dice differences as well as number of connected components'''
 USE_SERVER = False
-CUDA_DEVICE = 1 
+CUDA_DEVICE = 0 
 PLOT_AVG_VS_DICE = True
+RESIZED = True 
 EPOCHS_TO_USE = [5,10]
 IMG_TO_TEST = 5
+
 PATH_TO_IMAGES = os.path.join('storage','data','UKF2')
 PATH_TO_STATES = os.path.join('storage', 'exp', 'UKF2_seg_metrices', '0', 'states')
 PATH_TO_NEW_SEGMENTATION = os.path.join('storage','data','UKF2_generated_seg')
 PATH_TO_SCORES = os.path.join('storage','statistics','UK_Frankfurt2','tests_seg_metrices')
-
+if RESIZED:
+    PATH_TO_IMAGES = os.path.join('storage','data','UKF2_resized')
+else: 
+    PATH_TO_IMAGES = os.path.join('storage','data','UKF2')
 
 
 if not os.path.isdir(PATH_TO_SCORES):
@@ -100,12 +105,14 @@ def get_prediction(img_path,name,save_path):
     pred = []
     with torch.no_grad():
         for slice_idx in range(len(x)):
-            inputs = trans.resize_2d(
-                x[slice_idx], size=(1, 256, 256)).to(agent.device)
-            inputs = torch.unsqueeze(inputs, 0)
+            if not RESIZED:
+                inputs = trans.resize_2d(x[slice_idx], size=(1, 256, 256))                     
+            inputs = torch.unsqueeze(inputs, 0).to(agent.device)
             slice_pred = agent.predict(inputs).float()
-            pred.append(trans.resize_2d(
-                slice_pred, size=original_size_2d, label=True))
+            if not RESIZED:
+                slice_pred = trans.resize_2d(
+                slice_pred, size=original_size_2d, label=True)
+            pred.append(slice_pred)
     # Merge slices and rotate so depth last
     pred = torch.stack(pred, dim=0)  # depth,channel,weight,height
     pred = pred.permute(1, 2, 3, 0)  # ? channel,weight,height,depth is that right ? 
