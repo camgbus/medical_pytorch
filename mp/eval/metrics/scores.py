@@ -14,7 +14,7 @@ class ScoreAbstract:
         raise NotImplementedError
 
 class ScoreDice(ScoreAbstract):
-    r"""Dice score, inverce of a Dice loss except for the smoothing factor in
+    r"""Dice score, inverse of a Dice loss except for the smoothing factor in
     the loss."""
     def eval(self, tp, tn, fn, fp):
         if tp == 0:
