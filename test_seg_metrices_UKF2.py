@@ -1,26 +1,18 @@
 
 # 1. Imports
-from mp.data.datasets.ds_ct_UKF2 import UKF2
+from mp.data.datasets.corona_fra_seg import UKF2
 import torch
 from torch.utils.data import DataLoader
 import torch.optim as optim
-from mp.experiments.experiment import Experiment
 from mp.data.data import Data
-from mp.data.datasets.ds_mr_prostate_decathlon import DecathlonProstateT2
-from mp.data.datasets.ds_mr_lung_VESSEL12 import VESSEL12
-import mp.visualization.visualize_imgs as vis
-from mp.data.pytorch.pytorch_seg_dataset import PytorchSeg2DDataset
 from mp.models.segmentation.unet_fepegar import UNet2D
-from mp.eval.losses.losses_segmentation import LossClassWeighted, LossDiceBCE
 from mp.agents.segmentation_agent import SegmentationAgent
-from mp.eval.result import Result
 
 from scipy.stats import spearmanr
 import os
 import SimpleITK as sitk
 import numpy as np
 import torchio
-import math
 import pickle
 
 from sklearn.neural_network import MLPRegressor
@@ -39,13 +31,12 @@ USE_SERVER = False
 CUDA_DEVICE = 0 
 PLOT_AVG_VS_DICE = True
 RESIZED = True 
-EPOCHS_TO_USE = [5,10]
+EPOCHS_TO_USE = [1,2,3,4,5,6,7,8,9]
 IMG_TO_TEST = 5
 
-PATH_TO_IMAGES = os.path.join('storage','data','UKF2')
-PATH_TO_STATES = os.path.join('storage', 'exp', 'UKF2_seg_metrices', '0', 'states')
+PATH_TO_STATES = os.path.join('storage', 'models', 'UNet2D','UKF2','states')
 PATH_TO_NEW_SEGMENTATION = os.path.join('storage','data','UKF2_generated_seg')
-PATH_TO_SCORES = os.path.join('storage','statistics','UK_Frankfurt2','tests_seg_metrices')
+PATH_TO_SCORES = os.path.join('storage','statistics','UKF2','tests_seg_metrices')
 if RESIZED:
     PATH_TO_IMAGES = os.path.join('storage','data','UKF2_resized')
 else: 
