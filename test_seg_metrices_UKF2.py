@@ -97,7 +97,9 @@ def get_prediction(img_path,name,save_path):
     with torch.no_grad():
         for slice_idx in range(len(x)):
             if not RESIZED:
-                inputs = trans.resize_2d(x[slice_idx], size=(1, 256, 256))                     
+                inputs = trans.resize_2d(x[slice_idx], size=(1, 256, 256))
+            else:
+                inputs = x[slice_idx]           
             inputs = torch.unsqueeze(inputs, 0).to(agent.device)
             slice_pred = agent.predict(inputs).float()
             if not RESIZED:
@@ -149,6 +151,8 @@ for epoch in EPOCHS_TO_USE:
             x_path = os.path.join(PATH_TO_IMAGES, name + '.nii.gz')
             get_prediction(x_path,name,path_seg_epoch)
         print('Images segmented and saved')
+    else:
+        print('Images for epoch {} are already segmented'.format(epoch))
 
 # 5. get all the scores for every desired epoch 
 
