@@ -62,8 +62,8 @@ AUGMENTATION_STRATEGIES = {None:None, 'none':None,
     ])
 }
 
-def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
-    r"""Trans. a one-channeled mask where the integers specify the label to a 
+def per_label_channel(y, nr_labels, channel_dim=0, device='cpu', stack=False):
+    r"""Trans. a one-channeled mask where the integers specify the label to a
     multi-channel output with one channel per label, where 1 marks belonging to
     that label."""
     masks = []
@@ -72,7 +72,10 @@ def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
     for label_nr in range(nr_labels):
         mask = torch.where(y == label_nr, ones, zeros)
         masks.append(mask)
-    target = torch.cat(masks, dim=channel_dim)
+    if stack:
+        target = torch.stack(masks, dim=channel_dim)
+    else:
+        target = torch.cat(masks, dim=channel_dim)
     return target
 
 def _one_output_channel_single(y):
