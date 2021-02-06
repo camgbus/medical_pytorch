@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import pickle 
 import time 
 from compute_metrics_on_segmentation import get_array_of_dicescores,get_dice_averages,get_int_dens,get_similarities,density_similarity
-from Iterators import Dataset_Iterator,Component_Iterator
+from mp.utils.Iterators import Dataset_Iterator,Component_Iterator
 from sklearn.neighbors import KernelDensity
 from sklearn.cluster import KMeans,AgglomerativeClustering
 
@@ -300,35 +300,5 @@ if HISTOGRAM_ANALYSIS:
         intensities = np.array(intensities)
         intensities = intensities.flatten()
         compute_density(intensities,bw=20,plot=True,descr='cluster' + str(label) + 'density')
-
-
-
-
-
-        
-
-
-
-
-        
-
-
-
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 

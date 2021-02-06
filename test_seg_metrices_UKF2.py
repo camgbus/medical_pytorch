@@ -31,7 +31,7 @@ USE_SERVER = False
 CUDA_DEVICE = 0 
 PLOT_AVG_VS_DICE = True
 RESIZED = True 
-EPOCHS_TO_USE = [1,2,3,4,5,6,7,8,9]
+EPOCHS_TO_USE = [9]
 IMG_TO_TEST = 5
 
 PATH_TO_STATES = os.path.join('storage', 'models', 'UNet2D','UKF2','states')
@@ -79,7 +79,8 @@ def get_dice(name,epoch):
     gen_seg = sitk.ReadImage(gen_seg_path)
     gen_seg = sitk.GetArrayFromImage(gen_seg)
     gen_seg = gen_seg.flatten()
-    dice_score = np.dot(seg,gen_seg)
+    nr_pixels = gen_seg.shape[0]
+    dice_score = np.dot(seg,gen_seg)/nr_pixels
     return dice_score
 
 def get_metric(name,epoch):
@@ -91,7 +92,6 @@ def get_metric(name,epoch):
 def get_prediction(img_path,name,save_path):
     x = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
     original_size_2d = x.shape[:3]
-    original_size = x.shape
     x = x.permute(3, 0, 1, 2)
     pred = []
     with torch.no_grad():
@@ -108,11 +108,8 @@ def get_prediction(img_path,name,save_path):
             pred.append(slice_pred)
     # Merge slices and rotate so depth last
     pred = torch.stack(pred, dim=0)  # depth,channel,weight,height
-    pred = pred.permute(1, 2, 3, 0)  # ? channel,weight,height,depth is that right ? 
-    assert original_size == pred.shape
+    pred = torch.squeeze(pred,1) # depth,weight,height; the dimensions sitk wants
     pred = pred.numpy()
-    shape = pred.shape
-    pred = np.resize(pred, (shape[1], shape[2], shape[3]))
     sitk.WriteImage(sitk.GetImageFromArray(pred), os.path.join(
         save_path, name + '_gt.nii.gz'))
 
@@ -150,7 +147,7 @@ for epoch in EPOCHS_TO_USE:
         for id,name in enumerate(names):
             x_path = os.path.join(PATH_TO_IMAGES, name + '.nii.gz')
             get_prediction(x_path,name,path_seg_epoch)
-        print('Images segmented and saved')
+        print('Images of epoch {} segmented and saved'.format(epoch))
     else:
         print('Images for epoch {} are already segmented'.format(epoch))
 
@@ -158,19 +155,19 @@ for epoch in EPOCHS_TO_USE:
 
 for epoch in EPOCHS_TO_USE:
     #dice scores
-    path_to_dice = os.path.join(PATH_TO_SCORES,'dice','dice_epoch{}.npy'.format(epoch))
+    path_to_dice = os.path.join(PATH_TO_SCORES,'dice','dice_epoch_{}.npy'.format(epoch))
     if not os.path.isfile(os.path.join(path_to_dice)):
         dice_scores = []
         for name in names:
             dice_scores.append(get_dice(name,epoch))    
-        pickle.dump(open(path_to_dice,'wb'),dice_scores)
+        pickle.dump(dice_scores,open(path_to_dice,'wb'))
 
-    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC,'metrics_epoch_{}.npy'.format(epoch))
+    path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC,'metrics_sh_{}.npy'.format(epoch))
     if not os.path.isfile(os.path.join(path_to_metric)):
         metric_scores = []
         for name in names:
             metric_scores.append(get_metric(name,epoch))
-        pickle.dump(open(path_to_metric,'wb'),metric_scores)
+        pickle.dump(metric_scores,open(path_to_metric,'wb'))
 
 describtion_name = os.path.join(PATH_TO_SCORES,USED_METRIC,'metric_describtion.txt')
 if not os.path.isfile(describtion_name):
@@ -187,7 +184,7 @@ metric_scores_test = []
 
 for epoch in EPOCHS_TO_USE:
     path_to_metric = os.path.join(PATH_TO_SCORES,USED_METRIC,'metrics_epoch_{}.npy'.format(epoch))
-    path_to_dice = os.path.join(PATH_TO_SCORES,'dice','dice_epoch{}.npy'.format(epoch))
+    path_to_dice = os.path.join(PATH_TO_SCORES,'dice','dice_epoch_{}.npy'.format(epoch))
     dice_list_epoch = pickle.load(open(path_to_dice,'rb'))
     metric_list_epoch = pickle.load(open(path_to_metric,'rb'))
     flattened_scores = [flatten_list(entry) for entry in metric_list_epoch]
@@ -206,6 +203,7 @@ y_test = np.array(dice_scores_test)
 if PLOT_AVG_VS_DICE:
     dice = np.append(y_train,y_test)
     avg_dist = [ele[0] for ele in metric_scores_test+metric_scores_train]
+    print(dice,avg_dist)
     corr,pval = spearmanr(dice,avg_dist)
     print('The correlation between the two values is {}'.format(corr))
 
@@ -236,7 +234,7 @@ for setting in settings:
         regressor_score = regressor.score(X_test,y_test)
         l2_loss = get_l2_loss(X_test,y_test,regressor)
         losses_string = 'The regressor {} has a score of {} and an l2 loss of {}'.format(regressor_name,regressor_score,l2_loss)
-        print()
+        print(losses_string)
 
         with open(path_regr,'wb') as saver:
             pickle.dump(regressor,saver)

@@ -1,14 +1,8 @@
-## basic sketch, nothing to see here
-
 import numpy as np
-import torchio
-from skimage.measure import label, regionprops
-import os 
-from mp.paths import storage_data_path
-import math
-import pickle
+from Iterators import Component_Iterator
+from skimage.measure import label
 from scipy.ndimage import gaussian_filter
-from mp.utils.Iterators import Dataset_Iterator,Component_Iterator
+from mp.utils.Iterators import Dataset_Iterator
 
 def get_array_of_dicescores(seg): 
 
@@ -80,46 +74,44 @@ def get_similarities(img,seg,props,density_values):
     comp_intenity_density = get_int_dens(img,coords)
     similarity = density_similarity(density_values,comp_intenity_density)
     return similarity
+
+class Feature_extractor():
+
+    def __init__(self, density, features=[]):
+        self.features = features
+        self.nr_features = len(features)
+        self.density = density
+
+    def get_features(self,img,seg):
+        list_features = []
+        for feature in self.features:
+            feature = self.get_feature(feature,img,seg)
+            for attr in feature:
+                list_features.append(attr)
+        return list_features
+
+    def get_feature(self,feature,img,seg):
+        component_iterator = Component_Iterator(img,seg)
+        if feature == 'density_distance':
+            density_values = self.density.get_values()
+            similarity_scores= component_iterator.iterate(get_similarities,
+                    density_values=density_values)
+            average = np.mean(np.array(similarity_scores))
+            return average
+        if feature == 'dice_scores':
+            dice_metrices = component_iterator.iterate(get_dice_averages)
+            return dice_metrices
+        if feature == 'connected_components':
+            _,number_components = label(seg,return_num=True)
+            return number_components
+
+    def get_features_from_paths(self,list_paths):
+        list_list_features = []
+        for path in list_paths:
+            ds_iterator = Dataset_Iterator(path,mode='normal')
+            output = ds_iterator.iterate_images(self.get_features)
+            list_list_features.append(output)
+        return list_list_features
+
+  
     
-def compute_metrics(img_path,seg_path):
-    '''gets a 3D segmentation of a Covid consolidation and computes metrices on it.
-    Will be used to assess if segmentation is plausible'''
-
-    #load image and segmentation
-    img = torchio.Image(img_path, type=torchio.INTENSITY)
-    seg = torchio.Image(seg_path, type=torchio.LABEL)
-    img = img.numpy()[0]
-    seg = seg.numpy()[0]
-    shape = np.shape(img)
-
-    # 1.Compare histograms of the components to intensity densities of segmentations
-    density = pickle.load(open(os.path.join('storage','statistics','UK_Frankfurt2','density_estimation','kde_gauss_bw_20.sav'),'rb'))
-    density_values = np.exp(density.score_samples(np.reshape(np.arange(start=-1024,stop=3071),(-1,1)))) #for computation of density similarity
-    component_iterator = Component_Iterator(img,seg)
-    similarity_scores_densities = component_iterator.iterate(get_similarities,density_values=density_values)
-    average = np.mean(np.array(similarity_scores_densities))
-
-    # 2.Dice scores for the components
-    dice_metrices = component_iterator.iterate(get_dice_averages)
-
-    # 3.Number of connected components 
-    _,number_components = label(seg,return_num=True)
-
-
-    return [average , similarity_scores_densities , dice_metrices , number_components]
-
-
-
-
-# #small testing 
-# path = os.path.join('downloads','UK_Frankfurt2','KGU-1D1840AEB676')
-# img_path = os.path.join(path,'image.nii.gz')
-# seg_path = os.path.join(path,'mask.nii.gz')
-# print(compute_metrics(img_path,seg_path))
-
-
-
-
-
-
-

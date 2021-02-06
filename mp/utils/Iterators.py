@@ -50,6 +50,16 @@ class Dataset_Iterator():
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     values = func(img,seg,**kwargs)
                     output.append(values)
+            if self.mode == 'normal':
+                names = set(file_name.split('.nii')[0].split('_gt')[0] 
+                            for file_name in os.listdir(path))
+                for name in names: 
+                    seg_path = os.path.join(self.data_path,name+'_gt.nii.gz')
+                    img_path = os.path.join(self.data_path,name+'.nii.gz')
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+                    values = func(img,seg,**kwargs)
+                    output.append(values)
         return output
     
     def iterate_components(self,func,threshold=10,**kwargs):
