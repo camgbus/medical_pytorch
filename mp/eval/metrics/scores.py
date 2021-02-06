@@ -89,3 +89,15 @@ class ScoreSpecificity(ScoreAbstract):
 class ScoreTNR(ScoreSpecificity):
     r"""True negative rate, equivalent to specificity."""
     pass
+
+class ScoreF1(ScoreAbstract):
+    r"""F1."""
+    def eval(self, tp, tn, fn, fp):
+        recall_f = ScoreRecall()
+        precision_f = ScorePrecision()
+        recall = recall_f.eval(tp, tn, fn, fp)
+        precision = precision_f.eval(tp, tn, fn, fp)
+        if precision + recall == 0:
+            return 0
+        f1 = 2*((precision*recall)/(precision+recall))
+        return f1
