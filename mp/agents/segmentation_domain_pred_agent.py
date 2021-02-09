@@ -12,13 +12,14 @@ from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDa
 from mp.eval.metrics.mean_scores import get_mean_scores
 
 
-class SegmentationDomainAgent(SegmentationAgent):
+class SegmentationDomainPredictionAgent(SegmentationAgent):
     r"""An Agent for segmentation models using a classifier for the domain space using the features from the encoder"""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, verbose_domain_pred=False, **kwargs):
         super().__init__(*args, **kwargs)
         # Bool used to select the right outputs in self.get_outputs
         self._outputs_are_domain_predictions = False
+        self.verbose_domain_pred = verbose_domain_pred
 
     def perform_stage1_training_epoch(self, optimizer,
                                       loss_f_classifier,
@@ -44,7 +45,7 @@ class SegmentationDomainAgent(SegmentationAgent):
 
                 # Forward pass for the classification and domain prediction
                 # Here we cannot use self.get_outputs(inputs)
-                classifier_output, domain_pred = self.model(inputs, detach=True)
+                classifier_output, domain_pred = self.model(inputs)
 
                 # Store losses and predictions
                 classifier_losses.append(loss_f_classifier(softmax(classifier_output), targets))
@@ -175,8 +176,8 @@ class SegmentationDomainAgent(SegmentationAgent):
             domain_preds = torch.cat(domain_preds, dim=0)
 
             domain_targets = self._create_domain_targets(data_lengths)
-
-            loss_dm = loss_f_domain_pred(domain_preds, domain_targets)
+            # Weird bug and weird fix: wrapping loss term in Variable
+            loss_dm = torch.autograd.Variable(loss_f_domain_pred(domain_preds, domain_targets), requires_grad=True)
             loss_dm.backward()
             optimizer_domain_predictor.step()
             acc.add("loss", float(loss_dm.detach().cpu()))
@@ -478,7 +479,7 @@ class SegmentationDomainAgent(SegmentationAgent):
                             value=eval_dict[metric_key]['mean'])
                 results.add(epoch=epoch, metric='Std_' + metric_key + "_DomPred", data=ds_name,
                             value=eval_dict[metric_key]['std'])
-            if self.verbose:
+            if self.verbose_domain_pred:
                 print('Epoch {} dataset {}'.format(epoch, ds_name))
                 for metric_key in eval_dict.keys():
                     print('{}: {}'.format(metric_key, eval_dict[metric_key]['mean']))

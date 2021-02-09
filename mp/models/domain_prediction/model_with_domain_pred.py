@@ -14,7 +14,7 @@ class FullModelWithDomainPred(Model):
     The encoding (product of the "encoder") can be the actual output of the UNet's encoder or the output of the decoder
     (depending on the paper)
     """
-    def forward(self, x, detach=False):
+    def forward(self, x):
         r"""Return the output of a model (main head) and its attached domain predictor:
         classification, domain prediction"""
         raise NotImplementedError

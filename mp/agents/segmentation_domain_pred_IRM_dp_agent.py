@@ -1,6 +1,6 @@
 import torch
 
-from mp.agents.segmentation_domain_pred_agent import SegmentationDomainAgent
+from mp.agents.segmentation_domain_pred_agent import SegmentationDomainPredictionAgent
 from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDatasetWrapper
 from mp.eval.accumulator import Accumulator
 from mp.eval.inference.predict import softmax
@@ -9,10 +9,10 @@ from mp.utils.early_stopping import EarlyStopping
 from mp.utils.helper_functions import zip_longest_with_cycle
 
 
-class SegmentationDomainIRMAgent(SegmentationDomainAgent):
+class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
     r"""
     An Agent for segmentation models using a classifier for the domain space using the features from the encoder.
-    Uses IRM training schedule for the domain predictor head during stages 1 and 3.
+    Uses IRM on the domain predictor. Lambda's value is updates during sub-stages 1.2 and 3.2.
     """
 
     def perform_stage1_training_epoch(self, optimizer,
@@ -41,7 +41,7 @@ class SegmentationDomainIRMAgent(SegmentationDomainAgent):
 
                 # Forward pass for the classification and domain prediction
                 # Here we cannot use self.get_outputs(inputs)
-                classifier_output, domain_pred = self.model(inputs, detach=True)
+                classifier_output, domain_pred = self.model(inputs)
 
                 # Store losses and predictions
                 classifier_losses.append(loss_f_classifier(softmax(classifier_output), targets))

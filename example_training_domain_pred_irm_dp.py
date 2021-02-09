@@ -12,7 +12,7 @@ import torch
 import torch.optim as optim
 from torch.utils.data import DataLoader
 
-from mp.agents.segmentation_domain_pred_IRM_agent import SegmentationDomainIRMAgent
+from mp.agents.segmentation_domain_pred_IRM_dp_agent import SegmentationDomainPredictionIRMAgent
 from mp.data.data import Data
 from mp.data.datasets.ds_mr_hippocampus_decathlon import DecathlonHippocampus
 from mp.data.datasets.ds_mr_hippocampus_dryad import DryadHippocampus
@@ -32,7 +32,7 @@ from mp.visualization.plot_results import plot_results
 
 warnings.filterwarnings("ignore")
 
-# 4. Define data
+# 2. Define data
 data = Data()
 decath = DecathlonHippocampus(merge_labels=True)
 data.add_dataset(decath)
@@ -43,33 +43,20 @@ data.add_dataset(dryad)
 nr_labels = data.nr_labels
 label_names = data.label_names
 
+
+# 3. Define configuration
 configs = [
-    {'experiment_name': 'harp_dryad_mri_aug_irmv1', 'device': 'cuda:0',
+    {'experiment_name': 'decath_harp_hybrid_aug_irmv1', 'device': 'cuda:0',
      'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
-     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
-     'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
+     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
+     'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [8, 8],
      "beta": 10, "penalty_weight": 1e5,
      "loss": "irmv1", "eval_interval": 10,
-     "train_ds_names": (harp.name, dryad.name)
-     },
-    {'experiment_name': 'harp_dryad_mri_aug_vrex', 'device': 'cuda:0',
-     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
-     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
-     'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-     "beta": 10, "penalty_weight": 1e3,
-     "loss": "vrex", "eval_interval": 10,
-     "train_ds_names": (harp.name, dryad.name)
-     },
-    {'experiment_name': 'harp_dryad_mri_aug_vrex2', 'device': 'cuda:0',
-     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
-     'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
-     'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
-     "beta": 10, "penalty_weight": 1e5,
-     "loss": "vrex", "eval_interval": 10,
-     "train_ds_names": (harp.name, dryad.name)
+     "train_ds_names": (decath.name, harp.name),
      },
 ]
 
+# 4. Pre-split datasets to avoid having the "Repetition k i of j" messages spammed at each experiment's start
 for config in configs:
     exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
     exp.set_data_splits(data)
@@ -78,21 +65,21 @@ for config in configs:
     print(config["experiment_name"])
     device = config['device']
     device_name = torch.cuda.get_device_name(device)
-    # print('Device name: {}'.format(device_name))
+
     input_shape = config['input_shape']
     train_ds_names = config["train_ds_names"]
 
-    # 3. Create experiment directories
+    # 5. Create experiment directories
     exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
 
-    # 5. Create data splits for each repetition
+    # 6. Create data splits for each repetition
     exp.set_data_splits(data)
 
     # Now repeat for each repetition
-    for run_ix in range(config['nr_runs']):
+    for run_ix in range(config.get("start", 0), config['nr_runs']):
         exp_run = exp.get_run(run_ix)
 
-        # 6. Bring data to Pytorch format
+        # 7. Bring data to Pytorch format
         datasets = dict()
         for ds_name, ds in data.datasets.items():
             # 2 cases: either the dataset's name is in train_ds_names
@@ -110,15 +97,11 @@ for config in configs:
                                                                   ix_lst=None, size=input_shape, aug_key="none",
                                                                   resize=config['resize'])
 
-        # 7. Build train dataloader, and visualize
-        # ds_lengths = [len(datasets[name, "train"]) for name in train_ds_names]
-        # total_length = sum(ds_lengths)
-        # dls = [DataLoader(datasets[name, "train"], batch_size=config['batch_size'] * length // total_length, shuffle=True)
-        #        for name, length in zip(train_ds_names, ds_lengths)]
+        # 8. Build train dataloader, and visualize
         dls = [DataLoader(datasets[name, "train"], batch_size=length, shuffle=True)
                for name, length in zip(train_ds_names, config['batch_sizes'])]
 
-        # 8. Initialize model
+        # 9. Initialize model
         unet = UNet3D(input_shape, nr_labels)
         unet.to(device)
 
@@ -128,11 +111,11 @@ for config in configs:
         model = UNetWithDomainPred(unet, domain_predictor, input_shape, (2,))
         model.to(device)
 
-        # 9. Define loss and optimizer
+        # 10. Define loss and optimizer
         loss_f_classifier = LossClassWeighted(LossDiceBCE(bce_weight=1., smooth=1., device=device),
-                                              weights=config["class_weights"])
+                                              weights=config["class_weights"], device=device)
 
-        erm_loss = LossBCE()
+        erm_loss = LossBCE(device=device)
         irm_losses = {"vrex": VRexLoss(erm_loss, device=device),
                       "mmrex": MMRexLoss(erm_loss, device=device),
                       "irmv1": IRMv1Loss(erm_loss, device=device),
@@ -140,7 +123,7 @@ for config in configs:
                       }
         loss_f_domain_predictor = irm_losses[config["loss"]]
 
-        loss_f_encoder = ConfusionLoss()
+        loss_f_encoder = ConfusionLoss(device=device)
         losses = [loss_f_classifier, loss_f_domain_predictor, loss_f_encoder]
 
         optimizer_stage1 = optim.Adam(model.parameters(), lr=config['lr'])
@@ -149,10 +132,10 @@ for config in configs:
         optimizer_encoder = optim.Adam(model.encoder_parameters(), lr=2e-5)
         optimizers = [optimizer_stage1, optimizer_model, optimizer_domain_predictor, optimizer_encoder]
 
-        # 10. Train model
+        # 11. Train model
         results = Result(name='training_trajectory')
-        agent = SegmentationDomainIRMAgent(model=model, label_names=label_names, device=device, metrics=["ScoreDice"],
-                                           verbose=True)
+        agent = SegmentationDomainPredictionIRMAgent(model=model, label_names=label_names, device=device, metrics=["ScoreDice"],
+                                                     verbose=True)
 
         early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_val" for name in train_ds_names])
         epochs = agent.train_with_early_stopping(results, optimizers, losses, train_dataloaders=dls,
@@ -162,11 +145,10 @@ for config in configs:
                                                  eval_datasets=datasets, eval_interval=config["eval_interval"],
                                                  save_path=exp_run.paths['states'],
                                                  beta=config["beta"], penalty_weight=config["penalty_weight"])
-        (stage1_1_epoch, stage1_2_epoch), stage2_epoch, (stage3_1_epoch, stage3_2_epoch) = epochs
         # Save the stage delimitations in the obj folder
         pkl_dump(epochs, "epochs.pkl", exp_run.paths['obj'])
 
-        # 11. Save and print results for this experiment run
+        # 12. Save and print results for this experiment run
         exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice[hippocampus]'],
                        plot_metrics_args={"axvlines": epochs})
         # Plotting in a separate file, because of seaborn's limited dashes style list
@@ -174,22 +156,3 @@ for config in configs:
                      save_name="domain_prediction_accuracy.png",
                      measures=["Mean_ScoreAccuracy_DomPred"],
                      axvlines=epochs)
-
-        # Outputs the results in csv format
-        # Stage 1: DICE scores and accuracy scores
-        dice = results.results["Mean_ScoreDice[hippocampus]"][stage1_2_epoch]
-        acc = results.results["Mean_ScoreAccuracy_DomPred"][stage1_2_epoch]
-        print("\t".join(f"{e:.3f}" for k, e in chain(dice.items(), acc.items())
-                        if k.endswith("_test")).replace(".", ","), end="")
-
-        # Stage 2: DICE scores and accuracy scores
-        dice = results.results["Mean_ScoreDice[hippocampus]"][stage2_epoch]
-        acc = results.results["Mean_ScoreAccuracy_DomPred"][stage2_epoch]
-        print("\t\t\t", end="")
-        print("\t".join(f"{e:.3f}" for k, e in chain(dice.items(), acc.items())
-                        if k.endswith("_test")).replace(".", ","), end="")
-
-        # Stage 3: accuracy scores
-        acc = results.results["Mean_ScoreAccuracy_DomPred"][stage3_2_epoch]
-        print("\t\t\t", end="")
-        print("\t".join(f"{e:.3f}" for k, e in acc.items() if k.endswith("_test")).replace(".", ","))

@@ -23,17 +23,16 @@ from mp.models.IRMGamesModel import IRMGamesModel
 
 
 # 2. Define configuration
-config = {'experiment_name': 'test_exp_not_decath4_firm_aug_many', 'device': 'cuda:0',
-          'nr_runs': 1, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'geometric',
-          'class_weights': (0., 1.), 'lr': 2e-4, 'batch_size': 22,
+config = {'experiment_name': 'test_exp_not_decath4_virm_aug_many', 'device': 'cuda:0',
+          'nr_runs': 5, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
+          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
+          'class_weights': (0., 1.), 'lr': 2e-4, 'batch_size': 20,
           "nr_epochs": 100,
           "eval_interval": 10
           }
 
 device = config['device']
 device_name = torch.cuda.get_device_name(device)
-print('Device name: {}'.format(device_name))
 input_shape = config['input_shape']
 
 # 3. Create experiment directories
@@ -88,7 +87,7 @@ for run_ix in range(config['nr_runs']):
     model = IRMGamesModel([UNet3D(input_shape, nr_labels) for _ in train_ds_names],
                           input_shape=input_shape,
                           output_shape=UNet3D(input_shape, nr_labels).output_shape,
-                          # representation_learner=UNet3D(input_shape, input_shape[0])
+                          representation_learner=UNet3D(input_shape, input_shape[0])
                           )
     model.to(device)
 

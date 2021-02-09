@@ -127,6 +127,7 @@ class UNet(SegmentationModel):
             x = self.monte_carlo_layer(x)
         return self.classifier(x)
 
+    # FIXME ugly and redundant but needed for domain classifier
     def encode(self, x):
         skip_connections, encoding = self.encoder(x)
         encoding = self.bottom_block(encoding)

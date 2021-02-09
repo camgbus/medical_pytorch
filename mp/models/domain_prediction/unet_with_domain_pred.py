@@ -23,10 +23,10 @@ class UNetWithDomainPred(FullModelWithDomainPred):
         self.unet = unet
         self.domain_predictor = domain_predictor
 
-    def forward(self, x, detach=False):
+    def forward(self, x):
         features = self.get_features_from_encoder(x)
         return self.get_classification_from_features(features), \
-               self.get_domain_prediction_from_features(features.detach() if detach else features)
+               self.get_domain_prediction_from_features(features)
 
     def get_features_from_encoder(self, x):
         return self.unet.encode(x)

@@ -22,9 +22,9 @@ from mp.data.datasets.ds_mr_hippocampus_harp import HarP
 
 # 2. Define configuration
 
-config = {'experiment_name': 'test_exp_dryad4_aug', 'device': 'cuda:0',
-          'nr_runs': 2, 'cross_validation': False, 'val_ratio': 0.0, 'test_ratio': 0.3,
-          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'geometric',
+config = {'experiment_name': 'test_harp', 'device': 'cuda:0',
+          'nr_runs': 2, 'cross_validation': False, 'val_ratio': 0.1, 'test_ratio': 0.3,
+          'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'mri',
           'class_weights': (0., 1.), 'lr': 2e-4, 'batch_size': 32,
           "nr_epochs": 200,
           "eval_interval": 10
@@ -100,10 +100,3 @@ for run_ix in range(config['nr_runs']):
 
     # 11. Save and print results for this experiment run
     exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice[hippocampus]'])
-
-    metric = results.results["Mean_ScoreDice[hippocampus]"][max(results.results["Mean_ScoreDice[hippocampus]"])]
-    # Print the mean dice score for each dataset and train/test subset
-    for key in metric:
-        print(f"{key}: {metric[key]:.3f}")
-    # Print the final result in a csv format for easy copy-pasting to the spreadsheet
-    print("\t".join(f"{e:.3f}" for e in metric.values()).replace(".", ","))
