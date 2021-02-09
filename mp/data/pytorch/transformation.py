@@ -8,12 +8,12 @@ import torch.nn.functional as F
 import torchio
 from torchvision import transforms
 
-NORMALIZATION_STRATEGIES = {None:None,
-    'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1), percentiles=(0.1, 99.)),
-    'z_norm': torchio.transforms.ZNormalization(masking_method=None)
-    # TODO
-    # 'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
-}
+NORMALIZATION_STRATEGIES = {None: None,
+                            'rescaling': torchio.transforms.RescaleIntensity(out_min_max=(0, 1),
+                                                                             percentiles=(0.1, 99.)),
+                            'z_norm': torchio.transforms.ZNormalization(masking_method=None)
+                            # 'histogram_norm': torchio.transforms.HistogramStandardization(landmarks)
+                            }
 
 AUGMENTATION_STRATEGIES = {'none': None,
                            'standard': torchio.transforms.Compose([
@@ -90,7 +90,95 @@ AUGMENTATION_STRATEGIES = {'none': None,
                                torchio.transforms.RandomNoise(p=0.1,
                                                               mean=(0, 0),
                                                               std=(50, 50))
-                           ])
+                           ]),
+                           'mri125': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1 * 1.25,
+                                                    scales=(0.5 * 1.25, 1.5 * 1.25),
+                                                    degrees=int(5 * 1.25),
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline')
+                               ,
+                               torchio.transforms.RandomFlip(p=0.1 * 1.25,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1 * 1.25,
+                                                               degrees=int(10 * 1.25),
+                                                               translation=int(10 * 1.25),
+                                                               num_transforms=2),
+                               torchio.transforms.RandomBiasField(p=0.1 * 1.25,
+                                                                  coefficients=(0.5 * 1.25, 0.5 * 1.25),
+                                                                  order=3),
+                               torchio.transforms.RandomNoise(p=0.1 * 1.25,
+                                                              mean=(0, 0),
+                                                              std=(int(50 * 1.25), int(50 * 1.25)))
+                           ]),
+                           'mri150': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1 * 1.5,
+                                                    scales=(0.5 * 1.5, 1.5 * 1.5),
+                                                    degrees=int(5 * 1.5),
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline')
+                               ,
+                               torchio.transforms.RandomFlip(p=0.1 * 1.5,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1 * 1.5,
+                                                               degrees=int(10 * 1.5),
+                                                               translation=int(10 * 1.5),
+                                                               num_transforms=int(2 * 1.5)),
+                               torchio.transforms.RandomBiasField(p=0.1 * 1.25,
+                                                                  coefficients=(0.5 * 1.5, 0.5 * 1.5),
+                                                                  order=3),
+                               torchio.transforms.RandomNoise(p=0.1 * 1.5,
+                                                              mean=(0, 0),
+                                                              std=(int(50 * 1.25), int(50 * 1.25)))
+                           ]),
+                           'mri200': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1 * 2,
+                                                    scales=(0.5 * 2, 2 * 2),
+                                                    degrees=int(5 * 2),
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline')
+                               ,
+                               torchio.transforms.RandomFlip(p=0.1 * 2,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1 * 2,
+                                                               degrees=int(10 * 2),
+                                                               translation=int(10 * 2),
+                                                               num_transforms=int(2 * 2)),
+                               torchio.transforms.RandomBiasField(p=0.1 * 1.25,
+                                                                  coefficients=(0.5 * 2, 0.5 * 2),
+                                                                  order=3),
+                               torchio.transforms.RandomNoise(p=0.1 * 2,
+                                                              mean=(0, 0),
+                                                              std=(int(50 * 1.25), int(50 * 1.25)))
+                           ]),
+                           'mri300': torchio.transforms.Compose([
+
+                               torchio.RandomAffine(p=0.1 * 3,
+                                                    scales=(0.5 * 3, 3 * 3),
+                                                    degrees=int(5 * 3),
+                                                    isotropic=False,
+                                                    default_pad_value='otsu',
+                                                    image_interpolation='bspline')
+                               ,
+                               torchio.transforms.RandomFlip(p=0.1 * 3,
+                                                             axes=(1, 0, 0)),
+                               torchio.transforms.RandomMotion(p=0.1 * 3,
+                                                               degrees=int(10 * 3),
+                                                               translation=int(10 * 3),
+                                                               num_transforms=int(2 * 3)),
+                               torchio.transforms.RandomBiasField(p=0.1 * 1.25,
+                                                                  coefficients=(0.5 * 3, 0.5 * 3),
+                                                                  order=3),
+                               torchio.transforms.RandomNoise(p=0.1 * 3,
+                                                              mean=(0, 0),
+                                                              std=(int(50 * 1.25), int(50 * 1.25)))
+                           ]),
                            }
 
 
@@ -107,6 +195,7 @@ def per_label_channel(y, nr_labels, channel_dim=0, device='cpu'):
     target = torch.cat(masks, dim=channel_dim)
     return target
 
+
 def _one_output_channel_single(y):
     r"""Helper function."""
     channel_dim = 0
@@ -120,6 +209,7 @@ def _one_output_channel_single(y):
         target = torch.where(y[label_nr] == 1, label_nr_mask, target)
     return target
 
+
 def one_output_channel(y, channel_dim=0):
     r"""Inverses the operation of 'per_label_channel'. The output is 
     one-channelled. It is stricter than making a prediction because the content 
@@ -131,6 +221,7 @@ def one_output_channel(y, channel_dim=0):
     batch = [_one_output_channel_single(x) for x in y]
     return torch.stack(batch, dim=0)
 
+
 def resize_2d(img, size=(1, 128, 128), label=False):
     r"""2D resize."""
     img.unsqueeze_(0)  # Add additional batch dimension so input is 4D
@@ -141,6 +232,7 @@ def resize_2d(img, size=(1, 128, 128), label=False):
         img = F.interpolate(img, size=size[1:], mode='bilinear')
     return img[0]
 
+
 def resize_3d(img, size=(1, 56, 56, 56), label=False):
     r"""3D resize."""
     img.unsqueeze_(0)  # Add additional batch dimension so input is 5D
@@ -150,6 +242,7 @@ def resize_3d(img, size=(1, 56, 56, 56), label=False):
     else:
         img = F.interpolate(img, size=size[1:], mode='trilinear')
     return img[0]
+
 
 def centre_crop_pad_2d(img, size=(1, 128, 128)):
     r"""Center-crops to the specified size, unless the image is to small in some
@@ -163,6 +256,7 @@ def centre_crop_pad_2d(img, size=(1, 128, 128)):
     img = torch.squeeze(img, -1)
     return img
 
+
 def centre_crop_pad_3d(img, size=(1, 56, 56, 56)):
     r"""Center-crops to the specified size, unless the image is to small in some
     dimension, then padding takes place. For 3D data.
@@ -172,11 +266,12 @@ def centre_crop_pad_3d(img, size=(1, 56, 56, 56)):
     img = transform(img.cpu()).to(device)
     return img
 
+
 def pad_3d_if_required(instance, size):
     r"""Pads if required in the last dimension, for 3D.
     """
     if instance.shape[-1] < size[-1]:
-        delta = size[-1]-instance.shape[-1]
+        delta = size[-1] - instance.shape[-1]
         subject = instance.get_subject()
         transform = torchio.transforms.Pad(padding=(0, 0, 0, 0, 0, delta), padding_mode=0)
         subject = transform(subject)
@@ -185,7 +280,9 @@ def pad_3d_if_required(instance, size):
         instance.shape = subject.shape
     return instance
 
+
 from torchvision import transforms
+
 
 def torchvision_rescaling(x, size=(3, 224, 224), resize=False):
     r"""To use pretrained torchvision models, three-channeled 2D images must 
@@ -205,11 +302,11 @@ def torchvision_rescaling(x, size=(3, 224, 224), resize=False):
     if resize:
         transform_ops.append(transforms.Resize(size=(size[1], size[2])))
     else:
-        transform_ops.append(transforms.CenterCrop(size=(size[1], size[2])))   
-    # Apply pre-defined normalization 
+        transform_ops.append(transforms.CenterCrop(size=(size[1], size[2])))
+        # Apply pre-defined normalization
     transform_ops.append(transforms.ToTensor())
     transform_ops.append(transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                 std=[0.229, 0.224, 0.225]))
+                                              std=[0.229, 0.224, 0.225]))
     # Apply transform operation
     transform = transforms.Compose(transform_ops)
     imgs = []
