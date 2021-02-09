@@ -3,6 +3,7 @@ from mp.eval.accumulator import Accumulator
 from mp.eval.losses.losses_irm import IRMLossAbstract
 from mp.utils.helper_functions import zip_longest_with_cycle
 from mp.utils.early_stopping import EarlyStopping
+from mp.eval.losses.losses_irm import ERMWrapper
 
 
 class SegmentationIRMAgent(SegmentationAgent):
@@ -50,7 +51,7 @@ class SegmentationIRMAgent(SegmentationAgent):
 
         Args:
             irm_loss_f (IRMLossAbstract): the IRM loss
-            train_dataloaders (list): a list of Dataloaders
+            train_dataloaders (list): a list of Dataloader
         """
         if eval_datasets is None:
             eval_datasets = dict()
@@ -131,5 +132,11 @@ class SegmentationIRMAgent(SegmentationAgent):
 
             # Update the penalty weight for the IRM loss at the end of the first stage
             irm_loss_f.penalty_weight = penalty_weight
+
+            if isinstance(irm_loss_f, ERMWrapper):
+                stages_last_epoch[1] = epoch + 1
+                break
+
+            epoch += 1
 
         return tuple(stages_last_epoch)

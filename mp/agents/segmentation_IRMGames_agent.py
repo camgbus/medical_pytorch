@@ -62,7 +62,7 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
         Args:
             optimizers (list): a list of optimizers (one for each DL)
             loss_f (LossAbstract): the loss
-            train_dataloaders (list): a list of Dataloaders
+            train_dataloaders (list): a list of Dataloader
         """
 
         # Model must be an IRMGamesModel and the nb of optimizers / Dataloaders must match the number of sub-models
@@ -92,6 +92,8 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
         r"""Saves an agent state. Raises an error if the directory exists and
         overwrite=False.
         """
+        # This is here because we need to save multiple optimizers
+
         if states_path is not None:
             # We take care of saving the optimizers ourselves
             super().save_state(states_path, state_name)
@@ -105,8 +107,10 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
         state and the content of agent_state_dict. Returns whether the restore
         operation  was successful.
         """
+        # This is here because we need to restore multiple optimizers
+
         try:
-            # We take care of saving the optimizers ourselves
+            # We take care of restoring the optimizers ourselves
             if not super().restore_state(states_path, state_name):
                 return False
 
