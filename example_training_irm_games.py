@@ -94,9 +94,10 @@ for config in configs:
                for name, length in zip(train_ds_names, config['batch_sizes'])]
 
         # 9. Initialize model
-        model = IRMGamesModel([UNet3D(input_shape, nr_labels) for _ in train_ds_names],
+        ensemble = [UNet3D(input_shape, nr_labels) for _ in train_ds_names]
+        model = IRMGamesModel(ensemble,
                               input_shape=input_shape,
-                              output_shape=UNet3D(input_shape, nr_labels).output_shape,
+                              output_shape=ensemble[0].output_shape,
                               representation_learner=UNet3D(input_shape, input_shape[0])
                               )
         model.to(device)

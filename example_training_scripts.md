@@ -61,3 +61,14 @@ and IRM terms in the paper. The IRM loss function can be selected using the `los
 values: `"erm"`, `"irmv1"`, `"vrex"`, `"mmrex"`.
 
 For scripts containing `_domain_pred` in their name, `beta` is the scalar in front of the encoder confusion-loss term.
+
+## Script-specific model wrappers
+
+The scripts for IRM Games and Domain Prediction require the base model to be wrapped.
+
+In the case of IRM Games, we are training an ensemble of models using a `IRMGamesModel` object as a wrapper.
+It takes as input a list of models (same length as the number of training datasets).
+
+Scripts doing **Domain Prediction** require the model's class to inherit from the interface `FullModelWithDomainPred`.
+This allows to access each a of the parts of the architecture (encoder, segmentor and domain predictor) individually.
+An example of such a class can be found in `mp/models/domain_prediction/unet_with_domain_pred.py`.
