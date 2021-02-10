@@ -1,6 +1,6 @@
 # ------------------------------------------------------------------------------
-# The same code as in example_training.ipynp but as a python module instead of 
-# jupyter notebook. See that file for more detailed explanations.
+# This file (and it siblings) is explained in more details in
+# example_training_scripts.md
 # ------------------------------------------------------------------------------
 
 # 1. Imports
