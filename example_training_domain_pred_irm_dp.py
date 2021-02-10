@@ -50,7 +50,7 @@ configs = [
      'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
      'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [8, 8],
-     "beta": 10, "penalty_weight": 1e5,
+     "penalty_weight": 1e5,
      "loss": "irmv1", "eval_interval": 10,
      "train_ds_names": (decath.name, harp.name),
      },
@@ -144,7 +144,8 @@ for config in configs:
                                                  run_loss_print_interval=config["eval_interval"],
                                                  eval_datasets=datasets, eval_interval=config["eval_interval"],
                                                  save_path=exp_run.paths['states'],
-                                                 beta=config["beta"], penalty_weight=config["penalty_weight"])
+                                                 alpha=config.get("alpha", 1.0),
+                                                 penalty_weight=config["penalty_weight"])
         # Save the stage delimitations in the obj folder
         pkl_dump(epochs, "epochs.pkl", exp_run.paths['obj'])
 

@@ -19,6 +19,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
                                       loss_f_classifier,
                                       irm_loss_f_domain_pred,
                                       train_dataloaders,
+                                      alpha,
                                       print_run_loss=False):
         r"""Perform a stage 1 training epoch,
         meaning that the encoder, classifier and domain predictor are all trained together
@@ -58,7 +59,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
             # Optimization step
             optimizer.zero_grad()
             loss = torch.stack(classifier_losses, dim=0).mean() + \
-                   irm_loss_f_domain_pred.finalize_loss(domain_pred_losses, domain_pred_penalties)
+                   alpha * irm_loss_f_domain_pred.finalize_loss(domain_pred_losses, domain_pred_penalties)
 
             loss.backward()
             optimizer.step()
@@ -121,7 +122,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
               init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
               eval_datasets=None, eval_interval=10,
               save_path=None, save_interval=10,
-              beta=10., penalty_weight=1e5, stage1_epochs=100):
+              alpha=1.0, beta=10., penalty_weight=1e5, stage1_epochs=100):
         # TODO maybe implement this later
         # The reason why this is not implemented is that the user would need to give a few more hyper-parameters
         # in the form of how many epochs should each stage of IRM training last, given that there are 2 IRM trainings
@@ -134,7 +135,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
                                   run_loss_print_interval=10,
                                   eval_datasets=None, eval_interval=10,
                                   save_path=None,
-                                  beta=10., penalty_weight=1e5):
+                                  alpha=1.0, beta=10., penalty_weight=1e5):
         r"""Train a model through its agent. Performs training epochs,
         tracks metrics and saves model states.
 
@@ -200,6 +201,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
                                                loss_f_classifier,
                                                irm_loss_f_domain_pred,
                                                train_dataloaders,
+                                               alpha,
                                                print_run_loss=print_run_loss)
             keep_going = track_if_needed(early_stopping)
             if not keep_going:

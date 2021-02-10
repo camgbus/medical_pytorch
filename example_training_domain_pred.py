@@ -140,6 +140,7 @@ for config in configs:
                                                  run_loss_print_interval=config["eval_interval"],
                                                  eval_datasets=datasets, eval_interval=config["eval_interval"],
                                                  save_path=exp_run.paths['states'],
+                                                 alpha=config.get("alpha", 1.0),
                                                  beta=config["beta"])
         # Save the stage delimitations in the obj folder
         pkl_dump(epochs, "epochs.pkl", exp_run.paths['obj'])

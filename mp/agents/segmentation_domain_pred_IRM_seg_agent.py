@@ -20,6 +20,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
                                       irm_loss_f_classifier,
                                       loss_f_domain_pred,
                                       train_dataloaders,
+                                      alpha,
                                       print_run_loss=False):
         r"""Perform a stage 1 training epoch,
         meaning that the encoder, classifier and domain predictor are all trained together
@@ -61,7 +62,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
             # Optimization step
             optimizer.zero_grad()
             loss = irm_loss_f_classifier.finalize_loss(classifier_losses, classifier_penalties) + \
-                   loss_f_domain_pred(domain_preds, domain_targets)
+                   alpha * loss_f_domain_pred(domain_preds, domain_targets)
 
             loss.backward()
             optimizer.step()
@@ -156,7 +157,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
                                   run_loss_print_interval=10,
                                   eval_datasets=None, eval_interval=10,
                                   save_path=None,
-                                  beta=10.):
+                                  alpha=1.0, beta=10.):
         r"""Train a model through its agent. Performs training epochs,
         tracks metrics and saves model states.
 
@@ -221,6 +222,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
                                                loss_f_classifier,
                                                loss_f_domain_pred,
                                                train_dataloaders,
+                                               alpha,
                                                print_run_loss=print_run_loss)
             keep_going = track_if_needed(early_stopping)
             if not keep_going:
