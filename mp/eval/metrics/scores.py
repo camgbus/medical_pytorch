@@ -62,7 +62,7 @@ class ScoreRecall(ScoreAbstract):
     r"""Recall."""
     def eval(self, tp, tn, fn, fp):
         if tp == 0:
-            if fp > 0:
+            if fn > 0:
                 return 0.
             else:
                 return 1.
