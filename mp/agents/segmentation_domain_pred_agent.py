@@ -178,8 +178,7 @@ class SegmentationDomainPredictionAgent(SegmentationAgent):
             domain_preds = torch.cat(domain_preds, dim=0)
 
             domain_targets = self._create_domain_targets(data_lengths)
-            # Weird bug and weird fix: wrapping loss term in Variable
-            loss_dm = torch.autograd.Variable(loss_f_domain_pred(domain_preds, domain_targets), requires_grad=True)
+            loss_dm = loss_f_domain_pred(domain_preds, domain_targets)
             loss_dm.backward()
             optimizer_domain_predictor.step()
             acc.add("loss", float(loss_dm.detach().cpu()))

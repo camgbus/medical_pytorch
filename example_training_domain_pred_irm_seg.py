@@ -120,13 +120,14 @@ for config in configs:
                       }
         loss_f_classifier = irm_losses[config["loss"]]
 
-        erm_loss = LossBCE(device=device)
-        irm_losses = {"vrex": VRexLoss(erm_loss, device=device),
-                      "mmrex": MMRexLoss(erm_loss, device=device),
-                      "irmv1": IRMv1Loss(erm_loss, device=device),
-                      "erm": ERMWrapper(erm_loss, device=device)
-                      }
-        loss_f_domain_predictor = irm_losses[config["loss"]]
+        # erm_loss = LossBCE(device=device)
+        # irm_losses = {"vrex": VRexLoss(erm_loss, device=device),
+        #               "mmrex": MMRexLoss(erm_loss, device=device),
+        #               "irmv1": IRMv1Loss(erm_loss, device=device),
+        #               "erm": ERMWrapper(erm_loss, device=device)
+        #               }
+        # loss_f_domain_predictor = irm_losses[config["loss"]]
+        loss_f_domain_predictor = LossBCE(device=device)
 
         loss_f_encoder = ConfusionLoss(device=device)
         losses = [loss_f_classifier, loss_f_domain_predictor, loss_f_encoder]

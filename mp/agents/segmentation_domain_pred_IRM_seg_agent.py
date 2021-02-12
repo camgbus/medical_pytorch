@@ -128,8 +128,7 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
             domain_targets = self._create_domain_targets(data_lengths)
             domain_pred._requires_grad = True
 
-            # Weird bug and weird fix: wrapping loss term in Variable
-            loss_dm = torch.autograd.Variable(loss_f_domain_pred(domain_pred, domain_targets), requires_grad=True)
+            loss_dm = loss_f_domain_pred(domain_pred, domain_targets)
             loss_dm.backward(retain_graph=False)
             optimizer_domain_predictor.step()
 
@@ -181,83 +180,8 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
         irm_loss_f_classifier, _, _ = losses
         irm_loss_f_classifier.penalty_weight = 1.
 
-        # return super().train_with_early_stopping(results, optimizers, losses, train_dataloaders, train_dataset_names,
-        #                                          early_stopping, init_epoch=init_epoch,
-        #                                          run_loss_print_interval=run_loss_print_interval,
-        #                                          eval_datasets=eval_datasets, eval_interval=eval_interval,
-        #                                          save_path=save_path, beta=beta)
-
-        def track_if_needed(early_stopping_criterion):
-            # Track statistics in results object at interval and returns whether training should keep going
-            if (epoch + 1) % eval_interval == 0:
-                self.track_metrics(epoch + 1, results, loss_f_classifier, eval_datasets)
-                self.track_domain_prediction_accuracy(epoch + 1, results, train_datasets_wrappers)
-                return early_stopping_criterion.check_results(results, epoch + 1)
-
-            return True
-
-        stage1_optimizer, optimizer_model, optimizer_domain_predictor, optimizer_encoder = optimizers
-
-        if eval_datasets is None:
-            eval_datasets = dict()
-
-        # Creating the wrappers for the datasets
-        train_datasets_wrappers = {
-            key: DomainPredictionDatasetWrapper(eval_datasets[key], train_dataset_names.index(key[0]))
-            for key in eval_datasets if key[0] in train_dataset_names}
-
-        loss_f_classifier, loss_f_domain_pred, loss_f_encoder = losses
-        early_stopping.reset_counter()
-
-        # Tracking metrics at step 0
-        epoch = stage1_last_epoch = stage2_last_epoch = stage3_last_epoch = init_epoch
-        self.track_metrics(epoch, results, loss_f_classifier, eval_datasets)
-        self.track_domain_prediction_accuracy(epoch, results, train_datasets_wrappers)
-
-        # Stage 1
-        for epoch in range(epoch, 1 << 32):
-            print_run_loss = (epoch + 1) % run_loss_print_interval == 0 and self.verbose
-
-            self.perform_stage1_training_epoch(stage1_optimizer,
-                                               loss_f_classifier,
-                                               loss_f_domain_pred,
-                                               train_dataloaders,
-                                               alpha,
-                                               print_run_loss=print_run_loss)
-            keep_going = track_if_needed(early_stopping)
-            if not keep_going:
-                stage1_last_epoch = epoch + 1
-                if save_path is not None:
-                    self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-                                    stage1_optimizer,
-                                    optimizer_model,
-                                    optimizer_domain_predictor,
-                                    optimizer_encoder)
-                break
-
-        # Stage 2
-        early_stopping.reset_counter()
-        for epoch in range(epoch + 1, 1 << 32):
-            print_run_loss = (epoch + 1) % run_loss_print_interval == 0 and self.verbose
-
-            self.perform_stage2_training_epoch(optimizer_model,
-                                               optimizer_domain_predictor,
-                                               optimizer_encoder,
-                                               loss_f_classifier,
-                                               loss_f_domain_pred,
-                                               loss_f_encoder,
-                                               train_dataloaders,
-                                               beta,
-                                               print_run_loss=print_run_loss)
-            keep_going = track_if_needed(early_stopping)
-            if not keep_going:
-                stage2_last_epoch = epoch + 1
-                if save_path is not None:
-                    self.save_state(save_path, 'epoch_{}'.format(epoch + 1),
-                                    stage1_optimizer,
-                                    optimizer_model,
-                                    optimizer_domain_predictor,
-                                    optimizer_encoder)
-                break
-
-        return stage1_last_epoch, stage2_last_epoch, stage2_last_epoch
+        return super().train_with_early_stopping(results, optimizers, losses, train_dataloaders, train_dataset_names,
+                                                 early_stopping, init_epoch=init_epoch,
+                                                 run_loss_print_interval=run_loss_print_interval,
+                                                 eval_datasets=eval_datasets, eval_interval=eval_interval,
+                                                 save_path=save_path, beta=beta)

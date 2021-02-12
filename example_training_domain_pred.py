@@ -49,7 +49,7 @@ configs = [
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
      'class_weights': (0., 1.), 'lr': 2e-4, 'batch_sizes': [13, 3],
      "beta": 10,
-     "loss": "erm", "eval_interval": 10,
+     "eval_interval": 10,
      "train_ds_names": (harp.name, dryad.name)
      },
 ]
