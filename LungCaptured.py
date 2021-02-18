@@ -205,7 +205,7 @@ def FRA(source_path, target_path, gpu=True, cuda=7):
 		result[filename] = [discard, tlc, start_seg_idx, end_seg_idx]
 	
 	# Save dict
-	pkl_dump(result, 'Decathlon', path=target_path)
+	pkl_dump(result, 'FRA', path=target_path)
 
 
 if __name__ == '__main__':
