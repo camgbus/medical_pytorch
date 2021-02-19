@@ -7,16 +7,24 @@ from mp.utils.load_restore import pkl_dump
 from mp.paths import storage_data_path
 import mp.data.datasets.dataset_utils as du
 
-def CheckWholeLungCaptured(input_path, target_path, gpu=False, cuda=0):
+def LungSegmentation(input_path, target_path, gpu=False, cuda=0):
+
 	# Load ct scan and create segmentation
 	input_image = sitk.ReadImage(input_path)
-	file_name = input_path.split('/')[-1].split('.nii')[0]
 	segmentation = mask.apply(image=input_image, gpu=gpu, cuda=cuda)  # default model is U-net(R231)
-	sitk.WriteImage(sitk.GetImageFromArray(segmentation), os.path.join(target_path, file_name+"_lung_seg.nii.gz"))
+
 	# load alternative models
 	# model = mask.get_model('unet','LTRCLobes')
 	# segmentation = mask.apply(input_image, model)
 
+	file_name = input_path.split('/')[-1].split('.nii')[0]
+	sitk.WriteImage(sitk.GetImageFromArray(segmentation), os.path.join(target_path, file_name+"_lung_seg.nii.gz"))
+	sitk.WriteImage(input_image, os.path.join(target_path, file_name+".nii.gz"))
+
+	return segmentation
+
+def calculateSegmentationVolume(original_file_path, scan_np):
+	# If a pixel is segmented, the volume is voxel space (x * y * z) --> Remember scaling if scl_slope field in original image is nonzero
 	reader = sitk.ImageFileReader()
 	reader.SetFileName(original_file_path)
 	reader.LoadPrivateTagsOn()
@@ -25,7 +33,12 @@ def CheckWholeLungCaptured(input_path, target_path, gpu=False, cuda=0):
 	voxel_x = float(reader.GetMetaData('pixdim[1]'))
 	voxel_y = float(reader.GetMetaData('pixdim[2]'))
 	voxel_z = float(reader.GetMetaData('pixdim[3]'))
-	voxel_unit = int(reader.GetMetaData('xyzt_units')) # if 10, this indicated mm and seconds
+	try:
+		# If 10, this indicated mm and seconds
+		voxel_unit = int(reader.GetMetaData('xyzt_units')) 
+	except:
+		# If error occurs, field is empty, so set to mm
+		voxel_unit = 10
 
 	scl_slope = float(reader.GetMetaData('scl_slope'))
 	scl_inter = float(reader.GetMetaData('scl_inter'))
@@ -36,10 +49,8 @@ def CheckWholeLungCaptured(input_path, target_path, gpu=False, cuda=0):
 				  * (scl_slope * voxel_z + scl_inter)
 	else:
 		voxel_vol = voxel_x * voxel_y * voxel_z
-
-	# Calculate segmentation volume based on voxel_vol
-	scan_np = sitk.GetArrayFromImage(segmentation)
  
+	# Calculate segmentation volume based on voxel_vol
     # Determine start index and end index of segmentation (0-based)
     # --> Start and end point of Lung
 	start_seg = True
@@ -85,29 +96,27 @@ def CheckWholeLungCaptured(input_path, target_path, gpu=False, cuda=0):
 
 	return discard, segmentation_volume, start_seg_idx, end_seg_idx
 
+def CheckWholeLungCaptured(input_path, target_path, gpu=False, cuda=0):
+	scan_np = LungSegmentation(input_path, target_path, gpu, cuda)
+	discard, segmentation_volume, start_seg_idx, end_seg_idx = calculateSegmentationVolume(input_path, scan_np)
+
+	return discard, segmentation_volume, start_seg_idx, end_seg_idx
+
 
 """Grand Chalenge Data"""
 def GC(source_path, target_path, gpu=True, cuda=7):
-    r"""Extracts MRI images and saves the modified images."""
-    images_path = os.path.join(source_path, 'Train')
+	r"""Extracts MRI images and saves the modified images."""
+	# Filenames have the form 'volume-covid19-A-XXXX_ct.nii'
+	filenames = [x for x in os.listdir(source_path) if 'covid19' in x
+					and '_seg' not in x and '._' not in x]
 
-    # Filenames have the form 'volume-covid19-A-XXXX_ct.nii'
-    filenames = [x for x in os.listdir(images_path) if 'covid19' in x
-                 and '_seg' not in x and '._' not in x]
-
-    # Create directories if not existing
-    if not os.path.isdir(target_path):
-        os.makedirs(target_path)
+	# Create directories if not existing
+	if not os.path.isdir(target_path):
+		os.makedirs(target_path)
 
 	result = dict()
-    for num, filename in enumerate(filenames):
-        msg = "Loading SimpleITK images and resizing them: "
-        msg += str(num + 1) + " of " + str(len(filenames)) + "."
-        print (msg, end = "\r")
-        # Extract all images (3D)
-        x = sitk.ReadImage(os.path.join(images_path, filename))
-        
-		discard, tlc, start_seg_idx, end_seg_idx = CheckWholeLungCaptured(os.path.join(images_path, filename), target_path, gpu, cuda)
+	for num, filename in enumerate(filenames):
+		discard, tlc, start_seg_idx, end_seg_idx = CheckWholeLungCaptured(os.path.join(source_path, filename), target_path, gpu, cuda)
 		
 		if not discard:
 			print("Based on start index of the segmentation {} and the end index of the segmentation {}, the whole lung should be captured.".format(start_seg_idx, end_seg_idx))
@@ -129,24 +138,18 @@ def GC(source_path, target_path, gpu=True, cuda=7):
 
 """Decathlon Lung Data"""
 def Decathlon(source_path, target_path, gpu=True, cuda=7):
-    r"""Extracts MRI images and saves the modified images."""
-    images_path = os.path.join(source_path, 'imagesTr')
+	r"""Extracts MRI images and saves the modified images."""
+	images_path = os.path.join(source_path, 'imagesTr')
 
-    # Filenames have the form 'lung_XXX.nii.gz'
-    filenames = [x for x in os.listdir(images_path) if x[:4] == 'lung']
+	# Filenames have the form 'lung_XXX.nii.gz'
+	filenames = [x for x in os.listdir(images_path) if x[:4] == 'lung']
 
-    # Create directories if not existing
-    if not os.path.isdir(target_path):
-        os.makedirs(target_path)
+	# Create directories if not existing
+	if not os.path.isdir(target_path):
+		os.makedirs(target_path)
 
 	result = dict()
-    for num, filename in enumerate(filenames):
-        msg = "Loading SimpleITK images and resizing them: "
-        msg += str(num + 1) + " of " + str(len(filenames)) + "."
-        print (msg, end = "\r")
-        # Extract all images (3D)
-        x = sitk.ReadImage(os.path.join(images_path, filename))
-        
+	for num, filename in enumerate(filenames):		
 		discard, tlc, start_seg_idx, end_seg_idx = CheckWholeLungCaptured(os.path.join(images_path, filename), target_path, gpu, cuda)
 		
 		if not discard:
@@ -162,33 +165,27 @@ def Decathlon(source_path, target_path, gpu=True, cuda=7):
 
 
 		result[filename] = [discard, tlc, start_seg_idx, end_seg_idx]
-	
+
 	# Save dict
 	pkl_dump(result, 'Decathlon', path=target_path)
 
 
 """Frankfurt Uniklinik Data"""
 def FRA(source_path, target_path, gpu=True, cuda=7):
-    r"""Extracts MRI images and saves the modified images."""
-    images_path = source_path
+	r"""Extracts MRI images and saves the modified images."""
+	images_path = source_path
 
-    # Filenames are provided in foldernames: patient_id/images.nii.gz
-    filenames = set(file_name for file_name in os.listdir(images_path)
-                    if file_name[:1] != '.')
-                    
-    # Create directories if not existing
-    if not os.path.isdir(target_path):
-        os.makedirs(target_path)
+	# Filenames are provided in foldernames: patient_id/images.nii.gz
+	filenames = set(file_name for file_name in os.listdir(images_path)
+					if file_name[:1] != '.')
+					
+	# Create directories if not existing
+	if not os.path.isdir(target_path):
+		os.makedirs(target_path)
 
 	result = dict()
-    for num, filename in enumerate(filenames):
-        msg = "Loading SimpleITK images and resizing them: "
-        msg += str(num + 1) + " of " + str(len(filenames)) + "."
-        print (msg, end = "\r")
-        # Extract all images (3D)
-        x = sitk.ReadImage(os.path.join(images_path, filename))
-        
-		discard, tlc, start_seg_idx, end_seg_idx = CheckWholeLungCaptured(os.path.join(images_path, filename), target_path, gpu, cuda)
+	for num, filename in enumerate(filenames):
+		discard, tlc, start_seg_idx, end_seg_idx = CheckWholeLungCaptured(os.path.join(images_path, filename, 'image.nii.gz'), target_path, gpu, cuda)
 		
 		if not discard:
 			print("Based on start index of the segmentation {} and the end index of the segmentation {}, the whole lung should be captured.".format(start_seg_idx, end_seg_idx))
@@ -203,7 +200,7 @@ def FRA(source_path, target_path, gpu=True, cuda=7):
 
 
 		result[filename] = [discard, tlc, start_seg_idx, end_seg_idx]
-	
+
 	# Save dict
 	pkl_dump(result, 'FRA', path=target_path)
 
@@ -211,9 +208,14 @@ def FRA(source_path, target_path, gpu=True, cuda=7):
 if __name__ == '__main__':
 	# Extract necessary paths GC   
 	global_name = 'GC_Corona'
-	dataset_path = os.path.join(storage_data_path, global_name)
-	original_data_path = du.get_original_data_path(global_name)
-	print("Start with Grand Challenge dataset.")
+	dataset_path = os.path.join(storage_data_path, global_name, 'Train')
+	original_data_path = os.path.join(du.get_original_data_path(global_name), 'Train')
+	print("Start with Grand Challenge train dataset.")
+	GC(original_data_path, dataset_path)
+
+	dataset_path = os.path.join(storage_data_path, global_name, 'Validation')
+	original_data_path = os.path.join(du.get_original_data_path(global_name), 'Validation')
+	print("Start with Grand Challenge validation dataset.")
 	GC(original_data_path, dataset_path)
 
 	# Extract necessary paths Decathlon
