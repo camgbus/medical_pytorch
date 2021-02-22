@@ -128,7 +128,7 @@ def _extract_images(source_path, target_path, subset):
                 y = y[40: 104, 78: 142, 97: 145]
                 x_cropped = x[40: 104, 78: 142, 97: 145]
 
-            # Need to do move an axis as numpy coordinates are [z, y, x] ans SimpleITK's are [x, y, x]
+            # Need to do move an axis as numpy coordinates are [z, y, x] and SimpleITK's are [x, y, z]
             x_cropped = np.moveaxis(x_cropped, [0, 2], [2, 0])
 
             # Changing the study name if needed
