@@ -3,13 +3,14 @@ import os
 import torch
 
 from mp.agents.segmentation_agent import SegmentationAgent
+from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDatasetWrapper
 from mp.eval.accumulator import Accumulator
 from mp.eval.inference.predict import softmax
+from mp.eval.metrics.mean_scores import get_mean_scores
+from mp.utils.domain_prediction_utils import perform_stage1_training_epoch, perform_stage3_training_epoch
+from mp.utils.early_stopping import EarlyStopping
 from mp.utils.helper_functions import zip_longest_with_cycle
 from mp.utils.pytorch.pytorch_load_restore import save_optimizer_state, load_optimizer_state
-from mp.utils.early_stopping import EarlyStopping
-from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDatasetWrapper
-from mp.eval.metrics.mean_scores import get_mean_scores
 
 
 class SegmentationDomainPredictionAgent(SegmentationAgent):
@@ -33,41 +34,8 @@ class SegmentationDomainPredictionAgent(SegmentationAgent):
         Args:
             print_run_loss (bool): whether a running loss should be tracked and printed.
         """
-        acc = Accumulator('loss')
-        # For each batch
-        for data_list in zip_longest_with_cycle(*train_dataloaders):
-            classifier_losses = []
-            domain_preds = []
-            data_lengths = []  # Is used to produce the domain targets on the fly
-            # For each dataloader
-            for data in data_list:
-                # Get data
-                inputs, targets = self.get_inputs_targets(data)
-
-                # Forward pass for the classification and domain prediction
-                # Here we cannot use self.get_outputs(inputs)
-                classifier_output, domain_pred = self.model(inputs)
-
-                # Store losses and predictions
-                classifier_losses.append(loss_f_classifier(softmax(classifier_output), targets))
-                domain_preds.append(domain_pred)
-                data_lengths.append(inputs.shape[0])
-
-            # Domain prediction
-            domain_preds = softmax(torch.cat(domain_preds, dim=0))
-            domain_targets = self._create_domain_targets(data_lengths)
-
-            # Optimization step
-            optimizer.zero_grad()
-            loss = torch.stack(classifier_losses, dim=0).mean() + \
-                   alpha * loss_f_domain_pred(domain_preds, domain_targets)
-
-            loss.backward()
-            optimizer.step()
-            acc.add('loss', float(loss.detach().cpu()))
-
-        if print_run_loss:
-            print('\nRunning loss: {}'.format(acc.mean('loss')))
+        return perform_stage1_training_epoch(self, optimizer, loss_f_classifier, loss_f_domain_pred, train_dataloaders,
+                                             alpha, print_run_loss=print_run_loss)
 
     def perform_stage2_training_epoch(self, optimizer_model,
                                       optimizer_domain_predictor,
@@ -154,37 +122,8 @@ class SegmentationDomainPredictionAgent(SegmentationAgent):
         Args:
             print_run_loss (bool): whether a running loss should be tracked and printed.
         """
-        acc = Accumulator('loss')
-        # For each batch
-        for data_list in zip_longest_with_cycle(*train_dataloaders):
-            domain_preds = []
-            data_lengths = []  # Is used to produce the domain targets on the fly
-            # For each dataloader
-            for data in data_list:
-                # Get data
-                inputs, targets = self.get_inputs_targets(data)
-
-                # Forward pass for the domain prediction
-                # Here we cannot use self.get_outputs(inputs)
-                feature = self.model.get_features_from_encoder(inputs).detach()
-                domain_pred = softmax(self.model.get_domain_prediction_from_features(feature))
-
-                # Store losses and predictions
-                domain_preds.append(domain_pred)
-                data_lengths.append(inputs.shape[0])
-
-            # Domain Predictor Optimization step
-            optimizer_domain_predictor.zero_grad()
-            domain_preds = torch.cat(domain_preds, dim=0)
-
-            domain_targets = self._create_domain_targets(data_lengths)
-            loss_dm = loss_f_domain_pred(domain_preds, domain_targets)
-            loss_dm.backward()
-            optimizer_domain_predictor.step()
-            acc.add("loss", float(loss_dm.detach().cpu()))
-
-        if print_run_loss:
-            print('\nRunning loss: {}'.format(acc.mean('loss')))
+        return perform_stage3_training_epoch(self, optimizer_domain_predictor, loss_f_domain_pred,
+                                             train_dataloaders, print_run_loss=False)
 
     def train(self, results,
               optimizers,

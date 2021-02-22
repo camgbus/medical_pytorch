@@ -1,12 +1,8 @@
-import torch
-
 from mp.agents.segmentation_domain_pred_agent import SegmentationDomainPredictionAgent
 from mp.data.pytorch.domain_prediction_dataset_wrapper import DomainPredictionDatasetWrapper
-from mp.eval.accumulator import Accumulator
-from mp.eval.inference.predict import softmax
 from mp.eval.losses.losses_irm import IRMLossAbstract
+from mp.utils.domain_prediction_utils import perform_stage1_training_epoch
 from mp.utils.early_stopping import EarlyStopping
-from mp.utils.helper_functions import zip_longest_with_cycle
 
 
 # IRM training schedule with IRM on both heads
@@ -15,63 +11,6 @@ class SegmentationDomainPredictionIRMAgent(SegmentationDomainPredictionAgent):
     An Agent for segmentation models using a classifier for the domain space using the features from the encoder.
     Uses IRM on both heads. WARNING: follows IRM training schedule only (unlike other agents).
     """
-
-    def perform_stage1_training_epoch(self, optimizer,
-                                      irm_loss_f_classifier,
-                                      irm_loss_f_domain_pred,
-                                      train_dataloaders,
-                                      alpha,
-                                      print_run_loss=False):
-        r"""Perform a stage 1 training epoch,
-        meaning that the encoder, classifier and domain predictor are all trained together
-
-        Args:
-            irm_loss_f_classifier (IRMLossAbstract): the IRM loss function for the classifier
-            irm_loss_f_domain_pred (IRMLossAbstract): the IRM loss function for the domain predictor
-            print_run_loss (bool): whether a running loss should be tracked and printed.
-        """
-        acc = Accumulator('loss')
-        dl_cnt = len(train_dataloaders)
-        # For each batch
-        for data_list in zip_longest_with_cycle(*train_dataloaders):
-            classifier_losses = []
-            classifier_penalties = []
-            domain_pred_losses = []
-            domain_pred_penalties = []
-            # For each dataloader
-            for idx, data in enumerate(data_list):
-                # Get data
-                inputs, targets = self.get_inputs_targets(data)
-
-                # Forward pass for the classification and domain prediction
-                # Here we cannot use self.get_outputs(inputs)
-                classifier_output, domain_pred = self.model(inputs)
-
-                # Computing ERM and IRM terms for classification
-                classifier_output = softmax(classifier_output)
-                classifier_losses.append(irm_loss_f_classifier.erm(classifier_output, targets))
-                classifier_penalties.append(irm_loss_f_classifier(classifier_output, targets))
-
-                # We create the domain targets
-                domain_targets = torch.zeros((inputs.shape[0], dl_cnt), dtype=targets.dtype).to(self.device)
-                domain_targets[:, idx] = 1
-                domain_pred_output = softmax(domain_pred)
-
-                # Computing ERM and IRM terms for domain prediction
-                domain_pred_losses.append(irm_loss_f_domain_pred.erm(domain_pred_output, domain_targets))
-                domain_pred_penalties.append(irm_loss_f_domain_pred(domain_pred_output, domain_targets))
-
-            # Optimization step
-            optimizer.zero_grad()
-            loss = irm_loss_f_classifier.finalize_loss(classifier_losses, classifier_penalties) + \
-                   alpha * irm_loss_f_domain_pred.finalize_loss(domain_pred_losses, domain_pred_penalties)
-
-            loss.backward()
-            optimizer.step()
-            acc.add('loss', float(loss.detach().cpu()))
-
-        if print_run_loss:
-            print('\nRunning loss: {}'.format(acc.mean('loss')))
 
     def train_with_early_stopping(self, results, optimizers, losses, train_dataloaders, train_dataset_names,
                                   early_stopping,

@@ -136,6 +136,8 @@ class SegmentationIRMAgent(SegmentationAgent):
             if isinstance(irm_loss_f, ERMWrapper):
                 stages_last_epoch[1] = epoch + 1
                 break
+            # Ignore 2nd training stage
+            break
 
             epoch += 1
 
