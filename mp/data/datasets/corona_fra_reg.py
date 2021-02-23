@@ -129,14 +129,15 @@ class FraCoronaDataset(RegressionDataset):
         dataset_path = os.path.join(storage_data_path, global_name, set_name)
         original_data_path = os.path.join(du.get_original_data_path(global_name), set_name)
 
-        # Extract all images, if not already done
-        if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
-            _extract_images_and_labels(original_data_path, dataset_path, img_size)
-
         # Fetch all patient/study names that do not begin with '._'
         study_names = set(file_name.split('.nii')[0].split('_gt')[0] for file_name 
             in os.listdir(dataset_path) if '._' not in file_name and 'KGU' in file_name)
             
+        # Create all label files, if not already done
+        if not os.path.isdir(os.path.join(dataset_path, 'labels'))\
+           or not os.listdir(os.path.join(dataset_path, 'labels')):
+            _generate_labels(dataset_path, max_likert_value)
+
         # Load labels (need to be added by hand in folder 
         # FRACorona/labels as labels.json!)
         labels = dict()
@@ -157,7 +158,7 @@ class FraCoronaDataset(RegressionDataset):
             print (msg, end = '\r')
             instances.append(RegressionInstance(
                 x_path=os.path.join(dataset_path, study_name+'.nii.gz'),
-                y_label=labels[name],
+                y_label=labels[study_name],
                 name=study_name,
                 group_id=None
                 ))
@@ -289,35 +290,200 @@ def _extract_images_random(source_path, data_label, folder_name,
                  simpleITK=True,
                  empty_dir=True)
 
-def _extract_images_and_labels(source_path, target_path, img_size=(1, 299, 299)):
-    r"""Extracts MRI images and saves the modified images."""
-    images_path = source_path
+def _generate_labels(target_path, max_likert_value):
+    r"""Generates the labels based on real assessment and saves them into
+    target_path with corresponding names."""
+    print("Generating labels..")
+    labels = dict()
 
-    # Filenames are provided in foldernames: patient_id/images.nii.gz
-    filenames = set(file_name for file_name in os.listdir(images_path)
-                    if file_name[:1] != '.')
-
-    # Create directories if not existing
+    # Test scans
+    labels['KGU-DC381269940F'+'_blur'] = 3/max_likert_value
+    labels['KGU-DC381269940F'+'_downsample'] = 1/max_likert_value
+    labels['KGU-DC381269940F'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-DC381269940F'+'_motion'] = 1/max_likert_value
+    labels['KGU-DC381269940F'+'_noise'] = 1/max_likert_value
+    labels['KGU-DC381269940F'+'_spike'] = 1/max_likert_value
+    labels['KGU-DECED9094107'+'_blur'] = 2/max_likert_value
+    labels['KGU-DECED9094107'+'_downsample'] = 1/max_likert_value
+    labels['KGU-DECED9094107'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-DECED9094107'+'_motion'] = 1/max_likert_value
+    labels['KGU-DECED9094107'+'_noise'] = 1/max_likert_value
+    labels['KGU-DECED9094107'+'_spike'] = 1/max_likert_value
+    labels['KGU-E9EC0F06F1D6'+'_blur'] = 1/max_likert_value
+    labels['KGU-E9EC0F06F1D6'+'_downsample'] = 1/max_likert_value
+    labels['KGU-E9EC0F06F1D6'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-E9EC0F06F1D6'+'_motion'] = 1/max_likert_value
+    labels['KGU-E9EC0F06F1D6'+'_noise'] = 1/max_likert_value
+    labels['KGU-E9EC0F06F1D6'+'_spike'] = 1/max_likert_value
+    labels['KGU-E211D643E882'+'_blur'] = 1/max_likert_value
+    labels['KGU-E211D643E882'+'_downsample'] = 1/max_likert_value
+    labels['KGU-E211D643E882'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-E211D643E882'+'_motion'] = 1/max_likert_value
+    labels['KGU-E211D643E882'+'_noise'] = 4/max_likert_value
+    labels['KGU-E211D643E882'+'_spike'] = 1/max_likert_value
+    labels['KGU-E2777160F425'+'_blur'] = 1/max_likert_value
+    labels['KGU-E2777160F425'+'_downsample'] = 1/max_likert_value
+    labels['KGU-E2777160F425'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-E2777160F425'+'_motion'] = 1/max_likert_value
+    labels['KGU-E2777160F425'+'_noise'] = 2/max_likert_value
+    labels['KGU-E2777160F425'+'_spike'] = 1/max_likert_value
+    labels['KGU-EC922875308F'+'_blur'] = 2/max_likert_value
+    labels['KGU-EC922875308F'+'_downsample'] = 1/max_likert_value
+    labels['KGU-EC922875308F'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-EC922875308F'+'_motion'] = 1/max_likert_value
+    labels['KGU-EC922875308F'+'_noise'] = 1/max_likert_value
+    labels['KGU-EC922875308F'+'_spike'] = 1/max_likert_value
+    
+    # Train scans
+    labels['KGU-1D1840AEB676'+'_blur'] = 2/max_likert_value
+    labels['KGU-1D1840AEB676'+'_downsample'] = 1/max_likert_value
+    labels['KGU-1D1840AEB676'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-1D1840AEB676'+'_motion'] = 1/max_likert_value
+    labels['KGU-1D1840AEB676'+'_noise'] = 1/max_likert_value
+    labels['KGU-1D1840AEB676'+'_spike'] = 1/max_likert_value
+    labels['KGU-1DEA1FCA6643'+'_blur'] = 1/max_likert_value
+    labels['KGU-1DEA1FCA6643'+'_downsample'] = 1/max_likert_value
+    labels['KGU-1DEA1FCA6643'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-1DEA1FCA6643'+'_motion'] = 1/max_likert_value
+    labels['KGU-1DEA1FCA6643'+'_noise'] = 1/max_likert_value
+    labels['KGU-1DEA1FCA6643'+'_spike'] = 1/max_likert_value
+    labels['KGU-2A20DFFE1EA9'+'_blur'] = 1/max_likert_value
+    labels['KGU-2A20DFFE1EA9'+'_downsample'] = 1/max_likert_value
+    labels['KGU-2A20DFFE1EA9'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-2A20DFFE1EA9'+'_motion'] = 1/max_likert_value
+    labels['KGU-2A20DFFE1EA9'+'_noise'] = 3/max_likert_value
+    labels['KGU-2A20DFFE1EA9'+'_spike'] = 1/max_likert_value
+    labels['KGU-2B4799895867'+'_blur'] = 3/max_likert_value
+    labels['KGU-2B4799895867'+'_downsample'] = 1/max_likert_value
+    labels['KGU-2B4799895867'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-2B4799895867'+'_motion'] = 1/max_likert_value
+    labels['KGU-2B4799895867'+'_noise'] = 1/max_likert_value
+    labels['KGU-2B4799895867'+'_spike'] = 1/max_likert_value
+    labels['KGU-04C14129E612'+'_blur'] = 1/max_likert_value
+    labels['KGU-04C14129E612'+'_downsample'] = 1/max_likert_value
+    labels['KGU-04C14129E612'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-04C14129E612'+'_motion'] = 1/max_likert_value
+    labels['KGU-04C14129E612'+'_noise'] = 1/max_likert_value
+    labels['KGU-04C14129E612'+'_spike'] = 1/max_likert_value
+    labels['KGU-5D03B23D7168'+'_blur'] = 2/max_likert_value
+    labels['KGU-5D03B23D7168'+'_downsample'] = 1/max_likert_value
+    labels['KGU-5D03B23D7168'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-5D03B23D7168'+'_motion'] = 2/max_likert_value
+    labels['KGU-5D03B23D7168'+'_noise'] = 2/max_likert_value
+    labels['KGU-5D03B23D7168'+'_spike'] = 1/max_likert_value
+    labels['KGU-8B22D8BA6ED2'+'_blur'] = 2/max_likert_value
+    labels['KGU-8B22D8BA6ED2'+'_downsample'] = 1/max_likert_value
+    labels['KGU-8B22D8BA6ED2'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-8B22D8BA6ED2'+'_motion'] = 2/max_likert_value
+    labels['KGU-8B22D8BA6ED2'+'_noise'] = 2/max_likert_value
+    labels['KGU-8B22D8BA6ED2'+'_spike'] = 1/max_likert_value
+    labels['KGU-8DFCA3EE4A02'+'_blur'] = 3/max_likert_value
+    labels['KGU-8DFCA3EE4A02'+'_downsample'] = 1/max_likert_value
+    labels['KGU-8DFCA3EE4A02'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-8DFCA3EE4A02'+'_motion'] = 1/max_likert_value
+    labels['KGU-8DFCA3EE4A02'+'_noise'] = 1/max_likert_value
+    labels['KGU-8DFCA3EE4A02'+'_spike'] = 1/max_likert_value
+    labels['KGU-9EB70F6120C5'+'_blur'] = 2/max_likert_value
+    labels['KGU-9EB70F6120C5'+'_downsample'] = 1/max_likert_value
+    labels['KGU-9EB70F6120C5'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-9EB70F6120C5'+'_motion'] = 3/max_likert_value
+    labels['KGU-9EB70F6120C5'+'_noise'] = 1/max_likert_value
+    labels['KGU-9EB70F6120C5'+'_spike'] = 1/max_likert_value
+    labels['KGU-9FDEADEBE50D'+'_blur'] = 1/max_likert_value
+    labels['KGU-9FDEADEBE50D'+'_downsample'] = 1/max_likert_value
+    labels['KGU-9FDEADEBE50D'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-9FDEADEBE50D'+'_motion'] = 1/max_likert_value
+    labels['KGU-9FDEADEBE50D'+'_noise'] = 1/max_likert_value
+    labels['KGU-9FDEADEBE50D'+'_spike'] = 1/max_likert_value
+    labels['KGU-14C83DA925D6'+'_blur'] = 3/max_likert_value
+    labels['KGU-14C83DA925D6'+'_downsample'] = 1/max_likert_value
+    labels['KGU-14C83DA925D6'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-14C83DA925D6'+'_motion'] = 1/max_likert_value
+    labels['KGU-14C83DA925D6'+'_noise'] = 1/max_likert_value
+    labels['KGU-14C83DA925D6'+'_spike'] = 1/max_likert_value
+    labels['KGU-22A7B1A06992'+'_blur'] = 1/max_likert_value
+    labels['KGU-22A7B1A06992'+'_downsample'] = 1/max_likert_value
+    labels['KGU-22A7B1A06992'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-22A7B1A06992'+'_motion'] = 1/max_likert_value
+    labels['KGU-22A7B1A06992'+'_noise'] = 2/max_likert_value
+    labels['KGU-22A7B1A06992'+'_spike'] = 1/max_likert_value
+    labels['KGU-28F1C7503A23'+'_blur'] = 1/max_likert_value
+    labels['KGU-28F1C7503A23'+'_downsample'] = 1/max_likert_value
+    labels['KGU-28F1C7503A23'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-28F1C7503A23'+'_motion'] = 1/max_likert_value
+    labels['KGU-28F1C7503A23'+'_noise'] = 1/max_likert_value
+    labels['KGU-28F1C7503A23'+'_spike'] = 1/max_likert_value
+    labels['KGU-435E67EC1510'+'_blur'] = 1/max_likert_value
+    labels['KGU-435E67EC1510'+'_downsample'] = 1/max_likert_value
+    labels['KGU-435E67EC1510'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-435E67EC1510'+'_motion'] = 1/max_likert_value
+    labels['KGU-435E67EC1510'+'_noise'] = 2/max_likert_value
+    labels['KGU-435E67EC1510'+'_spike'] = 1/max_likert_value
+    labels['KGU-675FF4A7E27A'+'_blur'] = 1/max_likert_value
+    labels['KGU-675FF4A7E27A'+'_downsample'] = 1/max_likert_value
+    labels['KGU-675FF4A7E27A'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-675FF4A7E27A'+'_motion'] = 1/max_likert_value
+    labels['KGU-675FF4A7E27A'+'_noise'] = 2/max_likert_value
+    labels['KGU-675FF4A7E27A'+'_spike'] = 1/max_likert_value
+    labels['KGU-8160FACFB08D'+'_blur'] = 2/max_likert_value
+    labels['KGU-8160FACFB08D'+'_downsample'] = 1/max_likert_value
+    labels['KGU-8160FACFB08D'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-8160FACFB08D'+'_motion'] = 3/max_likert_value
+    labels['KGU-8160FACFB08D'+'_noise'] = 1/max_likert_value
+    labels['KGU-8160FACFB08D'+'_spike'] = 1/max_likert_value
+    labels['KGU-9134A8F50ACB'+'_blur'] = 2/max_likert_value
+    labels['KGU-9134A8F50ACB'+'_downsample'] = 1/max_likert_value
+    labels['KGU-9134A8F50ACB'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-9134A8F50ACB'+'_motion'] = 2/max_likert_value
+    labels['KGU-9134A8F50ACB'+'_noise'] = 1/max_likert_value
+    labels['KGU-9134A8F50ACB'+'_spike'] = 1/max_likert_value
+    labels['KGU-90011654B62A'+'_blur'] = 1/max_likert_value
+    labels['KGU-90011654B62A'+'_downsample'] = 1/max_likert_value
+    labels['KGU-90011654B62A'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-90011654B62A'+'_motion'] = 2/max_likert_value
+    labels['KGU-90011654B62A'+'_noise'] = 1/max_likert_value
+    labels['KGU-90011654B62A'+'_spike'] = 1/max_likert_value
+    labels['KGU-361266990BF6'+'_blur'] = 1/max_likert_value
+    labels['KGU-361266990BF6'+'_downsample'] = 1/max_likert_value
+    labels['KGU-361266990BF6'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-361266990BF6'+'_motion'] = 1/max_likert_value
+    labels['KGU-361266990BF6'+'_noise'] = 2/max_likert_value
+    labels['KGU-361266990BF6'+'_spike'] = 1/max_likert_value
+    labels['KGU-A9C48F0B68E1'+'_blur'] = 1/max_likert_value
+    labels['KGU-A9C48F0B68E1'+'_downsample'] = 1/max_likert_value
+    labels['KGU-A9C48F0B68E1'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-A9C48F0B68E1'+'_motion'] = 1/max_likert_value
+    labels['KGU-A9C48F0B68E1'+'_noise'] = 2/max_likert_value
+    labels['KGU-A9C48F0B68E1'+'_spike'] = 1/max_likert_value
+    labels['KGU-AD3B5C1D2257'+'_blur'] = 3/max_likert_value
+    labels['KGU-AD3B5C1D2257'+'_downsample'] = 1/max_likert_value
+    labels['KGU-AD3B5C1D2257'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-AD3B5C1D2257'+'_motion'] = 1/max_likert_value
+    labels['KGU-AD3B5C1D2257'+'_noise'] = 3/max_likert_value
+    labels['KGU-AD3B5C1D2257'+'_spike'] = 1/max_likert_value
+    labels['KGU-C2E218F3B192'+'_blur'] = 3/max_likert_value
+    labels['KGU-C2E218F3B192'+'_downsample'] = 1/max_likert_value
+    labels['KGU-C2E218F3B192'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-C2E218F3B192'+'_motion'] = 1/max_likert_value
+    labels['KGU-C2E218F3B192'+'_noise'] = 1/max_likert_value
+    labels['KGU-C2E218F3B192'+'_spike'] = 1/max_likert_value
+    labels['KGU-C3F7B56742F2'+'_blur'] = 1/max_likert_value
+    labels['KGU-C3F7B56742F2'+'_downsample'] = 1/max_likert_value
+    labels['KGU-C3F7B56742F2'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-C3F7B56742F2'+'_motion'] = 1/max_likert_value
+    labels['KGU-C3F7B56742F2'+'_noise'] = 2/max_likert_value
+    labels['KGU-C3F7B56742F2'+'_spike'] = 1/max_likert_value
+    labels['KGU-C0199AED68D5'+'_blur'] = 1/max_likert_value
+    labels['KGU-C0199AED68D5'+'_downsample'] = 1/max_likert_value
+    labels['KGU-C0199AED68D5'+'_ghosting'] = 1/max_likert_value
+    labels['KGU-C0199AED68D5'+'_motion'] = 1/max_likert_value
+    labels['KGU-C0199AED68D5'+'_noise'] = 2/max_likert_value
+    labels['KGU-C0199AED68D5'+'_spike'] = 1/max_likert_value
+    
+    
+    # Save the labels
     if not os.path.isdir(target_path):
         os.makedirs(target_path)
 
-    for num, filename in enumerate(filenames):
-        msg = "Loading SimpleITK images and resizing them: "
-        msg += str(num + 1) + " of " + str(len(filenames)) + "."
-        print (msg, end = "\r")
-        # Extract all images (3D)
-        # In each folder is a image.nii.gz and mask.nii.gz. here only image.nii.gz is needed.
-        x = sitk.ReadImage(os.path.join(images_path, filename, 'image.nii.gz'))
-        x = torch.from_numpy(sitk.GetArrayFromImage(x))
-        try:
-            x = centre_crop_pad_2d(x, img_size)
-        except:
-            print('Image could not be resized and will therefore be skipped: {}.'
-            .format(filename))
-            continue
-        # Save new images so they can be loaded directly
-        sitk.WriteImage(sitk.GetImageFromArray(x), 
-            join_path([target_path, filename+".nii.gz"]))
-
-    # Generate Labels: For each artefact one label file with the likert value by hand!
-    # TODO
+    with open(os.path.join(target_path, 'labels.json'), 'w') as fp:
+        json.dump(labels, fp, sort_keys=True, indent=4)
