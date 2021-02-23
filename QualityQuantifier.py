@@ -73,11 +73,11 @@ class SegImgQualityQuantifier():
         features=['density_distance','dice_scores','connected_components']
 
         # load density model
-        density = Density_model(model='gaussian_kernel')
+        density = Density_model(model='gaussian_kernel',add_to_name='')
         density.load_density()
         
         #load dice predictor
-        dice_pred = Dice_predictor(features)
+        dice_pred = Dice_predictor(features,add_to_name='')
         dice_pred.load()
 
         feature_extractor = Feature_extractor(density,features=features)

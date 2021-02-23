@@ -3,6 +3,7 @@ import pickle
 import numpy as np  
 import os 
 from skimage.measure import label, regionprops
+import matplotlib.pyplot as plt
 
 class Density_model():
     '''the class that is responsible for computation of densities 
@@ -48,7 +49,16 @@ class Density_model():
     def train_density(self, int_values, data_descr='', 
                         model_descr='',retrain=False,**kwargs):
         '''trains a density for the given int_values, saves a descr with same name as model 
-        as .txt file'''
+        as .txt file
+        
+        Args:
+            int_values (ndarray(numbers)): a one-dim array of intensity values
+            data_descr (str): a string, that describes the data used
+            model_descr (str): a string, that describes the model used
+            retrain (bool): in order to not accidently overwrite model retrain has to be set to true 
+                manually if we want to retrain
+            **kwargs : arguments used for model training, depend on external implementation of model used
+        '''
         #if model already exists and retrain s not true, overwriting is stopped
         if os.path.isfile(self.path_to_model) and not retrain:
             print('Model already exists, and retrain is set to false')
@@ -67,9 +77,10 @@ class Density_model():
     def get_values(self,steps=0.001):
         '''gets values of the density in the interval [0,1] in order to compute 
         distance to other density
-        steps = float; the inverse of how many values shall to taken
+        Args:
+            steps (float): the inverse of how many values shall be taken
         
-        returns : np.array; a array of the computed density values in the intervall'''
+        returns (ndarray): a array of the computed density values in the intervall'''
         points = np.reshape(np.arange(start=0,stop=1,step=steps),(-1,1))
         if self.model == 'gaussian_kernel':
             density_values = np.exp(self.density.score_samples(points))
@@ -86,6 +97,14 @@ class Density_model():
         with open(self.path_to_model_descr,'w') as file:
             for line in file:
                 print(line)
+    
+    def plot_density(self,steps=0.001):
+        x = np.arange(start=0,stop=1,step=steps)
+        y = self.get_values()
+        plt.plot(x,y)
+        plt.show()
+
+
 
     
 
