@@ -1,5 +1,7 @@
-from quantifiers.QualityQuantifier import SegImgQualityQuantifier
-
+from mp.quantifiers.QualityQuantifier import SegImgQualityQuantifier
+from mp.models.densities.density import Density_model
+from mp.models.regression.dice_predictor import Dice_predictor
+from mp.utils.feature_extractor import Feature_extractor
 class IntBasedQuantifier(SegImgQualityQuantifier):
 
     def __init__(self, version='0.0'):
@@ -42,5 +44,3 @@ class IntBasedQuantifier(SegImgQualityQuantifier):
 
         return {'predicted dice score':dice_value}
         
-    def evaluate_image_segmentation(self, segmentation, image):
-        return random.randint(0,10)
