@@ -1,4 +1,8 @@
-## Dimensionality reduction and visualisation of each segmented region 
+# Experiments on UK_Frankfurt data in order to find suitable metrices
+
+
+
+# Dimensionality reduction and visualisation of each segmented region 
 # First of all, the images are resized to the same dimesionality (?,256,256)
 # Then, each component, that is big enough (we start with size>500), is taken and we feed all of them into the dim. Reduction.
 

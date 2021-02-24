@@ -1,3 +1,7 @@
+# computing metrices on artificially produced, bad segmentations. 
+# used prostate segmentation model to segment lungs
+
+
 # 1. Imports
 import torch
 from torch.utils.data import DataLoader

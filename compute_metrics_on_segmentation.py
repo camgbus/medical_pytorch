@@ -1,4 +1,4 @@
-## basic sketch, nothing to see here
+# First prototype for general functions to compute metrices on segmentations
 
 import numpy as np
 import torchio
@@ -107,15 +107,6 @@ def compute_metrics(img_path,seg_path):
 
 
     return [average , similarity_scores_densities , dice_metrices , number_components]
-
-
-
-
-# #small testing 
-# path = os.path.join('downloads','UK_Frankfurt2','KGU-1D1840AEB676')
-# img_path = os.path.join(path,'image.nii.gz')
-# seg_path = os.path.join(path,'mask.nii.gz')
-# print(compute_metrics(img_path,seg_path))
 
 
 
