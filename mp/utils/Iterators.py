@@ -1,13 +1,8 @@
 import os 
-import SimpleITK as sitk 
 import numpy as np 
 import torchio
 import torch
-from mp.data.pytorch.transformation import resize_3d
 from skimage.measure import label,regionprops
-from torch.nn.functional import interpolate
-from sklearn.decomposition import TruncatedSVD,PCA
-import matplotlib.pyplot as plt 
 
 
 class Dataset_Iterator():
@@ -34,19 +29,8 @@ class Dataset_Iterator():
         print('Starting iteration over images')
         output=[]
         if self.resize:
-            if self.mode == 'UK_Frankfurt2':
-                for dir in os.listdir(self.data_path):
-                    path = os.path.join(self.data_path,dir)
-                    img_path = os.path.join(path,'image.nii.gz')
-                    seg_path = os.path.join(path,'mask.nii.gz')
-                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())
-                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())
-                    img = resize_3d(img, size=(1,256,256,57))
-                    seg = resize_3d(seg, size=(1,256,256,57), label=True)
-                    img = img.numpy()[0]
-                    seg = seg.numpy()[0]
-                    values = func(img,seg,**kwargs)
-                    output.append(values)
+            #code for this case is on the chArmin branch
+            raise NotImplementedError
 
         else:
             if self.mode == 'UK_Frankfurt2':

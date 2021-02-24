@@ -1,8 +1,7 @@
 import numpy as np
-from mp.utils.Iterators import Component_Iterator
+from mp.utils.Iterators import Component_Iterator, Dataset_Iterator
 from skimage.measure import label
 from scipy.ndimage import gaussian_filter
-from mp.utils.Iterators import Dataset_Iterator
 
 def get_array_of_dicescores(seg): 
     '''computes the array of dicescores for the given segmentation,
