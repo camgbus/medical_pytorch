@@ -4,18 +4,56 @@ import torchio
 import torch
 from skimage.measure import label,regionprops
 
+def iterate_components(img,seg,func,output,threshold,**kwargs):
+    '''Gets a pair of img, seg, and a function that should iterate over its components. 
+    Output is the vec, that the results are appended to and threshhold gives a min size for 
+    the components we would like to iterate over
+
+    Args:
+        img (ndarray): the image 
+        seg (ndarray): its segmentation 
+        func ((img,seg,props,**kwargs)->object): computes object for one component given by the regionprops 
+            dict props for the img-seg pair. Should return a number or a list of numbers. 
+        output (list(numbers)): the list the results are appended to
+        threshhold (int): components have to be this big in order to get iterated over
+    '''
+    labeled_image, nr_components = label(seg, return_num=True)
+    props = regionprops(labeled_image)
+    props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
+    nr_components = len(props)
+    comp = 0
+    while comp < nr_components and props[comp].area > threshold:
+        output.append(func(img,seg,props[comp],**kwargs))
+        comp += 1 
+
 
 class Dataset_Iterator():
     '''in order to iterate ove a dataset
     '''
 
     def __init__(self,data_path,mode='UK_Frankfurt2',resize=False,size=(1,256,256,57),size_components=(1,20,20,8)):
+        '''A iterator, who iterates over the all images in a given folder
 
+        Args:
+            data_path (str): the path to the data
+            mode (str): should be either:
+                - UK_Frankfurt2: here the data has a structure, where every patient has its own id-dir
+                    in which img.nii.gz and seg... can be found 
+                - normal: all images and seg are in the same dir and can be easily iteratet over, they can be identified by 
+                    their unique id and their endings id.nii.gz is img, whereas id_gt.nii.gz is a seg.
+                - JIP : Here every patient has its own dir, containing a dir for img and a dir for seg in which only one img file 
+                    with ending .mhd is.
+            resize (bool): if the images should be reiszed, is not implemented
+            size (tuple): the size, the imf should be resized to
+            size_components (tuple): the size comp should be resized to
+            extension (str): the extension of the img/seg files
+        '''
         self.data_path = data_path
         self.mode = mode 
         self.resize = resize 
         self.size = size 
         self.size_components = size_components
+        self.extension = extension
     
     def iterate_images(self,func,**kwargs):
         '''Iterates over all images in the given path,  and accumulates the results of func in a list, 
@@ -42,12 +80,23 @@ class Dataset_Iterator():
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     values = func(img,seg,**kwargs)
                     output.append(values)
+
             if self.mode == 'normal':
                 names = set(file_name.split('.nii')[0].split('_gt')[0] 
                             for file_name in os.listdir(self.data_path))
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name+'_gt.nii.gz')
                     img_path = os.path.join(self.data_path,name+'.nii.gz')
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+                    values = func(img,seg,**kwargs)
+                    output.append(values)
+
+            if self.mode == 'JIP':
+                names = os.listdir(self.data_path)
+                for name in names: 
+                    seg_path = os.path.join(self.data_path,name,'seg','001.mhd')
+                    img_path = os.path.join(self.data_path,name,'img','img.mhd')
                     img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     values = func(img,seg,**kwargs)
@@ -66,22 +115,7 @@ class Dataset_Iterator():
         print('Starting iteration over components')
         output=[]
         if self.resize:
-            print('WARNING: func has to do the resizing alone, but gets parameter size_components')
-            if self.mode == 'UK_Frankfurt2':
-                for dir in os.listdir(self.data_path):
-                    path = os.path.join(self.data_path,dir)
-                    img_path = os.path.join(path,'image.nii.gz')
-                    seg_path = os.path.join(path,'mask.nii.gz')
-                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
-                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
-                    labeled_image, nr_components = label(seg, return_num=True)
-                    props = regionprops(labeled_image)
-                    props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
-                    nr_components = len(props)
-                    comp = 0
-                    while comp < nr_components and props[comp].area > threshold:
-                        output.append(func(img,seg,props[comp],self.size_components,**kwargs))
-                        comp += 1      
+            raise NotImplementedError
         else:
             if self.mode == 'UK_Frankfurt2':
                 for dir in os.listdir(self.data_path):
@@ -90,14 +124,8 @@ class Dataset_Iterator():
                     seg_path = os.path.join(path,'mask.nii.gz')
                     img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
-                    labeled_image, nr_components = label(seg, return_num=True)
-                    props = regionprops(labeled_image)
-                    props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
-                    nr_components = len(props)
-                    comp = 0
-                    while comp < nr_components and props[comp].area > threshold:
-                        output.append(func(img,seg,props[comp],**kwargs))
-                        comp += 1 
+                    iterate_components(img,seg,func,output,threshold,**kwargs)
+
             if self.mode == 'normal':
                 #get the names of the files, it is assumed, that the data has the endings for mask and img as UK_Frankfurt
                 names = set(file_name.split('.nii')[0].split('_gt')[0] 
@@ -107,15 +135,16 @@ class Dataset_Iterator():
                     img_path = os.path.join(self.data_path,name+'.nii.gz')
                     img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
-                    labeled_image, nr_components = label(seg, return_num=True)
-                    props = regionprops(labeled_image)
-                    props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
-                    nr_components = len(props)
-                    comp = 0
-                    while comp < nr_components and props[comp].area > threshold:
-                        output.append(func(img,seg,props[comp],**kwargs))
-                        comp += 1 
-
+                    iterate_components(img,seg,func,output,threshold,**kwargs) 
+            
+            if self.mode == 'JIP':
+                names = os.listdir(self.data_path)
+                for name in names: 
+                    seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.extension))
+                    img_path = os.path.join(self.data_path,name,'img','img.{}'.format(self.extension))
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+                    iterate_components(img,seg,func,output,threshold,**kwargs)
         return output
 
 
@@ -137,12 +166,5 @@ class Component_Iterator():
         Returns (list(objects)): a list of objects, with every object corresponding to one image-segmentation pair
         '''
         values = []
-        labeled_image, nr_components = label(self.seg, return_num=True)
-        props = regionprops(labeled_image)
-        props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
-        nr_components = len(props)
-        comp = 0
-        while comp < nr_components and props[comp].area > self.threshold:
-            values.append(func(self.img,self.seg,props[comp],**kwargs))
-            comp += 1
+        iterate_components(self.img,self.seg,func,values,self.threshold,**kwargs)
         return values 

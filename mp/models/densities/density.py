@@ -16,29 +16,32 @@ class Density_model():
     
     def __init__(self, clusters=False, model='gaussian_kernel',add_to_name='',verbose=False):
         self.model = model
-        self.have_model = False
         self.density = None
         self.clusters = clusters
         self.verbose = verbose
 
-        if self.clusters:
-            self.path_to_model = os.path.join('storage','models','density_models',
-                    self.model+'_cluster_'+add_to_name+'.sav')
-            self.path_to_model_descr = os.path.join('storage','models','density_models',
-                    self.model+'_cluster_'+add_to_name+'_descr.txt')
-        else:
-            self.path_to_model = os.path.join('storage','models','density_models',
-                    self.model+'_no_cluster_'+add_to_name+'.sav')
-            self.path_to_model_descr = os.path.join('storage','models','density_models',
-                    self.model+'_no_cluster_'+add_to_name+'_descr.txt')
+        density_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'density_models')
 
+        if self.clusters:
+            self.path_to_model = os.path.join(density_path,
+                    self.model+'_cluster_'+add_to_name+'.sav')
+            self.path_to_model_descr = os.path.join(density_path,
+                    self.model+'_cluster_'+add_to_name+'_descr.txt')
+            self.path_to_int_values = os.path.join(density_path,
+                    self.model+'_cluster_'+add_to_name+'int_values.npy')
+        else:
+            self.path_to_model = os.path.join(density_path,
+                    self.model+'_no_cluster_'+add_to_name+'.sav')
+            self.path_to_model_descr = os.path.join(density_path,
+                    self.model+'_no_cluster_'+add_to_name+'_descr.txt')
+            self.path_to_int_values = os.path.join(density_path,
+                    self.model+'_no_cluster_'+add_to_name+'int_values.npy')
 
     def load_density(self):
         '''loads density, depending on clusters,model,add_to_name'''
         if self.model == 'gaussian_kernel':
             try:
                 self.density = pickle.load(open(self.path_to_model,'rb'))
-                self.have_model = True
             except:
                 print('there is no density model with this name, please it train first before loading')
                 raise RuntimeError
@@ -47,7 +50,7 @@ class Density_model():
         
     
     def train_density(self, int_values, data_descr='', 
-                        model_descr='',retrain=False,**kwargs):
+                        model_descr='',**kwargs):
         '''trains a density for the given int_values, saves a descr with same name as model 
         as .txt file
         
@@ -59,10 +62,6 @@ class Density_model():
                 manually if we want to retrain
             **kwargs : arguments used for model training, depend on external implementation of model used
         '''
-        #if model already exists and retrain s not true, overwriting is stopped
-        if os.path.isfile(self.path_to_model) and not retrain:
-            print('Model already exists, and retrain is set to false')
-            raise RuntimeError
         if self.model == 'gaussian_kernel':
             if self.clusters : 
                 raise NotImplementedError
@@ -70,9 +69,31 @@ class Density_model():
                 data = np.reshape(int_values, newshape=(-1,1))
                 self.density = KernelDensity(kernel='gaussian', **kwargs).fit(data)
 
-        self.have_model = True
         pickle.dump(self.density,open(self.path_to_model))
-        self._save_descr(data_descr,model_descr)
+        self._save_descr(data_descr,model_descr,**kwargs)
+
+    def retrain_density(self, int_values, add_data_descr='', 
+                        add_model_descr='',**kwargs):
+        '''trains a density for the given int_values, saves a descr with same name as model 
+        as .txt file
+        
+        Args:
+            int_values (ndarray(numbers)): a one-dim array of intensity values
+            data_descr (str): a string, that describes the new data used
+            model_descr (str): a string, that describes the model used
+            retrain (bool): in order to not accidently overwrite model retrain has to be set to true 
+                manually if we want to retrain
+            **kwargs : arguments used for model training, depend on external implementation of model used
+        '''
+        if self.model == 'gaussian_kernel':
+            if self.clusters : 
+                raise NotImplementedError
+            else :
+                data = np.reshape(int_values, newshape=(-1,1))
+                self.density = KernelDensity(kernel='gaussian', **kwargs).fit(data)
+        
+        pickle.dump(self.density,open(self.path_to_model))
+        self._update_descr(add_data_descr,add_model_descr,**kwargs)
 
     def get_values(self,steps=0.001):
         '''gets values of the density in the interval [0,1] in order to compute 
@@ -86,13 +107,25 @@ class Density_model():
             density_values = np.exp(self.density.score_samples(points))
         return density_values
 
-    def _save_descr(self,data_d,model_d):
+    def _save_descr(self,data_d,model_d,**kwargs):
         with open(self.path_to_model_descr,'w') as file:
             file.write(r'Data describtion: \n')
             file.write(data_d)
             file.write(r'Model describtion: \n')
             file.write(model_d)
+            file.write(r'Model Settings: \n')
+            file.write('{}'.format(kwargs))
 
+    def _update_descr(self,add_data_descr,add_model_descr,**kwargs):
+        with open(self.path_to_model_descr,'a') as file:
+            file.write(r'New Settings for Data and model describtion: \n')
+            file.write(r'Data describtion: \n')
+            file.write(add_data_descr)
+            file.write(r'Model describtion: \n')
+            file.write(add_model_descr)
+            file.write(r'Model Settings: \n')
+            file.write('{}'.format(kwargs))
+    
     def print_description(self):
         with open(self.path_to_model_descr,'w') as file:
             for line in file:

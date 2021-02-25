@@ -8,9 +8,11 @@ class Dice_predictor():
         self.have_model = False
         self.regressor = None
         self.features = features
-        self.path_to_model = os.path.join('storage','models','dice_predictor',
+        
+        path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'dice_predictors')
+        self.path_to_model = os.path.join(path,
                     '{}_{}.sav'.format(features,add_to_name)) 
-        self.path_to_model_descr = os.path.join('storage','models','dice_predictor',
+        self.path_to_model_descr = os.path.join(path,
                     '{}_{}_descr.txt'.format(features,add_to_name))
         self.verbose = verbose
 

@@ -1,9 +1,10 @@
 ## file for functions used in density estimation 
 import numpy as np 
+import os 
 from mp.utils.Iterators import Dataset_Iterator
 
 
-def get_intensities(list_of_paths, min_size=100):
+def get_intensities(list_of_paths, min_size=100, mode='JIP',save_as=None):
         '''goes through the given directories and there through every image-segmentation
         pair, in order to sample intensity values from every consolidation bigger 
         then min_size. 
@@ -11,23 +12,44 @@ def get_intensities(list_of_paths, min_size=100):
 
         Args :
                 list_of_paths (list(strings)): every string is a path to a directory we want to get intensity values from
+                min_size (int): minimal size of component, to get iterated over
+                mode (str) :gives the mode, the data is saved, c.f. mp.utils.Iterators.py
 
         Returns: (ndarray(floats)): a one-dim array of intensity values
         '''
+
+        
         list_intesities = []
         for path in list_of_paths:
-                if 'UK_Frankfurt2' in path:
-                        mode = 'UK_Frankfurt2'
-                else: 
-                        mode = 'normal'
+                if not (mode == 'JIP'):
+                        if 'UK_Frankfurt2' in path:
+                                mode = 'UK_Frankfurt2'
+                        else:           
+                                mode = 'normal'
                 ds_iterator = Dataset_Iterator(path,mode=mode)
                 samples = ds_iterator.iterate_components(sample_intensities,
                                                 threshold=min_size)
                 list_intesities.append(samples)
         arr_intensities = np.array(list_intesities).flatten()
+
+        if save_as is not None:
+                save_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities',save_as+'.npy')
+                if not os.path.exists(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities')):
+                        os.makedirs(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities'))
+                np.save(save_path,arr_intensities)
+        
         return arr_intensities
 
-                
+def load_intensities(list_of_names):
+        int_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities')
+        intensities = np.array([])
+        for name in list_of_names:
+                path = os.path.join(int_path,name+'.npy')
+                values = np.load(path)
+                intensities = np.append(intensities,values)
+        return intensities
+
+
 def sample_intensities(img,seg,props,number=2000):
         '''samples intesity values from from given component of an img-seg pair
         

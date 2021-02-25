@@ -136,6 +136,7 @@ class Feature_extractor():
 
     def get_features(self,img,seg):
         '''extracts all of self.features for a given image-seg pair
+        assumes, that each extracteted feature is an integer or a list/array of integers
         Args: 
             img (ndarray): an image 
             seg (ndarray): the corresponding mask
@@ -178,25 +179,28 @@ class Feature_extractor():
             _,number_components = label(seg,return_num=True)
             return number_components
 
-    def get_features_from_paths(self,list_paths):
+    def get_features_from_paths(self,list_paths,mode='JIP'):
         '''Extracts the features from all img-seg pairs in all paths 
 
         Args:
             list_paths (list(str)): a list of strings, each string is the path to a dir containing 
-                img-seg pairs
+                img-seg pairs in some form
+            mode (str) :the saving format of the images
         
         Returns: (list(list(numbers))): For every image a list of features in numeric form
         '''
         list_list_features = []
         for path in list_paths:
-            if 'UK_Frankfurt2' in path:
-                mode = 'UK_Frankfurt2'
-            else:
-                mode = 'normal'
+            if not (mode == 'JIP'):
+                if 'UK_Frankfurt2' in path:
+                    mode = 'UK_Frankfurt2'
+                else:
+                    mode = 'normal'
             ds_iterator = Dataset_Iterator(path,mode=mode)
             output = ds_iterator.iterate_images(self.get_features)
-            # output is a list(list(numbers)), list_list_features should be in the same format, so
-            # we append every feature-list to the list_list_features single
+            # output is a list(list(numbers)), one list for every image; since we want the output list 
+            # list_list_features to have the same format, we cant simply append the whole list, but
+            # we append every feature-list to the list_list_features over a loop.
             for list in output:
                 list_list_features.append(list)
         return list_list_features
