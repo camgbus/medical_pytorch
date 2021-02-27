@@ -64,10 +64,15 @@ def get_dice_averages(img,seg,props):
     dice_avg_value = np.average(arr_of_dicescores)
 
     # compute the average value of dice score changes between slides
-    dice_diff = np.diff(arr_of_dicescores)
-    dice_diff_abs = np.absolute(dice_diff)
-    dice_diff_avg_value = np.average(dice_diff_abs)
+    # check for connected component, that is only on one slice
+    if len(arr_of_dicescores) < 10:
+        dice_diff_avg_value = 1 
+    else:
+        dice_diff = np.diff(arr_of_dicescores)
+        dice_diff_abs = np.absolute(dice_diff)
+        dice_diff_avg_value = np.average(dice_diff_abs)
 
+    print([dice_avg_value,dice_diff_avg_value])
     return [dice_avg_value,dice_diff_avg_value]
 
 def get_int_dens(img, coords):

@@ -35,11 +35,17 @@ def test_get_intensities_working():
 
 def test_feature_extractor_working():
     list_of_paths=[os.path.join(os.environ['WORKFLOW_DIR'],os.environ['OPERATOR_IN_DIR'])]
-    features = ['density_distance','dice_scores','connected_components']
+    save = False
+    save_name='dummy_features'
+    save_descr='3 img-seg pairs from UK Fra'
+    mode = 'normal'
+    features = ['dice_scores'] #['density_distance','dice_scores','connected_components']
+
     density = Density_model(add_to_name='dummy')
+
     feat_extr = Feature_extractor(density=density,features=features)
-    feat_arr = feat_extr.get_features_from_paths(list_of_paths,'normal',save=True,
-                save_name='dummy_features',save_descr='3 img-seg pairs from UK Fra')
+    feat_arr = feat_extr.get_features_from_paths(list_of_paths,mode=mode,save=save,
+                save_name=save_name,save_descr=save_descr)
     print(feat_arr)
     print('Everything went through, so should be fine')
 
