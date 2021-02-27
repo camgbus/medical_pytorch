@@ -3,7 +3,7 @@ from mp.utils.intensities import get_intensities, load_intensities
 import os
 import numpy as np
 
-def train_density(model = '',ending_of_model = '',list_of_paths = [],
+def train_density(model = '',ending_of_model = '',list_of_paths = [],data_mode='',
                     data_describtion = '', model_describtion = '', 
                     precom_intensities=[], verbose=False, **kwargs):
     '''Trains a density model from a list of given paths to directories, where img-seg pairs can be found
@@ -26,12 +26,12 @@ def train_density(model = '',ending_of_model = '',list_of_paths = [],
     '''
 
     #initialise density model
-    density_model = Density_model(model=model,add_to_name=ending_of_model)
+    density_model = Density_model(model=model,add_to_name=ending_of_model,verbose=verbose)
 
     #get the intensity values from the images 
     if verbose:
         print('Getting intensity values')
-    intensity_values = get_intensities(list_of_paths)
+    intensity_values = get_intensities(list_of_paths,mode=data_mode)
 
     #load already computed intensities and merge the two
     pre_intensities = load_intensities(precom_intensities)

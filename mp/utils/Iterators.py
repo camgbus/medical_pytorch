@@ -53,7 +53,6 @@ class Dataset_Iterator():
         self.resize = resize 
         self.size = size 
         self.size_components = size_components
-        self.extension = extension
     
     def iterate_images(self,func,**kwargs):
         '''Iterates over all images in the given path,  and accumulates the results of func in a list, 

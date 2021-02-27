@@ -21,7 +21,9 @@ class Density_model():
         self.verbose = verbose
 
         density_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'density_models')
-
+        if not os.path.isdir(density_path):
+            os.makedirs(density_path)
+        
         if self.clusters:
             self.path_to_model = os.path.join(density_path,
                     self.model+'_cluster_'+add_to_name+'.sav')
@@ -69,7 +71,7 @@ class Density_model():
                 data = np.reshape(int_values, newshape=(-1,1))
                 self.density = KernelDensity(kernel='gaussian', **kwargs).fit(data)
 
-        pickle.dump(self.density,open(self.path_to_model))
+        pickle.dump(self.density,open(self.path_to_model,'wb'))
         self._save_descr(data_descr,model_descr,**kwargs)
 
     def retrain_density(self, int_values, add_data_descr='', 
@@ -92,7 +94,7 @@ class Density_model():
                 data = np.reshape(int_values, newshape=(-1,1))
                 self.density = KernelDensity(kernel='gaussian', **kwargs).fit(data)
         
-        pickle.dump(self.density,open(self.path_to_model))
+        pickle.dump(self.density,open(self.path_to_model,'wb'))
         self._update_descr(add_data_descr,add_model_descr,**kwargs)
 
     def get_values(self,steps=0.001):
@@ -109,21 +111,25 @@ class Density_model():
 
     def _save_descr(self,data_d,model_d,**kwargs):
         with open(self.path_to_model_descr,'w') as file:
-            file.write(r'Data describtion: \n')
+            file.write("Data describtion: \n")
             file.write(data_d)
-            file.write(r'Model describtion: \n')
+            file.write("\n")
+            file.write("Model describtion: \n")
             file.write(model_d)
-            file.write(r'Model Settings: \n')
+            file.write("\n")
+            file.write("Model Settings: \n")
             file.write('{}'.format(kwargs))
 
     def _update_descr(self,add_data_descr,add_model_descr,**kwargs):
         with open(self.path_to_model_descr,'a') as file:
-            file.write(r'New Settings for Data and model describtion: \n')
-            file.write(r'Data describtion: \n')
+            file.write("New Settings for Data and model: \n")
+            file.write("Data describtion: \n")
             file.write(add_data_descr)
-            file.write(r'Model describtion: \n')
+            file.write("\n")
+            file.write("Model describtion: \n")
             file.write(add_model_descr)
-            file.write(r'Model Settings: \n')
+            file.write("\n")
+            file.write("Model Settings: \n")
             file.write('{}'.format(kwargs))
     
     def print_description(self):

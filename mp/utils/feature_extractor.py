@@ -2,6 +2,8 @@ import numpy as np
 from mp.utils.Iterators import Component_Iterator, Dataset_Iterator
 from skimage.measure import label
 from scipy.ndimage import gaussian_filter
+import os 
+import torch
 
 def get_array_of_dicescores(seg): 
     '''computes the array of dicescores for the given segmentation,
@@ -11,21 +13,21 @@ def get_array_of_dicescores(seg):
     is set to one.
 
     Args:
-        seg (ndarray): the segmentation
+        seg (torch.Tensor): the segmentation
 
-    Returns (ndarray): 
+    Returns (ndarray): array of dicescores
     '''
     shape = np.shape(seg)
     nr_slices = shape[0]
     arr_of_dicescores = np.array([])
-
+    
     first_slide = seg[0, :, :]
-    first_ones = np.sum(first_slide)
+    first_ones = torch.sum(first_slide)
     for i in range(nr_slices-1):
         second_slide = seg[i+1,:,:]
-        second_ones = np.sum(second_slide)
-        intersection = np.dot(first_slide.flatten(),
-                                 second_slide.flatten())
+        second_ones = torch.sum(second_slide)
+        intersection = torch.dot(torch.flatten(first_slide),
+                                torch.flatten(second_slide))
         # if two consecutive slices are black, set dice score to one
         # leads to ignoring the score
         if not(first_ones+second_ones == 0):
@@ -49,8 +51,8 @@ def get_dice_averages(img,seg,props):
     these dice scores had a more rough graph, then good segmentations, thus it is used as feature.
     
     Args: 
-        img (ndarray): the image
-        seg (ndarray): its segmentation
+        img (torch.Tensor): the image
+        seg (torch.Tensor): its segmentation
         props (dict[str->object]): a regionprops dictionary, c.f. skimage-> regionprops
         
     Returns (list(floats)): a list of two values, the avg dice score and the avg dice score difference'''
@@ -71,13 +73,15 @@ def get_dice_averages(img,seg,props):
 def get_int_dens(img, coords):
     '''computes a smoothed density over the intensity values at coords
     Args:
-        img (ndarray): the image, whose intensity values we are intrested in
+        img (torch.Tensor): the image, whose intensity values we are intrested in
         coords (list(tuples)): a list of the coords in the img, that we want to take the intensities from
             usually the coordinates of a connected component
             
         Returns (ndarray): the density values of the density on the interval [0,1]'''
+    rng = np.random.default_rng()
+    coords = rng.choice(coords,2000,replace=True,axis=0)
     intensities = np.array([img[x,y,z] for x,y,z in coords])
-    hist= np.histogram(intensities,density=True,bins=np.arange(start=0,stop=1,step=0.001))[0]
+    hist= np.histogram(intensities,density=True,bins=np.arange(start=0,stop=1.001,step=0.001))[0]
     hist = gaussian_filter(hist,sigma=0.005,mode='nearest',truncate=1)
     return hist
 
@@ -113,8 +117,9 @@ def get_similarities(img,seg,props,density_values):
     given by props.coords and the given density values
 
     Args: 
-        img (ndarray): an image
-        seg (ndarray): its segmentation mask
+        img (torch.Tensor): an image
+        seg (torch.Tensor): its segmentation mask, unused but needed for  
+            compability
         props (dict[str->object]): the regoinprop dictionary, for further 
             information see skimage->regionprops
         density_values (ndarray): Array containing the density values of a learned 
@@ -128,11 +133,27 @@ def get_similarities(img,seg,props,density_values):
     return similarity
 
 class Feature_extractor():
+    '''A class for extracting feature of img-seg pairs and get arrays of features
 
+    Args: 
+        density (Density_model): a density model, with a loaded density
+        feature (list(str)): Every string in the list is for one feature: 
+            -density_distance : computes the distance between the densities of the img-seg
+                pair and the precomputed density 
+            -dice_scores : computes the avg dice scores of the components and the avg 
+                difference of dice scores 
+            -connected components : the number of connected components in the seg
+    '''
     def __init__(self, density, features=[]):
         self.features = features
         self.nr_features = len(features)
         self.density = density
+        self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features')
+        
+        if not os.path.isdir(self.path_to_features):
+            os.makedirs(self.path_to_features)
+        
+        self.density.load_density()
 
     def get_features(self,img,seg):
         '''extracts all of self.features for a given image-seg pair
@@ -141,13 +162,15 @@ class Feature_extractor():
             img (ndarray): an image 
             seg (ndarray): the corresponding mask
             
-        Returns: list(numbers): a list of the extracted features'''
+        Returns: ndarray(numbers): arry of the extracted features'''
         list_features = []
         for feature in self.features:
             feature = self.get_feature(feature,img,seg)
             for attr in feature:
                 list_features.append(attr)
-        return list_features
+        arr_features = np.array(list_features)
+        arr_features = np.around(arr_features,decimals=4)
+        return arr_features
 
     def get_feature(self,feature,img,seg):
         '''Extracts the given feature for the given img-seg pair
@@ -158,10 +181,10 @@ class Feature_extractor():
             seg (ndarray): The corresponding mask
 
         Returns (object): depending on the feature: 
-            density_distance -> (float): The average density distance of the connected components and 
+            density_distance -> (ndarray with one enty): The average density distance of the connected components and 
                 the precomputed density
-            dice_scores -> (ndarray): array with two entries, the dice averages and dice_diff averages 
-            connected_components -> (int): The number of connected components
+            dice_scores -> (ndarray with two entries): array with two entries, the dice averages and dice_diff averages 
+            connected_components -> (ndarray with one int): The number of connected components
         '''
         component_iterator = Component_Iterator(img,seg)
         if feature == 'density_distance':
@@ -169,7 +192,7 @@ class Feature_extractor():
             similarity_scores= component_iterator.iterate(get_similarities,
                     density_values=density_values)
             average = np.mean(np.array(similarity_scores))
-            return average
+            return np.array([average])
         if feature == 'dice_scores':
             dice_metrices = component_iterator.iterate(get_dice_averages)
             dice_metrices = np.array(dice_metrices)
@@ -177,9 +200,9 @@ class Feature_extractor():
             return dice_metrices
         if feature == 'connected_components':
             _,number_components = label(seg,return_num=True)
-            return number_components
+            return np.array([number_components])
 
-    def get_features_from_paths(self,list_paths,mode='JIP'):
+    def get_features_from_paths(self,list_paths,mode='JIP',save=False,save_name=None,save_descr=None):
         '''Extracts the features from all img-seg pairs in all paths 
 
         Args:
@@ -187,7 +210,7 @@ class Feature_extractor():
                 img-seg pairs in some form
             mode (str) :the saving format of the images
         
-        Returns: (list(list(numbers))): For every image a list of features in numeric form
+        Returns: (2dim ndarray): For every image an array of features
         '''
         list_list_features = []
         for path in list_paths:
@@ -203,7 +226,48 @@ class Feature_extractor():
             # we append every feature-list to the list_list_features over a loop.
             for list in output:
                 list_list_features.append(list)
-        return list_list_features
+        arr_arr_features = np.array(list_list_features)
+        if save:
+            self.save_feature_vector(arr_arr_features,save_name,save_descr)
+        return arr_arr_features
+
+    def load_feature_vector(self,name):
+        path_to_features_save = os.path.join(self.path_to_features,name+'.npy')
+        feature_vector = np.load(path_to_features_save)
+        return feature_vector
+
+    def load_list_of_feature_vectors(self,flist):
+        length = len(flist)
+        name = flist[0]
+        features = self.load_feature_vector(name)
+        for i in range(1,length):
+            name = flist[i]
+            feature_vec = self.load_feature_vector(name)
+            features = np.append(features,feature_vec)
+        return features
+
+    def save_feature_vector(self,feature_vector,name,describtion):
+
+        if name == None or describtion == None:
+            print('features wont get saved, due to missing name and or describtion. Hold your data clean')
+        else:
+            #set places to save
+            path_to_features_save = os.path.join(self.path_to_features,name+'.npy')
+            path_to_features_descr = os.path.join(self.path_to_features,name+'_descr.txt')
+
+            # save features
+            np.save(path_to_features_save,feature_vector)
+
+            #save describtion
+            with open(path_to_features_descr,'w') as file:
+                file.write(describtion)
+        
+
+
+
+        
+
+
 
   
     

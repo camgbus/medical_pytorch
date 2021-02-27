@@ -4,7 +4,7 @@ import os
 from mp.utils.Iterators import Dataset_Iterator
 
 
-def get_intensities(list_of_paths, min_size=100, mode='JIP',save_as=None):
+def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_name=None, save_descr=None):
         '''goes through the given directories and there through every image-segmentation
         pair, in order to sample intensity values from every consolidation bigger 
         then min_size. 
@@ -32,11 +32,16 @@ def get_intensities(list_of_paths, min_size=100, mode='JIP',save_as=None):
                 list_intesities.append(samples)
         arr_intensities = np.array(list_intesities).flatten()
 
-        if save_as is not None:
-                save_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities',save_as+'.npy')
-                if not os.path.exists(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities')):
-                        os.makedirs(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities'))
-                np.save(save_path,arr_intensities)
+        if save:
+                if save_name == None or save_descr == None:
+                        print('Not saving due to missing name and or describtion, hod your data clean' )
+                else:
+                        save_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities',save_name+'.npy')
+                        if not os.path.exists(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities')):
+                                os.makedirs(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities'))
+                        np.save(save_path,arr_intensities)
+                        with open(os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'intensities',save_name+'_descr.txt'),'w') as file:
+                                file.write(save_descr)
         
         return arr_intensities
 
@@ -63,6 +68,9 @@ def sample_intensities(img,seg,props,number=2000):
         Returns: (list(numbers)): the sampled intensity values'''
                 
         coords = props.coords
+        rng = np.random.default_rng()
+        coords = rng.choice(coords,2000,replace=True,axis=0)
+        
         intensities = np.array([img[x,y,z] for x,y,z in coords])
         samples = np.random.choice(intensities,number)
         return samples
