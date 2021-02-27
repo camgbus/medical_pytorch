@@ -71,7 +71,7 @@ class Dataset_Iterator():
 
         else:
             if self.mode == 'UK_Frankfurt2':
-                for dir in os.listdir(self.data_path):
+                for dir in sorted(os.listdir(self.data_path)):
                     path = os.path.join(self.data_path,dir)
                     img_path = os.path.join(path,'image.nii.gz')
                     seg_path = os.path.join(path,'mask.nii.gz')
@@ -81,8 +81,8 @@ class Dataset_Iterator():
                     output.append(values)
 
             if self.mode == 'normal':
-                names = set(file_name.split('.nii')[0].split('_gt')[0] 
-                            for file_name in os.listdir(self.data_path))
+                names = sorted(list(set(file_name.split('.nii')[0].split('_gt')[0] 
+                            for file_name in os.listdir(self.data_path))))
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name+'_gt.nii.gz')
                     img_path = os.path.join(self.data_path,name+'.nii.gz')
@@ -92,7 +92,7 @@ class Dataset_Iterator():
                     output.append(values)
 
             if self.mode == 'JIP':
-                names = os.listdir(self.data_path)
+                names = sorted(os.listdir(self.data_path))
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name,'seg','001.mhd')
                     img_path = os.path.join(self.data_path,name,'img','img.mhd')
@@ -102,7 +102,7 @@ class Dataset_Iterator():
                     output.append(values)
         return output
     
-    def iterate_components(self,func,threshold=100,**kwargs):
+    def iterate_components(self,func,threshold=1000,**kwargs):
         '''Iterates over all connected components of all images in the given path, that are bigger then 
         threshhold and accumulates the results of func in a list, that contains an object for every con.comp. processed 
         
@@ -117,7 +117,7 @@ class Dataset_Iterator():
             raise NotImplementedError
         else:
             if self.mode == 'UK_Frankfurt2':
-                for dir in os.listdir(self.data_path):
+                for dir in sorted(os.listdir(self.data_path)):
                     path = os.path.join(self.data_path,dir)
                     img_path = os.path.join(path,'image.nii.gz')
                     seg_path = os.path.join(path,'mask.nii.gz')
@@ -127,8 +127,8 @@ class Dataset_Iterator():
 
             if self.mode == 'normal':
                 #get the names of the files, it is assumed, that the data has the endings for mask and img as UK_Frankfurt
-                names = set(file_name.split('.nii')[0].split('_gt')[0] 
-                            for file_name in os.listdir(self.data_path))
+                names = sorted(list(set(file_name.split('.nii')[0].split('_gt')[0] 
+                            for file_name in os.listdir(self.data_path))))
                 for name in names:
                     seg_path = os.path.join(self.data_path,name+'_gt.nii.gz')
                     img_path = os.path.join(self.data_path,name+'.nii.gz')
@@ -137,7 +137,7 @@ class Dataset_Iterator():
                     iterate_components(img,seg,func,output,threshold,**kwargs) 
             
             if self.mode == 'JIP':
-                names = os.listdir(self.data_path)
+                names = sorted(os.listdir(self.data_path))
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.extension))
                     img_path = os.path.join(self.data_path,name,'img','img.{}'.format(self.extension))
