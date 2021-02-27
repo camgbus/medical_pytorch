@@ -39,10 +39,12 @@ def test_feature_extractor_working():
     save_name='dummy_features'
     save_descr='3 img-seg pairs from UK Fra'
     mode = 'normal'
-    features = ['dice_scores'] #['density_distance','dice_scores','connected_components']
+    features = ['density_distance'] #['density_distance','dice_scores','connected_components']
 
     density = Density_model(add_to_name='dummy')
-
+    density.load_density()
+    values = density.get_values()
+    
     feat_extr = Feature_extractor(density=density,features=features)
     feat_arr = feat_extr.get_features_from_paths(list_of_paths,mode=mode,save=save,
                 save_name=save_name,save_descr=save_descr)

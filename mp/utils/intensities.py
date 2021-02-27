@@ -55,7 +55,7 @@ def load_intensities(list_of_names):
         return intensities
 
 
-def sample_intensities(img,seg,props,number=2000):
+def sample_intensities(img,seg,props,number=5000):
         '''samples intesity values from from given component of an img-seg pair
         
         Args:
@@ -69,8 +69,9 @@ def sample_intensities(img,seg,props,number=2000):
                 
         coords = props.coords
         rng = np.random.default_rng()
-        coords = rng.choice(coords,2000,replace=True,axis=0)
-        
+        if len(coords) > number:
+                coords = rng.choice(coords,5000,replace=False,axis=0)
+
         intensities = np.array([img[x,y,z] for x,y,z in coords])
         samples = np.random.choice(intensities,number)
         return samples

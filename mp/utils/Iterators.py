@@ -102,7 +102,7 @@ class Dataset_Iterator():
                     output.append(values)
         return output
     
-    def iterate_components(self,func,threshold=10,**kwargs):
+    def iterate_components(self,func,threshold=100,**kwargs):
         '''Iterates over all connected components of all images in the given path, that are bigger then 
         threshhold and accumulates the results of func in a list, that contains an object for every con.comp. processed 
         
@@ -150,7 +150,7 @@ class Dataset_Iterator():
 class Component_Iterator():
     ''' In order to iterate over the components segmentation using the intensity image
     '''
-    def __init__(self,img,seg,threshold=10):
+    def __init__(self,img,seg,threshold=1000):
         self.img = img 
         self.seg = seg
         self.threshold = threshold

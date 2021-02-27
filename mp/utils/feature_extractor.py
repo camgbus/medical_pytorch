@@ -72,7 +72,6 @@ def get_dice_averages(img,seg,props):
         dice_diff_abs = np.absolute(dice_diff)
         dice_diff_avg_value = np.average(dice_diff_abs)
 
-    print([dice_avg_value,dice_diff_avg_value])
     return [dice_avg_value,dice_diff_avg_value]
 
 def get_int_dens(img, coords):
@@ -84,10 +83,11 @@ def get_int_dens(img, coords):
             
         Returns (ndarray): the density values of the density on the interval [0,1]'''
     rng = np.random.default_rng()
-    coords = rng.choice(coords,2000,replace=True,axis=0)
+    if len(coords) > 5000:
+        coords = rng.choice(coords,5000,replace=False,axis=0)
     intensities = np.array([img[x,y,z] for x,y,z in coords])
     hist= np.histogram(intensities,density=True,bins=np.arange(start=0,stop=1.001,step=0.001))[0]
-    hist = gaussian_filter(hist,sigma=0.005,mode='nearest',truncate=1)
+    hist = gaussian_filter(hist,sigma=10,mode='nearest',truncate=4)
     return hist
 
 def density_similarity(p,q,mode='kl'):
@@ -115,6 +115,8 @@ def density_similarity(p,q,mode='kl'):
             else :
                 summand = pi * (np.log(pi/qi))
                 similarity += summand
+    if mode == 'l2':
+        similarity = np.linalg.norm(p-q)
     return similarity
 
 def get_similarities(img,seg,props,density_values):
@@ -266,6 +268,8 @@ class Feature_extractor():
             #save describtion
             with open(path_to_features_descr,'w') as file:
                 file.write(describtion)
+                file.write("\n")
+                file.write("With features: {}".format(self.features))
         
 
 
