@@ -58,7 +58,7 @@ def CNN_initialize_and_train(config):
         test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
-        dataset_name = 'FRACorona'
+        dataset_name = 'FRACoronaSplit'
         data.add_dataset(FraCoronaDatasetAugmented(augmented=augmented,
                                                   img_size=input_shape,
                                      max_likert_value=max_likert_value,
@@ -196,7 +196,7 @@ def CNN_restore_and_train(config):
         test_ds = (dataset_name, 'test')
         
     if dataset_name == 'UK_FRA':
-        dataset_name = 'FRACorona'
+        dataset_name = 'FRACoronaSplit'
         data.add_dataset(FraCoronaDatasetRestored(img_size=input_shape,
                                      max_likert_value=max_likert_value,
                                                            noise=noise,
@@ -332,7 +332,7 @@ def CNN_test(config):
         test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
-        dataset_name = 'FRACorona'
+        dataset_name = 'FRACoronaSplit'
         """
         # Use for real data (assessment)
         data.add_dataset(FraCoronaDataset(augmented=False,

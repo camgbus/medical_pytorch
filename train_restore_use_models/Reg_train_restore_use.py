@@ -58,7 +58,7 @@ def Reg_initialize_and_train(config):
         test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
-        dataset_name = 'FRACorona'
+        dataset_name = 'FRACoronaSplit'
         data.add_dataset(FraCoronaDatasetAugmented(augmented=augmented,
                                                   img_size=input_shape,
                                      max_likert_value=max_likert_value,
@@ -196,7 +196,7 @@ def Reg_restore_and_train(config):
         test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
-        dataset_name = 'FRACorona'
+        dataset_name = 'FRACoronaSplit'
         data.add_dataset(FraCoronaDatasetRestored(img_size=input_shape,
                                      max_likert_value=max_likert_value,
                                                            noise=noise,
@@ -333,7 +333,7 @@ def Reg_test(config):
         test_ds = (dataset_name, 'test')
 
     if dataset_name == 'UK_FRA':
-        dataset_name = 'FRACorona'
+        dataset_name = 'FRACoronaSplit'
         data.add_dataset(FraCoronaDatasetAugmented(augmented=False,
                                               img_size=input_shape,
                                  max_likert_value=max_likert_value,
