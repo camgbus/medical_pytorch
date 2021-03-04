@@ -46,7 +46,6 @@ class Dataset_Iterator():
             resize (bool): if the images should be reiszed, is not implemented
             size (tuple): the size, the imf should be resized to
             size_components (tuple): the size comp should be resized to
-            extension (str): the extension of the img/seg files
         '''
         self.data_path = data_path
         self.mode = mode 
@@ -139,8 +138,8 @@ class Dataset_Iterator():
             if self.mode == 'JIP':
                 names = sorted(os.listdir(self.data_path))
                 for name in names: 
-                    seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.extension))
-                    img_path = os.path.join(self.data_path,name,'img','img.{}'.format(self.extension))
+                    seg_path = os.path.join(self.data_path,name,'seg','001.nii.gz')
+                    img_path = os.path.join(self.data_path,name,'img','img.nii.gz')
                     img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     iterate_components(img,seg,func,output,threshold,**kwargs)
