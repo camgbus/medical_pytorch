@@ -42,8 +42,6 @@ def test_feature_extractor_working():
     features = ['density_distance'] #['density_distance','dice_scores','connected_components']
 
     density = Density_model(add_to_name='dummy')
-    density.load_density()
-    values = density.get_values()
     
     feat_extr = Feature_extractor(density=density,features=features)
     feat_arr = feat_extr.get_features_from_paths(list_of_paths,mode=mode,save=save,
@@ -52,8 +50,6 @@ def test_feature_extractor_working():
     print('Everything went through, so should be fine')
 
 test_feature_extractor_working()
-
-
     
 
 
