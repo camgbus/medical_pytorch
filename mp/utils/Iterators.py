@@ -52,6 +52,7 @@ class Dataset_Iterator():
         self.resize = resize 
         self.size = size 
         self.size_components = size_components
+        self.jip_extension = 'mhd'
     
     def iterate_images(self,func,**kwargs):
         '''Iterates over all images in the given path,  and accumulates the results of func in a list, 
@@ -93,8 +94,18 @@ class Dataset_Iterator():
             if self.mode == 'JIP':
                 names = sorted(os.listdir(self.data_path))
                 for name in names: 
-                    seg_path = os.path.join(self.data_path,name,'seg','001.mhd')
-                    img_path = os.path.join(self.data_path,name,'img','img.mhd')
+                    seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.jip_extension))
+                    img_path = os.path.join(self.data_path,name,'img','img.{}'.format(self.jip_extension))
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+                    values = func(img,seg,**kwargs)
+                    output.append(values)
+            
+            if self.mode == 'JIP_test':
+                names = sorted(os.listdir(self.data_path))
+                for name in names: 
+                    seg_path = os.path.join(self.data_path,name,'seg','001.nii.gt')
+                    img_path = os.path.join(self.data_path,name,'img','img.nii.gt')
                     img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     values = func(img,seg,**kwargs)
@@ -136,6 +147,15 @@ class Dataset_Iterator():
                     iterate_components(img,seg,func,output,threshold,**kwargs) 
             
             if self.mode == 'JIP':
+                names = sorted(os.listdir(self.data_path))
+                for name in names: 
+                    seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.jip_extension))
+                    img_path = os.path.join(self.data_path,name,'img','img.{}'.format(self.jip_extension))
+                    img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+                    seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+                    iterate_components(img,seg,func,output,threshold,**kwargs)
+            
+            if self.mode == 'JIP_test':
                 names = sorted(os.listdir(self.data_path))
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name,'seg','001.nii.gz')
