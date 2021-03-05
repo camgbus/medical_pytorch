@@ -41,7 +41,6 @@ class JIPDataset(CNNDataset):
         if not os.path.isdir(self.dataset_path) or not os.listdir(self.dataset_path):
             _extract_images(self.source_path, self.dataset_path, self.img_size)
 
-
 def _delete_images(path):
     # Walk through path and delete all .nii files
     print('Walk trough directory \'{}\' and delete nifti files..'.format(path))
@@ -57,7 +56,7 @@ def _delete_images(path):
 def _extract_images(source_path, target_path, img_size=(1, 299, 299), gpu=False, cuda=0):
     r"""Extracts MRI images and saves the modified images."""
     # Foldernames are patient_id
-    filenames = [x for x in os.listdir(source_path)]
+    filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x]
 
     for num, filename in enumerate(filenames):
         msg = "Loading SimpleITK images/labels and center cropping them: "

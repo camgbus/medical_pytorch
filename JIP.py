@@ -125,13 +125,13 @@ if __name__ == "__main__":
         if msg_bot:
             bot.send_msg('Start to preprocess data..')
         preprocessed, error = preprocess_data(config)
-        if msg_bot:
+        if preprocessed and msg_bot:
             bot.send_msg('Finished preprocessing..')
         if not preprocessed:
             print('Data could not be processed. The following error occured: {}.'.format(error))
             if msg_bot:
                 bot.send_msg('Data could not be processed. The following error occured: {}.'.format(error))
-    
+
 
 """
 # -------------------------------------------------------------------------------------------------------
