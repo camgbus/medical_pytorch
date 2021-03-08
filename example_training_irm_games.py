@@ -22,6 +22,8 @@ from mp.eval.result import Result
 from mp.experiments.experiment import Experiment
 from mp.models.IRMGamesModel import IRMGamesModel
 from mp.models.segmentation.unet_fepegar import UNet3D
+from mp.utils.early_stopping import EarlyStopping
+from mp.utils.load_restore import pkl_dump
 
 warnings.filterwarnings("ignore")
 
@@ -38,13 +40,13 @@ label_names = data.label_names
 
 # 3. Define configuration
 configs = [
-    {'experiment_name': 'test_exp', 'device': 'cuda:0',
-     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.0, 'test_ratio': 0.3,
+    {'experiment_name': 'irm_games_test', 'device': 'cuda:0',
+     'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
-     'class_weights': (0., 1.), 'lr': 2e-4, "batch_sizes": [13, 14],
+     'class_weights': (0., 1.), 'lr': 2e-4, "batch_sizes": [26, 5],
      "nr_epochs": 100,
      "eval_interval": 10,
-     "train_ds_names": (decath.name, harp.name),
+     "train_ds_names": (decath.name, dryad.name),
      }
 ]
 
@@ -98,7 +100,7 @@ for config in configs:
         model = IRMGamesModel(ensemble,
                               input_shape=input_shape,
                               output_shape=ensemble[0].output_shape,
-                              representation_learner=UNet3D(input_shape, input_shape[0])
+                              # representation_learner=UNet3D(input_shape, input_shape[0])
                               )
         model.to(device)
 
@@ -107,14 +109,17 @@ for config in configs:
         loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'],
                                    device=device)
         optimizers = [optim.Adam(sub_model.parameters(), lr=config['lr']) for sub_model in model.models]
+        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_train" for name in train_ds_names])
 
         # 11. Train model
         results = Result(name='training_trajectory')
         agent = SegmentationIRMGamesAgent(model=model, label_names=label_names, device=device)
-        agent.train(results, optimizers, loss_g, train_dataloaders=dls,
-                    init_epoch=0, nr_epochs=config["nr_epochs"], run_loss_print_interval=config["eval_interval"],
-                    eval_datasets=datasets, eval_interval=config["eval_interval"],
-                    save_path=exp_run.paths['states'], save_interval=config["nr_epochs"])
+        epochs = agent.train_with_early_stopping(results, optimizers, loss_g, train_dataloaders=dls,
+                                                 early_stopping=early_stopping,
+                                                 init_epoch=0, run_loss_print_interval=config["eval_interval"],
+                                                 eval_datasets=datasets, eval_interval=config["eval_interval"],
+                                                 save_path=exp_run.paths['states'], save_interval=config["nr_epochs"])
 
+        pkl_dump(epochs, "epochs.pkl", exp_run.paths['obj'])
         # 12. Save and print results for this experiment run
         exp_run.finish(results=results, plot_metrics=['Mean_ScoreDice[hippocampus]'])

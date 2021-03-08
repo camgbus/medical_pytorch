@@ -40,15 +40,11 @@ label_names = data.label_names
 
 # 3. Define configuration
 configs = [
-    {"experiment_name": "decath_harp_hybrid_aug_no_dompred_erm", "device": "cuda:0",
-     "nr_runs": 5, "cross_validation": True, "val_ratio": 0.1, "test_ratio": 0.3,
-     "input_shape": [1, 48, 64, 64], "resize": False, "augmentation": "hybrid",
-     "class_weights": [0.0, 1.0], "lr": 0.0002, "batch_sizes": [13, 14],
-     "penalty_weight": 0,
-     "save_interval": 10,
-     "loss": "erm",
-     "train_ds_names": (decath.name, harp.name),
-     },
+    {"experiment_name": "decath_dryad_hybrid_aug_no_dompred_irmv1", "device": "cuda:0", "nr_runs": 5,
+     "cross_validation": True, "val_ratio": 0.1, "test_ratio": 0.3, "input_shape": [1, 48, 64, 64], "resize": False,
+     "augmentation": "hybrid", "class_weights": [0.0, 1.0], "lr": 0.0002, "batch_sizes": [26, 5],
+     "penalty_weight": 1, "save_interval": 10, "loss": "irmv1",
+     "train_ds_names": ["DecathlonHippocampus", "DryadHippocampus[Modality:T1w][Resolution:Standard]"]}
 ]
 
 # 4. Pre-split datasets to avoid having the "Repetition k i of j" messages spammed at each experiment's start
@@ -66,7 +62,6 @@ for config in configs:
 
     # 5. Create experiment directories
     exp = Experiment(config=config, name=config['experiment_name'], notes='', reload_exp=True)
-    train_ds = (decath.name, 'train'), (dryad.name, 'train'),  # (harp.name, 'train'),
 
     # 6. Create data splits for each repetition
     exp.set_data_splits(data)
@@ -122,7 +117,7 @@ for config in configs:
 
         agent = SegmentationIRMAgent(model=model, label_names=label_names, device=device, verbose=True)
 
-        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_test" for name in train_ds_names])
+        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_train" for name in train_ds_names])
         epochs = agent.train_with_early_stopping(results, optimizer, irm_loss, dls, early_stopping,
                                                  init_epoch=0, run_loss_print_interval=config["save_interval"],
                                                  eval_datasets=datasets, eval_interval=config["save_interval"],

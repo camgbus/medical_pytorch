@@ -8,6 +8,7 @@ from mp.eval.accumulator import Accumulator
 from mp.eval.inference.predict import softmax
 from mp.eval.losses.loss_abstract import LossAbstract
 from mp.utils.pytorch.pytorch_load_restore import save_optimizer_state, load_optimizer_state
+from mp.utils.early_stopping import EarlyStopping
 
 
 class SegmentationIRMGamesAgent(SegmentationAgent):
@@ -54,8 +55,7 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
     def train(self, results, optimizers, loss_f, train_dataloaders,
               init_epoch=0, nr_epochs=100, run_loss_print_interval=10,
               eval_datasets=None, eval_interval=10,
-              save_path=None, save_interval=10,
-              penalty_weight=1e5, penalty_anneal_iters=1000):
+              save_path=None, save_interval=10):
         r"""Train a model through its agent. Performs training epochs,
         tracks metrics and saves model states.
 
@@ -87,6 +87,52 @@ class SegmentationIRMGamesAgent(SegmentationAgent):
             # Save agent and optimizer state
             if (epoch + 1) % save_interval == 0 and save_path is not None:
                 self.save_state(save_path, 'epoch_{}'.format(epoch + 1), optimizers)
+
+    def train_with_early_stopping(self, results, optimizers, loss_f, train_dataloaders, early_stopping,
+                                  init_epoch=0, run_loss_print_interval=10,
+                                  eval_datasets=None, eval_interval=10,
+                                  save_path=None, save_interval=10):
+        r"""Train a model through its agent. Performs training epochs,
+        tracks metrics and saves model states.
+
+        Args:
+            optimizers (list): a list of optimizers (one for each DL)
+            loss_f (LossAbstract): the loss
+            train_dataloaders (list): a list of Dataloader
+            early_stopping (EarlyStopping): the early stopping criterion
+        """
+
+        # Model must be an IRMGamesModel and the nb of optimizers / Dataloaders must match the number of sub-models
+        assert len(train_dataloaders) == len(self.model.models), "Nb of Dataloaders doe not match nb of sub-models"
+        assert len(optimizers) == len(self.model.models), "Nb of optimizers doe not match nb of sub-models"
+
+        if eval_datasets is None:
+            eval_datasets = dict()
+
+        early_stopping.reset()
+
+        epoch = init_epoch
+        if epoch == 0:
+            self.track_metrics(init_epoch, results, loss_f, eval_datasets)
+        for epoch in range(epoch, 1 << 32):
+            print_run_loss = (epoch + 1) % run_loss_print_interval == 0
+            print_run_loss = print_run_loss and self.verbose
+
+            self.perform_training_epoch(optimizers, loss_f, train_dataloaders, print_run_loss=print_run_loss)
+
+            # Track statistics in results
+            if (epoch + 1) % eval_interval == 0:
+                self.track_metrics(epoch + 1, results, loss_f, eval_datasets)
+
+                # Stop stage if needed
+                if not early_stopping.check_results(results, epoch + 1):
+                    break
+
+        # Save agent and optimizer state
+        if save_path is not None:
+            self.save_state(save_path, 'epoch_{}'.format(epoch + 1), optimizers)
+
+        return epoch + 1,
 
     def save_state(self, states_path, state_name, optimizers=None, overwrite=False):
         r"""Saves an agent state. Raises an error if the directory exists and
