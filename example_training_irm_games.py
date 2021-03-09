@@ -43,10 +43,11 @@ configs = [
     {'experiment_name': 'irm_games_test', 'device': 'cuda:0',
      'nr_runs': 5, 'cross_validation': True, 'val_ratio': 0.1, 'test_ratio': 0.3,
      'input_shape': (1, 48, 64, 64), 'resize': False, 'augmentation': 'hybrid',
-     'class_weights': (0., 1.), 'lr': 2e-4, "batch_sizes": [26, 5],
+     'class_weights': (0., 1.), 'lr': 1e-4, "batch_sizes": [26, 5],
      "nr_epochs": 100,
      "eval_interval": 10,
      "train_ds_names": (decath.name, dryad.name),
+     "start": 4
      }
 ]
 
@@ -70,7 +71,7 @@ for config in configs:
     exp.set_data_splits(data)
 
     # Now repeat for each repetition
-    for run_ix in range(config['nr_runs']):
+    for run_ix in range(config.get("start", 0), config['nr_runs']):
         exp_run = exp.get_run(run_ix)
 
         # 7. Bring data to Pytorch format
@@ -109,7 +110,7 @@ for config in configs:
         loss_f = LossClassWeighted(loss=loss_g, weights=config['class_weights'],
                                    device=device)
         optimizers = [optim.Adam(sub_model.parameters(), lr=config['lr']) for sub_model in model.models]
-        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_train" for name in train_ds_names])
+        early_stopping = EarlyStopping(3, "Mean_ScoreDice[hippocampus]", [name + "_val" for name in train_ds_names])
 
         # 11. Train model
         results = Result(name='training_trajectory')

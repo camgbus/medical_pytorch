@@ -117,7 +117,7 @@ for config in configs:
 
         agent = SegmentationIRMAgent(model=model, label_names=label_names, device=device, verbose=True)
 
-        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_train" for name in train_ds_names])
+        early_stopping = EarlyStopping(1, "Mean_ScoreDice[hippocampus]", [name + "_val" for name in train_ds_names])
         epochs = agent.train_with_early_stopping(results, optimizer, irm_loss, dls, early_stopping,
                                                  init_epoch=0, run_loss_print_interval=config["save_interval"],
                                                  eval_datasets=datasets, eval_interval=config["save_interval"],
