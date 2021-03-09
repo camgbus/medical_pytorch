@@ -120,7 +120,7 @@ if __name__ == "__main__":
     #          'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
     #          'bot_msg_interval': 20, 'augmented': True, 'dataset': ds
     #         }
-    config = {'device':cuda, 'input_shape': (1, 299, 299), 'msg_bot': msg_bot}
+    config = {'device':cuda, 'input_shape': (1, 60, 299, 299), 'msg_bot': msg_bot}
     if mode == 'preprocess':
         if msg_bot:
             bot.send_msg('Start to preprocess data..')

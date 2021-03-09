@@ -6,19 +6,21 @@
 import os
 import shutil
 import torch
+import torchio as tio
 import traceback
 import numpy as np
 import SimpleITK as sitk
 # Install lungmask from https://github.com/amrane99/lungmask using pip install git+https://github.com/amrane99/lungmask
 from lungmask import mask
-from mp.data.pytorch.transformation import centre_crop_pad_2d
+from mp.data.pytorch.transformation import centre_crop_pad_3d
 from mp.data.datasets.dataset_cnn import CNNDataset, CNNInstance
 
 class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
-    def __init__(self, subset=None, img_size=(1, 299, 299), gpu=True, cuda=0, msg_bot=False):
+    def __init__(self, subset=None, img_size=(1, 60, 299, 299), gpu=True, cuda=0, msg_bot=False):
         assert subset is None, "No subsets for this dataset."
+        assert len(img_size) == 4, "Image size needs to be 4D --> (batch_size, depth, height, width)."
         self.img_size = img_size
         self.gpu = gpu
         self.cuda = cuda
@@ -53,29 +55,32 @@ def _delete_images(path):
                 fpath = os.path.dirname(dname)
                 shutil.rmtree(fpath)
 
-def _extract_images(source_path, target_path, img_size=(1, 299, 299), gpu=False, cuda=0):
+def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), gpu=False, cuda=0):
     r"""Extracts MRI images and saves the modified images."""
     # Foldernames are patient_id
     filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x]
+
+    # Define resample object (each image will be resampled to voxelsize (1, 1, 5))
+    resample = tio.Resample((1, 1, 5))
 
     for num, filename in enumerate(filenames):
         msg = "Loading SimpleITK images/labels and center cropping them: "
         msg += str(num + 1) + " of " + str(len(filenames)) + "."
         print (msg, end = "\r")
         # Check if whole lung is captured
-        discard, _, _ = _whole_lung_captured(os.path.join(source_path, filename, 'img', 'img.nii.gz'), gpu, cuda)
-        
+        discard, start_slc, end_slc = _whole_lung_captured(os.path.join(source_path, filename, 'img', 'img.nii.gz'), gpu, cuda)
+     
         if not discard:
             # Extract all images (3D)
-            x = sitk.ReadImage(os.path.join(source_path, filename, 'img', 'img.nii.gz'))
-            y = sitk.ReadImage(os.path.join(source_path, filename, 'seg', '001.nii.gz'))
-            x = torch.from_numpy(sitk.GetArrayFromImage(x))
-            y = torch.from_numpy(sitk.GetArrayFromImage(y).astype(np.int16))
+            x = resample(sitk.ReadImage(os.path.join(source_path, filename, 'img', 'img.nii.gz'))[:,:,start_slc:end_slc])
+            y = resample(sitk.ReadImage(os.path.join(source_path, filename, 'seg', '001.nii.gz'))[:,:,start_slc:end_slc])
+            x = torch.from_numpy(sitk.GetArrayFromImage(x)).unsqueeze_(0)
+            y = torch.from_numpy(sitk.GetArrayFromImage(y).astype(np.int16)).unsqueeze_(0)
             try:
-                x = centre_crop_pad_2d(x, img_size)
-                y = centre_crop_pad_2d(y, img_size)
+                x = centre_crop_pad_3d(x, img_size)[0]
+                y = centre_crop_pad_3d(y, img_size)[0]
             except:
-                print('Image could not be resized and will therefore be skipped: {}.'
+                print('Image could not be resized/resampled and will therefore be skipped: {}.'
                 .format(filename))
                 continue
             # Create directories
