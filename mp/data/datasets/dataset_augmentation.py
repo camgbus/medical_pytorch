@@ -6,85 +6,10 @@
 # Imports
 import torch
 import torchio as tio
-from mp.data.data import Data
-from mp.paths import storage_data_path
 import random
 import numpy as np
 import os
 import SimpleITK as sitk
-from mp.utils.load_restore import join_path
-import json
-import numpy as np
-
-
-# Load Data function
-def load_dataset(data, is_list=False, label_included=False):
-    r""" This function loads data in form of SimpleITK images and returns
-    them in form of a list. If label_included is true, the segmentation,
-    i.e. label images will also be returned. Parallel, the image names will be
-    transmitted in form of a second list."""
-    itk_images = list()
-    image_names = list()
-    if is_list:
-        for idx in range(len(data)):
-            # Load Image in form of SimpleITK
-            image = data[idx].x.as_sitk()
-            itk_images.append(image)
-            name = data[idx].name
-            image_names.append(name)
-    else:
-        for ds_name, ds in data.datasets.items():
-            for idx in range(ds.size):
-                # Load Image in form of SimpleITK
-                image = ds.instances[idx].x.as_sitk()
-                itk_images.append(image)
-                image_names.append(ds.instances[idx].name)
-                # Check if label is also needed
-                if label_included:
-                    # Load label in form of SimpleITK
-                    label = ds.instances[idx].y.as_sitk()
-                    itk_images.append(label)
-                    image_names.append(ds.instances[idx].name + '_gt')
-
-    return itk_images, image_names
-
-# Save Data function
-def save_dataset(itk_images, image_names, data_label, folder_name,
-                 storage_data_path=storage_data_path, simpleITK=True,
-                 empty_dir=False, extend=False):
-    r""" This function saves data in form of SimpleITK images at the specified
-    location and folder based on the image names. If simpleITK is set to false,
-    the images will be transformed into numpy arrays and saved in form of a .npy
-    file. empty_dir indicates if the directory should be emptied --> only
-    necessary for random images for training, since each training should have new
-    images. If extend is true, the images will be added to the directory if it
-    contains already other files."""
-    # Set target path
-    target_path = os.path.join(storage_data_path, data_label, folder_name)
-    if not os.path.isdir(target_path):
-        os.makedirs(target_path)
-    if empty_dir and os.listdir(target_path):
-        # Delete files in directory
-        for f in os.listdir(target_path):
-            os.remove(os.path.join(target_path, f))
-    if not extend and os.listdir(target_path):
-        assert "Desired path (folder) already contains files!"
-
-    # Save images
-    if simpleITK:
-        for idx, image in enumerate(itk_images):
-            if isinstance(image, np.ndarray):
-                image = sitk.GetImageFromArray(image)
-            sitk.WriteImage(image, 
-                join_path([target_path, str(image_names[idx])+".nii.gz"]))
-    else:
-        images_np = list()
-        for image in itk_images:
-            image_np = sitk.GetArrayFromImage(image)
-            images_np.append(image_np)
-        np.save(join_path([target_path, data_label+'-trans_data_without_names.npy']), np.array(images_np))
-        np.save(join_path([target_path, data_label+'-names_for_trans_data.npy']), np.array(image_names))
-
 
 # Select randomly slices of images 
 def select_random_images_slices(path, filenames, noise, nr_images, nr_slices, nr_intensities=None):
@@ -152,270 +77,87 @@ def select_random_images_slices(path, filenames, noise, nr_images, nr_slices, nr
 
 
 # Perfom augmentation on dataset
-def augment_data_in_four_intensities(data, dataset_name, is_list=False,
-                                     label_included=False, storage_data_path=storage_data_path,
-                                     max_likert_value=1, random=False, noise='blur', nr_images=20,
-                                     nr_slices=20, model_type='regression'):
-    r""" This function takes a dataset and creates augmented datasets with 4 different intensities:
+def augment_image_in_four_intensities(image, noise='blur'):
+    r"""This function takes an image and augments it in 4 intensities for one of 6 artefacts:
         - Downsampling
         - Blurring
         - Ghosting
         - Motion
         - (Gaussian) Noise
         - Spike
-        It saves the data based on transmitted information and returns the data in form of a list
-        with its labels as a dictionary.
-        If random is true, random images based on nr_images and nr_slices will be selected according to
-        the noise type. nr_images is the number of images per intensity and nr_slices the number of
-        slices per image."""
+    """
+    # Define augmentation methods
+    if noise == 'blur':
+        blur2 = random_blur(std=1, seed=42)
+        blur3 = random_blur(std=2, seed=42)
+        blur4 = random_blur(std=3, seed=42)
+        blur5 = random_blur(std=4, seed=42)
+        return blur2(image), blur3(image), blur4(image), blur5(image)
 
-    # 0. Initialize variables
-    aug_data = list()
-    image_names = list()
-    labels = dict()
-    folder_name = 'randomised_data_' + str(model_type) + '_' + str(noise)
+    if noise == 'downsample':
+        downsample2 = random_downsample(axes=(0, 1, 2),
+                                        downsampling=4,
+                                        seed=42)
+        downsample3 = random_downsample(axes=(0, 1, 2),
+                                        downsampling=6,
+                                        seed=42)
+        downsample4 = random_downsample(axes=(0, 1, 2),
+                                        downsampling=8,
+                                        seed=42)
+        downsample5 = random_downsample(axes=(0, 1, 2),
+                                        downsampling=10,
+                                        seed=42)
+        return downsample2(image), downsample3(image), downsample4(image), downsample5(image)
 
-    # 1. Check if data has been generated already:
-    print('Check if data {} has been generated and can be retrieved from {}.'.format(dataset_name,
-                                                                   os.path.join(storage_data_path,
-                                                                 dataset_name, 'augmented_data')))
-    if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'augmented_data'))\
-        and os.listdir(os.path.join(storage_data_path, dataset_name, 'augmented_data')):
-        # Check if labels are present
-        if os.path.isdir(os.path.join(storage_data_path, dataset_name, 'labels'))\
-        and os.listdir(os.path.join(storage_data_path, dataset_name, 'labels')):
-            filenames = list(file_name for file_name in
-            os.listdir(os.path.join(storage_data_path,
-                                   dataset_name, 'augmented_data'))
-                                   if '._' not in file_name)
-            
-            # Load data
-            path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
-            if random:
-                aug_data, image_names = select_random_images_slices(path, filenames, noise,
-                nr_images, nr_slices, max_likert_value)
-                # Save random images so they can be loaded
-                print("Saving random images and image slices as SimpleITK for training and testing..")
-                save_dataset(aug_data,
-                             image_names,
-                             dataset_name,
-                             folder_name,
-                             storage_data_path,
-                             simpleITK=True,
-                             empty_dir=True)
-            else:
-                for num, filename in enumerate(filenames):
-                    msg = 'Loading augmented images as SimpleITK: '
-                    msg += str(num + 1) + ' of ' + str(len(filenames)) + '.'
-                    print (msg, end = '\r')
-                    if not '.nii.gz' in filename:
-                        continue
-                    image_names.append(filename.split('/')[-1].split('.nii')[0])
-
-            # Load labels
-            filenames = os.listdir(os.path.join(storage_data_path,
-                                   dataset_name, 'labels'))
-            with open(os.path.join(storage_data_path,
-            dataset_name, 'labels', filenames[0]), 'r') as fp:
-                labels = json.load(fp)
-
-            # Transform label integers into torch.tensors
-            for key, value in labels.items():
-                labels[key] = torch.tensor([value])
-            return labels, image_names
-
-        else:
-            print('The labels are missing, i.e. data needs to be generated.')
-
-    else:
-        print('The directories do not exist or are empty, i.e. data needs to be generated.')      
-
-    # 2. Load data as SimpleITK images
-    itk_images, image_names = load_dataset(data, is_list, label_included)
-
-    # 3. Define image names based on augmentation method and intensity:
-    updated_image_names = list()
-    for name in image_names:
-        updated_image_names.append(str(name) + 'downsample_2')
-        updated_image_names.append(str(name) + 'downsample_3')
-        updated_image_names.append(str(name) + 'downsample_4')
-        updated_image_names.append(str(name) + 'downsample_5')
-        updated_image_names.append(str(name) + 'blur_2')
-        updated_image_names.append(str(name) + 'blur_3')
-        updated_image_names.append(str(name) + 'blur_4')
-        updated_image_names.append(str(name) + 'blur_5')
-        updated_image_names.append(str(name) + 'ghosting_2')
-        updated_image_names.append(str(name) + 'ghosting_3')
-        updated_image_names.append(str(name) + 'ghosting_4')
-        updated_image_names.append(str(name) + 'ghosting_5')
-        updated_image_names.append(str(name) + 'motion_2')
-        updated_image_names.append(str(name) + 'motion_3')
-        updated_image_names.append(str(name) + 'motion_4')
-        updated_image_names.append(str(name) + 'motion_5')
-        updated_image_names.append(str(name) + 'noise_2')
-        updated_image_names.append(str(name) + 'noise_3')
-        updated_image_names.append(str(name) + 'noise_4')
-        updated_image_names.append(str(name) + 'noise_5')
-        updated_image_names.append(str(name) + 'spike_2')
-        updated_image_names.append(str(name) + 'spike_3')
-        updated_image_names.append(str(name) + 'spike_4')
-        updated_image_names.append(str(name) + 'spike_5')
-
-    # 4. Define labels based on augmentation method and intensity:
-    for name in image_names:
-        labels[str(name) + 'blur_2'] = 2/max_likert_value
-        labels[str(name) + 'blur_3'] = 3/max_likert_value
-        labels[str(name) + 'blur_4'] = 4/max_likert_value
-        labels[str(name) + 'blur_5'] = 5/max_likert_value
-        labels[str(name) + 'downsample_2'] = 2/max_likert_value
-        labels[str(name) + 'downsample_3'] = 3/max_likert_value
-        labels[str(name) + 'downsample_4'] = 4/max_likert_value
-        labels[str(name) + 'downsample_5'] = 5/max_likert_value
-        labels[str(name) + 'ghosting_2'] = 2/max_likert_value
-        labels[str(name) + 'ghosting_3'] = 3/max_likert_value
-        labels[str(name) + 'ghosting_4'] = 4/max_likert_value
-        labels[str(name) + 'ghosting_5'] = 5/max_likert_value
-        labels[str(name) + 'motion_2'] = 2/max_likert_value
-        labels[str(name) + 'motion_3'] = 3/max_likert_value
-        labels[str(name) + 'motion_4'] = 4/max_likert_value
-        labels[str(name) + 'motion_5'] = 5/max_likert_value
-        labels[str(name) + 'noise_2'] = 2/max_likert_value
-        labels[str(name) + 'noise_3'] = 3/max_likert_value
-        labels[str(name) + 'noise_4'] = 4/max_likert_value
-        labels[str(name) + 'noise_5'] = 5/max_likert_value
-        labels[str(name) + 'spike_2'] = 2/max_likert_value
-        labels[str(name) + 'spike_3'] = 3/max_likert_value
-        labels[str(name) + 'spike_4'] = 4/max_likert_value
-        labels[str(name) + 'spike_5'] = 5/max_likert_value
-
-    # 5. Define augmentation methods
-    blur2 = random_blur(std=1, seed=42)
-    blur3 = random_blur(std=2, seed=42)
-    blur4 = random_blur(std=3, seed=42)
-    blur5 = random_blur(std=4, seed=42)
-    downsample2 = random_downsample(axes=(0, 1, 2),
-                                    downsampling=4,
+    if noise == 'ghosting':
+        ghosting2 = random_ghosting(intensity=0.55,
                                     seed=42)
-    downsample3 = random_downsample(axes=(0, 1, 2),
-                                    downsampling=6,
+        ghosting3 = random_ghosting(intensity=0.95,
                                     seed=42)
-    downsample4 = random_downsample(axes=(0, 1, 2),
-                                    downsampling=8,
+        ghosting4 = random_ghosting(intensity=1.35,
                                     seed=42)
-    downsample5 = random_downsample(axes=(0, 1, 2),
-                                    downsampling=10,
+        ghosting5 = random_ghosting(intensity=1.75,
                                     seed=42)
-    ghosting2 = random_ghosting(intensity=0.55,
+        return ghosting2(image), ghosting3(image), ghosting4(image), ghosting5(image)
+
+    if noise == 'motion':
+        motion2 = random_motion(degrees=13, translation=20,
+                                num_transforms=2,
+                                image_interpolation='lanczos',
                                 seed=42)
-    ghosting3 = random_ghosting(intensity=0.95,
-                                seed=42)
-    ghosting4 = random_ghosting(intensity=1.35,
-                                seed=42)
-    ghosting5 = random_ghosting(intensity=1.75,
-                                seed=42)
-    motion2 = random_motion(degrees=13, translation=20,
-                            num_transforms=2,
-                            image_interpolation='lanczos',
+        motion3 = random_motion(degrees=16, translation=25,
+                                num_transforms=4,
+                                image_interpolation='lanczos',
+                                seed=52)
+        motion4 = random_motion(degrees=19, translation=30,
+                                num_transforms=6,
+                                image_interpolation='lanczos',
+                                seed=62)
+        motion5 = random_motion(degrees=22, translation=35,
+                                num_transforms=8,
+                                image_interpolation='lanczos',
+                                seed=72)
+        return motion2(image), motion3(image), motion4(image), motion5(image)
+
+    if noise == 'noise':
+        noise2 = random_noise(200,200)
+        noise3 = random_noise(375,375)
+        noise4 = random_noise(550,550)
+        noise5 = random_noise(775,775)
+        return noise2(image), noise3(image), noise4(image), noise5(image)
+
+    if noise == 'spike':
+        spike2 = random_spike(num_spikes=5, intensity=15,
                             seed=42)
-    motion3 = random_motion(degrees=16, translation=25,
-                            num_transforms=4,
-                            image_interpolation='lanczos',
-                            seed=52)
-    motion4 = random_motion(degrees=19, translation=30,
-                            num_transforms=6,
-                            image_interpolation='lanczos',
-                            seed=62)
-    motion5 = random_motion(degrees=22, translation=35,
-                            num_transforms=8,
-                            image_interpolation='lanczos',
-                            seed=72)
-    noise2 = random_noise(200,200)
-    noise3 = random_noise(375,375)
-    noise4 = random_noise(550,550)
-    noise5 = random_noise(775,775)
-    spike2 = random_spike(num_spikes=5, intensity=15,
-                          seed=42)
-    spike3 = random_spike(num_spikes=10, intensity=15,
-                          seed=42)
-    spike4 = random_spike(num_spikes=18, intensity=18,
-                          seed=42)
-    spike5 = random_spike(num_spikes=25, intensity=25,
-                          seed=42)
+        spike3 = random_spike(num_spikes=10, intensity=15,
+                            seed=42)
+        spike4 = random_spike(num_spikes=18, intensity=18,
+                            seed=42)
+        spike5 = random_spike(num_spikes=25, intensity=25,
+                            seed=42)
+        return spike2(image), spike3(image), spike4(image), spike5(image)
 
 
-    # 6. Apply augmentation methods to extracted data
-    for num, image in enumerate(itk_images):
-        msg = "Transforming and saving SimpleITK images: "
-        msg += str(num + 1) + " of " + str(len(itk_images)) + "."
-        print (msg, end = "\r")
-        img_names = updated_image_names[24*num:24*(num+1)]
-        aug_data = list()
-        aug_data.append(blur2(image))
-        aug_data.append(blur3(image))
-        aug_data.append(blur4(image))
-        aug_data.append(blur5(image))
-        aug_data.append(downsample2(image))
-        aug_data.append(downsample3(image))
-        aug_data.append(downsample4(image))
-        aug_data.append(downsample5(image))
-        aug_data.append(ghosting2(image))
-        aug_data.append(ghosting3(image))
-        aug_data.append(ghosting4(image))
-        aug_data.append(ghosting5(image))
-        aug_data.append(motion2(image))
-        aug_data.append(motion3(image))
-        aug_data.append(motion4(image))
-        aug_data.append(motion5(image))
-        aug_data.append(noise2(image))
-        aug_data.append(noise3(image))
-        aug_data.append(noise4(image))
-        aug_data.append(noise5(image))
-        aug_data.append(spike2(image))
-        aug_data.append(spike3(image))
-        aug_data.append(spike4(image))
-        aug_data.append(spike5(image))
-        # 7. Save new images so they can be loaded directly
-        save_dataset(aug_data,
-                 img_names,
-                 dataset_name,
-                 'augmented_data',
-                 storage_data_path,
-                 simpleITK=True,
-                 extend=True)
-                 
-    # 8. Save label dict
-    print("Saving labels file..")
-    file_path = os.path.join(storage_data_path, dataset_name, 'labels')
-    if not os.path.isdir(file_path):
-        os.makedirs(file_path)
-
-    with open(os.path.join(file_path, 'labels.json'), 'w') as fp:
-        json.dump(labels, fp, sort_keys=True, indent=4)
-
-    # 9. Return labeled data
-    print("Augmentation done.")
-
-    # Transform label integers into torch.tensors
-    for key, value in labels.items():
-        labels[key] = torch.tensor([value])
-
-    if random:
-        path = os.path.join(storage_data_path, dataset_name, 'augmented_data')
-        aug_data, image_names = select_random_images_slices(path, updated_image_names,
-                                                            noise, nr_images,
-                                                            nr_slices, max_likert_value)
-        # Save random images so they can be loaded
-        print("Saving random images and image slices as SimpleITK for training and testing..")
-        save_dataset(aug_data,
-                     image_names,
-                     dataset_name,
-                     folder_name,
-                     storage_data_path,
-                     simpleITK=True,
-                     empty_dir=True)
-        return labels, image_names
-    return labels, updated_image_names
-    
 # Spatial Functions for data Augmentation
 def random_affine(scales=(0.9, 1.1), degrees=10, translation=0, isotropic=False,
                   center='image', default_pad_value='otsu',
