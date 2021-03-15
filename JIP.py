@@ -39,7 +39,10 @@ if __name__ == "__main__":
     #                    help='Specify the model type that will be trained.')
     parser.add_argument('--mode', choices=['preprocess', 'train', 'test', 'use'], required=True,
                         help='Specify in which mode to use the model. Either train a model or use'+
-                            ' it for predictions. This can also be used to preprocess data (be)for(e) training.')
+                             ' it for predictions. This can also be used to preprocess data (be)for(e) training.')
+    parser.add_argument('--datatype', choices=['all', 'train', 'inference'], required=False,
+                        help='Only necessary for mode preprocessing. Indicates which data should be preprocessed.'+
+                             ' If not specified, \'all\' will be used for preprocessing.')
     parser.add_argument('--device', action='store', type=int, nargs=1, default=4,
                         help='Try to train the model on the GPU device with <DEVICE> ID.'+
                             ' Valid IDs: 0, 1, ..., 7'+
@@ -61,6 +64,7 @@ if __name__ == "__main__":
     #noise = args.noise_type
     #model = args.model_type
     mode = args.mode
+    data_type = args.datatype
     cuda = args.device
     restore = args.restore
     msg_bot = args.use_telegram_bot
@@ -70,6 +74,9 @@ if __name__ == "__main__":
     if isinstance(try_catch, list):
         try_catch = try_catch[0]
 
+    if mode == 'preprocess' and data_type is None:
+        data_type = 'all'
+        
     # 6. Define Telegram Bot
     if msg_bot:
         bot = TelegramBot(telegram_login)
@@ -94,6 +101,8 @@ if __name__ == "__main__":
 
     # preprocessed_dirs (for preprocessed data (output of this workflow = input for main workflow)
     os.environ["PREPROCESSED_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'preprocessed_dirs')
+    os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"] = "output_train"
+    os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"] = "output_data"
 
     # train_dirs (for training data)
     os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs')
@@ -121,7 +130,7 @@ if __name__ == "__main__":
     #          'bot_msg_interval': 20, 'augmented': True, 'dataset': ds
     #         }
     config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'msg_bot':msg_bot, 'augmentation':True,
-              'max_likert_value':5}
+              'max_likert_value':5, 'data_type':data_type}
     if mode == 'preprocess':
         if msg_bot:
             bot.send_msg('Start to preprocess data..')

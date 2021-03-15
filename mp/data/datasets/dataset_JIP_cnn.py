@@ -20,7 +20,7 @@ from mp.data.datasets.dataset_augmentation import augment_image_in_four_intensit
 class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
-    def __init__(self, subset=None, img_size=(1, 60, 299, 299), max_likert_value=5, augmentation=False, gpu=True, cuda=0, msg_bot=False):
+    def __init__(self, subset=None, img_size=(1, 60, 299, 299), max_likert_value=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False):
         r"""Constructor"""
         assert subset is None, "No subsets for this dataset."
         assert len(img_size) == 4, "Image size needs to be 4D --> (batch_size, depth, height, width)."
@@ -30,17 +30,34 @@ class JIPDataset(CNNDataset):
         self.gpu = gpu
         self.cuda = cuda
         self.msg_bot = msg_bot
-        self.source_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
-        self.dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])
+        self.data_type = data_type
+        self.data_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Inference Data
+        self.data_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"])
+        self.train_path = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Train Data
+        self.train_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"])
 
     def preprocess(self):
         r"""This function preprocesses (and augments) the input data."""
         # Delete data in directory and preprocess data.
         try:
-            _delete_images_and_labels(self.dataset_path)
-            _extract_images(self.source_path, self.dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
-            _generate_labels(self.max_likert_value, self.dataset_path, self.dataset_path)
-            return True, None
+            if self.data_type == 'inference':
+                _delete_images_and_labels(self.data_dataset_path)
+                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+                _generate_labels(self.max_likert_value, self.data_dataset_path, self.data_dataset_path)
+                return True, None
+            if self.data_type == 'train':
+                _delete_images_and_labels(self.train_dataset_path)
+                _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+                _generate_labels(self.max_likert_value, self.train_dataset_path, self.train_dataset_path)
+                return True, None
+            if self.data_type == 'all':
+                _delete_images_and_labels(self.data_dataset_path)
+                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+                _generate_labels(self.max_likert_value, self.data_dataset_path, self.data_dataset_path)
+                _delete_images_and_labels(self.train_dataset_path)
+                _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+                _generate_labels(self.max_likert_value, self.train_dataset_path, self.train_dataset_path)
+                return True, None
         except: # catch *all* exceptions
             e = traceback.format_exc()
             return False, e
@@ -48,10 +65,10 @@ class JIPDataset(CNNDataset):
     def buildDataset(self):
         r"""This function builds a dataset from the preprocessed (and augmented) data."""
         # Extract all images, if not already done
-        if not os.path.isdir(self.dataset_path) or not os.listdir(self.dataset_path):
+        if not os.path.isdir(self.data_dataset_path) or not os.listdir(self.data_dataset_path):
             print("Data needs to be preprocessed..")
             self.preprocess()
-            #_extract_images(self.source_path, self.dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+            #_extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
 
 def _delete_images_and_labels(path):
     r"""This function deletes every nifti and json (labels) file in the path."""
