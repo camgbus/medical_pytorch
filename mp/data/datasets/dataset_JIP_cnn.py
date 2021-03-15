@@ -62,10 +62,11 @@ class JIPDataset(CNNDataset):
             e = traceback.format_exc()
             return False, e
 
-    def buildDataset(self):
-        r"""This function builds a dataset from the preprocessed (and augmented) data."""
+    def buildDataset(self, dataset_path):
+        r"""This function builds a dataset from the preprocessed (and augmented) data based on the transmitted path,
+            either for training or inference."""
         # Extract all images, if not already done
-        if not os.path.isdir(self.data_dataset_path) or not os.listdir(self.data_dataset_path):
+        if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
             print("Data needs to be preprocessed..")
             self.preprocess()
             #_extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
