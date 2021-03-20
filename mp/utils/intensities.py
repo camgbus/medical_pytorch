@@ -18,6 +18,13 @@ def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_n
         Returns: (ndarray(floats)): a one-dim array of intensity values
         '''
 
+        # Compute number of images to take samples from to adjust sample size. With rising number of images, 
+        # small components get more weight, take care, might lead to negative effects
+        nr_images = 0
+        for path in list_of_paths:
+                length = len(os.listdir(path))
+                nr_images += length
+        number = int(150000/length)
         
         list_intesities = []
         for path in list_of_paths:
@@ -28,7 +35,7 @@ def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_n
                                 mode = 'normal'
                 ds_iterator = Dataset_Iterator(path,mode=mode)
                 samples = ds_iterator.iterate_components(sample_intensities,
-                                                threshold=min_size)
+                                                threshold=min_size,number=number)
                 list_intesities.append(samples)
         arr_intensities = np.array(list_intesities).flatten()
 
