@@ -15,6 +15,7 @@ def train_density(model = '',ending_of_model = '',list_of_paths = [],data_mode='
             is the second and last part of the density models name
         list_of_paths (list(str)): Every path in this path leads to a directory, that is then later 
             iteratet over in order to gather intensity values
+        data_mode (str): the mode in which the data is stored, for further insight, look at Iterators.py
         data_describtion (str): a string to describe the data used for training (e.g. which instances from
             which dataset, when the training was done, etc)
         model_describtion (str): a string to describe the specifications of the density model (e.g. bandwith, 
@@ -51,13 +52,14 @@ def retrain_density(model = '',ending_of_model = '',list_of_paths = [],
                     add_data_descr = '', add_model_descr = '', 
                     precom_intensities=[], verbose=False, **kwargs):
     '''Trains a density model from a list of given paths to directories, where img-seg pairs can be found
-        and stores it
+        and stores it, can also use a alread computed intensities
 
     Args:
         model (str): the type of the model to be retrained 
         ending_of_model (str): which model of the type 'model' shall be retrained 
         list_of_paths (list(str)): Every path in this path leads to a directory, that is then later 
             iteratet over in order to gather intensity values
+        data_mode (str): the mode in which the data is stored, for further insight, look at Iterators.py
         data_describtion (str): a string to describe the data used for training (e.g. which instances from
             which dataset, when the training was done, etc)
         model_describtion (str): a string to describe the specifications of the density model (e.g. bandwith, 
