@@ -20,7 +20,8 @@ from mp.data.datasets.dataset_augmentation import augment_image_in_four_intensit
 class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
-    def __init__(self, subset=None, img_size=(1, 60, 299, 299), max_likert_value=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False):
+    def __init__(self, subset=None, img_size=(1, 60, 299, 299), max_likert_value=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False,
+                 nr_images=100):
         r"""Constructor"""
         assert subset is None, "No subsets for this dataset."
         assert len(img_size) == 4, "Image size needs to be 4D --> (batch_size, depth, height, width)."
@@ -32,6 +33,7 @@ class JIPDataset(CNNDataset):
         self.msg_bot = msg_bot
         self.data_type = data_type
         self.global_name = 'JIP'
+        self.nr_images = nr_images
         self.data_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Inference Data
         self.data_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"])
         self.train_path = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Train Data
@@ -85,6 +87,10 @@ class JIPDataset(CNNDataset):
             # Build instances, dataset without labels!
             instances = list()
             for num, name in enumerate(study_names):
+                #--- Remove when using the right model ---#
+                if num > self.nr_images:
+                    break
+
                 print('\n')
                 msg = 'Creating dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'

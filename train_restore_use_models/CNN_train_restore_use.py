@@ -11,7 +11,7 @@ from mp.data.datasets.dataset_JIP_cnn import JIPDataset
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_cnn_dataset import PytorchCNN2DDataset
-from mp.models.cnn.cnn import CNN_Net2D_UKFRA as CNN_Net2D
+from mp.models.cnn.cnn import CNN_Net2D
 from mp.eval.losses.losses_cnn import LossCEL
 from mp.agents.cnn_agents import NetAgent
 from mp.utils.save_results import save_results, save_only_test_results

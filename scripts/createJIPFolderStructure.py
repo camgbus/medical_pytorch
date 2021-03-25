@@ -105,6 +105,7 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
     """
 
     # Grand Challenge Data
+    print('\n')
     if datasetName == 'GC_Corona':
         datasetDirectory = os.path.join(datasetDirectory, 'Train')
         # Filenames have the form 'volume-covid19-A-XXXX_ct.nii'
@@ -114,7 +115,8 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         # Copy files to JIP Directory
         copyFilesGC(datasetName, filenames, datasetDirectory, JIPDirectory)
 
-    # Decathlon Lung Data          
+    # Decathlon Lung Data 
+    print('\n')         
     if datasetName == 'DecathlonLung':
         datasetDirectory = os.path.join(datasetDirectory, 'imagesTr')
         # Filenames have the form 'lung_XXX.nii.gz'
@@ -124,6 +126,7 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         copyFilesDecathlon(datasetName, filenames, datasetDirectory, JIPDirectory)
 
     # Frankfurt Uniklinik Data
+    print('\n')
     if datasetName == 'FRACorona':
         datasetDirectory = os.path.join(datasetDirectory)
         # Filenames are provided in foldernames: patient_id/images.nii.gz
@@ -136,24 +139,24 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
 if __name__ == '__main__':
     # Define environments. They are not necessary for this script, since the data is already in this format on JIP
     # , but for the work on the server this step is necessary.
-    os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs')
+    os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
     os.environ["OPERATOR_IN_DIR"] = "input"
     os.environ["OPERATOR_OUT_DIR"] = "output"
     os.environ["OPERATOR_TEMP_DIR"] = "temp"
-    os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'train_dirs', 'persistent')
+    os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'data_dirs', 'persistent')
     input_dir = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
 
     datasetName = 'GC_Corona'
     datasetDirectory = du.get_original_data_path(datasetName)
-    JIPDirectory = input_dir # --> JIP_dir/train_dirs/input (use predefined environment for this)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
     createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
 
     datasetName = 'DecathlonLung'
     datasetDirectory = du.get_original_data_path(datasetName)
-    JIPDirectory = input_dir # --> JIP_dir/train_dirs/input (use predefined environment for this)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
     createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
 
     datasetName = 'FRACorona'
     datasetDirectory = du.get_original_data_path(datasetName)
-    JIPDirectory = input_dir # --> JIP_dir/train_dirs/input (use predefined environment for this)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
     createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)

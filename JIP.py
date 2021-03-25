@@ -34,11 +34,12 @@ if __name__ == "__main__":
     # Build Argumentparser
     parser = argparse.ArgumentParser(description='Train, reterain or use a specified model to predict the quality of CT scans.')
     parser.add_argument('--noise_type', choices=['blur', 'downsample', 'ghosting', 'noise',
-                                                'motion', 'spike'], required=True,
-                        help='Specify the CT artefact on which the model will be trained.')
+                                                'motion', 'spike'], required=False,
+                        help='Specify the CT artefact on which the model will be trained. '+
+                             'Default model type: blur.')
     #parser.add_argument('--model_type', choices=['cnn'], required=False,
     #                    help='Specify the model type that will be trained.')
-    parser.add_argument('--mode', choices=['preprocess', 'train', 'test', 'use'], required=True,
+    parser.add_argument('--mode', choices=['preprocess', 'train', 'use'], required=True,
                         help='Specify in which mode to use the model. Either train a model or use'+
                              ' it for predictions. This can also be used to preprocess data (be)for(e) training.')
     parser.add_argument('--datatype', choices=['all', 'train', 'inference'], required=False,
@@ -77,6 +78,10 @@ if __name__ == "__main__":
 
     if mode == 'preprocess' and data_type is None:
         data_type = 'all'
+    
+    if mode != 'preprocess' and noise_type is None:
+        noise_type = 'blur'
+
         
     # 6. Define Telegram Bot
     if msg_bot:
@@ -136,7 +141,7 @@ if __name__ == "__main__":
     config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'msg_bot':msg_bot, 'augmentation':True,
               'data_type':data_type, 'lr': 0.001, 'batch_size': 64, 'max_likert_value':5, 'nr_epochs': 300,
               'noise': noise, 'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
-              'bot_msg_interval': 20, 'nr_images': 40, 'val_ratio': 0.2, 'test_ratio': 0.2}
+              'bot_msg_interval': 20, 'nr_images': 100, 'val_ratio': 0.2, 'test_ratio': 0.2}
 
     if mode == 'preprocess':
         if msg_bot:
