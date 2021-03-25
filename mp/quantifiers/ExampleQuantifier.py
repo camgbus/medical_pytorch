@@ -1,5 +1,5 @@
 import random
-from quantifiers.QualityQuantifier import SegImgQualityQuantifier
+from mp.quantifiers.QualityQuantifier import SegImgQualityQuantifier
 
 class ExampleQuantifier(SegImgQualityQuantifier):
 

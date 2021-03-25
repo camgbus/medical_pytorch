@@ -64,8 +64,7 @@ class PytorchCNNDataset(PytorchDataset):
 
 class PytorchCNN2DDataset(PytorchCNNDataset):
     r"""Divides images into 2D slices. If resize=True, the slices are resized to
-    the specified size, otherwise they are center-cropped and padded if needed.
-    """
+    the specified size, otherwise they are center-cropped and padded if needed."""
     def __init__(self, dataset, ix_lst=None, size=(1, 256, 256), 
         norm_key='rescaling', aug_key='standard', resize=False):
         if isinstance(size, int):
@@ -117,8 +116,7 @@ class PytorchCNN2DDataset(PytorchCNNDataset):
 class PytorchCNN3DDataset(PytorchCNNDataset):
     r"""Each 3D image is an item in the dataloader. If resize=True, the volumes
     are resized to the specified size, otherwise they are center-cropped and 
-    padded if needed.
-    """
+    padded if needed."""
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), 
         norm_key='rescaling', aug_key='standard', resize=False):
         if isinstance(size, int):
@@ -131,7 +129,7 @@ class PytorchCNN3DDataset(PytorchCNNDataset):
             norm=self.norm, resize=resize)
 
     def __getitem__(self, idx):
-        r"""Returns x and y values each with shape (c, w, h, d)"""
+        r"""Returns x and y values each with shape (c, w, h, d)."""
 
         subject = copy.deepcopy(self.instances[idx].get_subject())
         subject.load()
@@ -154,8 +152,7 @@ class PytorchCNN3DDataset(PytorchCNNDataset):
 
 class Pytorch3DQueue(PytorchCNNDataset):
     r"""Divides images into patches. If there are subjects with less depth than 
-    self.size[-1], these are padded.
-    """
+    self.size[-1], these are padded."""
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), sampler=None,
         max_length=300, samples_per_volume=10, norm_key='rescaling', 
         aug_key='standard'):

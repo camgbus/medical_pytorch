@@ -31,6 +31,7 @@ class JIPDataset(CNNDataset):
         self.cuda = cuda
         self.msg_bot = msg_bot
         self.data_type = data_type
+        self.global_name = 'JIP'
         self.data_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Inference Data
         self.data_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"])
         self.train_path = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Train Data
@@ -62,14 +63,84 @@ class JIPDataset(CNNDataset):
             e = traceback.format_exc()
             return False, e
 
-    def buildDataset(self, dataset_path):
-        r"""This function builds a dataset from the preprocessed (and augmented) data based on the transmitted path,
-            either for training or inference."""
+    def buildDataset(self, d_type, noise):
+        r"""This function builds a dataset from the preprocessed (and augmented) data based on the d_type,
+            either for training or inference. The d_type is the same as self.data_type, however it can not be
+            'all' in this case, since it is important to be able to distinguish to which type a scan belongs
+            (train -- inference). Noise specifies which data will be included in the dataset --> only used
+            for training."""
         # Extract all images, if not already done
         if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
             print("Data needs to be preprocessed..")
             self.preprocess()
-            #_extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+
+        # Assert if d_type is 'all'
+        assert d_type != 'all', "The dataset type can not be all, it needs to be either 'train' or 'inference'!"
+
+        # Build dataset based on d_type
+        if d_type == 'inference':
+            # Foldernames are patient_id
+            study_names = [x for x in os.listdir(self.data_dataset_path) if 'DS_Store' not in x]
+
+            # Build instances, dataset without labels!
+            instances = list()
+            for num, name in enumerate(study_names):
+                print('\n')
+                msg = 'Creating dataset from images: '
+                msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                print (msg, end = '\r')
+                if 'Decathlon' not in name:
+                    a_name = name + '_' + str(noise)
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(name, 'img', 'img.nii.gz'),
+                        y_label = None,
+                        name = name,
+                        group_id = None
+                        ))
+                else:
+                    if str(noise) in name:
+                        instances.append(CNNInstance(
+                            x_path = os.path.join(name, 'img', 'img.nii.gz'),
+                            y_label = None,
+                            name = name,
+                            group_id = None
+                            ))
+
+        if d_type == 'train':
+            # Foldernames are patient_id
+            study_names = [x for x in os.listdir(self.train_dataset_path) if 'DS_Store' not in x]
+
+            # Load labels and build one hot vector
+            with open(os.path.join(self.train_dataset_path, 'labels.json'), 'r') as fp:
+                labels = json.load(fp)
+            one_hot = torch.nn.functional.one_hot(torch.arange(0, max_likert_value), num_classes=max_likert_value)
+
+            # Build instances
+            instances = list()
+            for num, name in enumerate(study_names):
+                print('\n')
+                msg = 'Creating dataset from images: '
+                msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                print (msg, end = '\r')
+                if 'Decathlon' not in name:
+                    a_name = name + '_' + str(noise)
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(name, 'img', 'img.nii.gz'),
+                        y_label = one_hot[int(labels[a_name].item() * max_likert_value) - 1],
+                        name = name,
+                        group_id = None
+                        ))
+                else:
+                    if str(noise) in name:
+                        instances.append(CNNInstance(
+                            x_path = os.path.join(name, 'img', 'img.nii.gz'),
+                            y_label = one_hot[int(labels[name].item() * max_likert_value) - 1],
+                            name = name,
+                            group_id = None
+                            ))
+                            
+        super().__init__(instances, name = self.global_name,   # super(CNNDataset, self)
+            modality = 'CT', nr_channels = 1, hold_out_ixs = [])
 
 def _delete_images_and_labels(path):
     r"""This function deletes every nifti and json (labels) file in the path."""
@@ -89,8 +160,8 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
     # Foldernames are patient_id
     filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x]
     
-    # Define resample object (each image will be resampled to voxelsize (1, 1, 5))
-    resample = tio.Resample((1, 1, 5))
+    # Define resample object (each image will be resampled to voxelsize (1, 1, 3))
+    resample = tio.Resample((1, 1, 3))
 
     for num, filename in enumerate(filenames):
         msg = "Loading SimpleITK images/labels and center cropping them: "

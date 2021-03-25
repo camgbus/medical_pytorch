@@ -4,8 +4,9 @@ import argparse
 from mp.paths import JIP_dir, telegram_login
 from mp.utils.update_bots.telegram_bot import TelegramBot
 from train_restore_use_models.preprocess_data import preprocess_data
-#from mp.quantifiers.ExampleQuantifier import ExampleQuantifier
-#from mp.data.DataConnectorJIP import DataConnector
+from train_restore_use_models.CNN_train_restore_use import train_model
+from train_restore_use_models.CNN_train_restore_use import restore_train_model
+from train_restore_use_models.CNN_train_restore_use import do_inference
 
 # Structure of JIP_dir/data_dirs:
 # /
@@ -32,9 +33,9 @@ from train_restore_use_models.preprocess_data import preprocess_data
 if __name__ == "__main__": 
     # Build Argumentparser
     parser = argparse.ArgumentParser(description='Train, reterain or use a specified model to predict the quality of CT scans.')
-    #parser.add_argument('--noise_type', choices=['blur', 'downsample', 'ghosting', 'noise',
-    #                                            'motion', 'spike'], required=True,
-    #                    help='Specify the CT artefact on which the model will be trained.')
+    parser.add_argument('--noise_type', choices=['blur', 'downsample', 'ghosting', 'noise',
+                                                'motion', 'spike'], required=True,
+                        help='Specify the CT artefact on which the model will be trained.')
     #parser.add_argument('--model_type', choices=['cnn'], required=False,
     #                    help='Specify the model type that will be trained.')
     parser.add_argument('--mode', choices=['preprocess', 'train', 'test', 'use'], required=True,
@@ -48,7 +49,7 @@ if __name__ == "__main__":
                             ' Valid IDs: 0, 1, ..., 7'+
                             ' Default: GPU device with ID 4 will be used.')
     parser.add_argument('--restore', action='store_const', const=True, default=False,
-                        help='Restore last model state and continue training from there.'+
+                        help='Restore last saved model state and continue training from there.'+
                             ' Default: Initialize a new model and train from beginning.')
     parser.add_argument('--use_telegram_bot', action='store_const', const=True, default=False,
                         help='Send message during training through a Telegram Bot'+
@@ -61,7 +62,7 @@ if __name__ == "__main__":
 
     # 5. Define configuration dict and train the model
     args = parser.parse_args()
-    #noise = args.noise_type
+    noise = args.noise_type
     #model = args.model_type
     mode = args.mode
     data_type = args.datatype
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     os.environ["OPERATOR_IN_DIR"] = "input"
     os.environ["OPERATOR_OUT_DIR"] = "output"
     os.environ["OPERATOR_TEMP_DIR"] = "temp"
-    os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'data_dirs', 'persistent')
+    os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'data_dirs', 'persistent') # pre-trained models
 
     # preprocessed_dirs (for preprocessed data (output of this workflow = input for main workflow)
     os.environ["PREPROCESSED_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'preprocessed_dirs')
@@ -129,8 +130,14 @@ if __name__ == "__main__":
     #          'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
     #          'bot_msg_interval': 20, 'augmented': True, 'dataset': ds
     #         }
+
+    # Build config dictionary
+    # Note: Dataset will be nr_images x 5 big!
     config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'msg_bot':msg_bot, 'augmentation':True,
-              'max_likert_value':5, 'data_type':data_type}
+              'data_type':data_type, 'lr': 0.001, 'batch_size': 64, 'max_likert_value':5, 'nr_epochs': 300,
+              'noise': noise, 'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
+              'bot_msg_interval': 20, 'nr_images': 40, 'val_ratio': 0.2, 'test_ratio': 0.2}
+
     if mode == 'preprocess':
         if msg_bot:
             bot.send_msg('Start to preprocess data..')
@@ -141,6 +148,39 @@ if __name__ == "__main__":
             print('Data could not be processed. The following error occured: {}.'.format(error))
             if msg_bot:
                 bot.send_msg('Data could not be processed. The following error occured: {}.'.format(error))
+
+    if mode == 'train':
+        if not restore:
+            if msg_bot:
+                bot.send_msg('Start to train the model for noise type {}..'.format(noise))
+            trained, error = train_model(config)
+            if trained and msg_bot:
+                bot.send_msg('Finished training for noise type {}..'.format(noise))
+            if not trained:
+                print('Model for noise type {} could not be trained. The following error occured: {}.'.format(noise, error))
+                if msg_bot:
+                    bot.send_msg('Model for noise type {} could not be trained. The following error occured: {}.'.format(noise, error))
+        else:
+            if msg_bot:
+                bot.send_msg('Start to restore the model for noise type {} and continue training..'.format(noise))
+            trained, error = restore_train_model(config)
+            if trained and msg_bot:
+                bot.send_msg('Finished training for noise type {}..'.format(noise))
+            if not trained:
+                print('Model for noise type {} could not be restored/trained. The following error occured: {}.'.format(noise, error))
+                if msg_bot:
+                    bot.send_msg('Model for noise type {} could not be restored/trained. The following error occured: {}.'.format(noise, error))
+
+    if mode == 'use':
+        if msg_bot:
+            bot.send_msg('Start the inference..')
+        inferred, error = do_inference(config)
+        if inferred and msg_bot:
+            bot.send_msg('Finished inference..')
+        if not inferred:
+            print('Inference could not be performed. The following error occured: {}.'.format(error))
+            if msg_bot:
+                bot.send_msg('Inference could not be performed. The following error occured: {}.'.format(error))
 
 
 """
