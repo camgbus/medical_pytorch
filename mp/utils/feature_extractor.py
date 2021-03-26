@@ -173,6 +173,7 @@ class Feature_extractor():
         list_features = []
         for feature in self.features:
             feature = self.get_feature(feature,img,seg)
+            print(feature)
             for attr in feature:
                 list_features.append(attr)
         arr_features = np.array(list_features)
@@ -194,14 +195,32 @@ class Feature_extractor():
             connected_components -> (ndarray with one int): The number of connected components
         '''
         component_iterator = Component_Iterator(img,seg)
+        original_threshhold = component_iterator.threshold
         if feature == 'density_distance':
             density_values = self.density.get_values()
             similarity_scores= component_iterator.iterate(get_similarities,
                     density_values=density_values)
+            if not similarity_scores:
+                print('Image only has very small components')
+                component_iterator.threshold = 0
+                similarity_scores= component_iterator.iterate(get_similarities,
+                    density_values=density_values)
+                component_iterator.threshold = original_threshhold
+            if not similarity_scores:
+                print('Image has no usable components, no reliable computations can be made')
+                similarity_scores = np.array([0])
             average = np.mean(np.array(similarity_scores))
             return np.array([average])
         if feature == 'dice_scores':
             dice_metrices = component_iterator.iterate(get_dice_averages)
+            if not dice_metrices:
+                print('Image only has very small components')
+                component_iterator.threshold = 0
+                dice_metrices = component_iterator.iterate(get_dice_averages)
+                component_iterator.threshold = original_threshhold
+            if not dice_metrices:
+                print('Image has no usable components, no reliable computations can be made')
+                dice_metrices = np.array([1,0])
             dice_metrices = np.array(dice_metrices)
             dice_metrices = np.mean(dice_metrices,0)
             return dice_metrices
