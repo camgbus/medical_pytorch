@@ -17,11 +17,14 @@ from mp.data.pytorch.transformation import centre_crop_pad_3d
 from mp.data.datasets.dataset_cnn import CNNDataset, CNNInstance
 from mp.data.datasets.dataset_augmentation import augment_image_in_four_intensities as _augment_image
 
+
+import random
+
 class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
     def __init__(self, subset=None, img_size=(1, 60, 299, 299), max_likert_value=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False,
-                 nr_images=100):
+                 nr_images=20, preprocess=False, build_dataset=False, dtype='train', noise='blur'):
         r"""Constructor"""
         assert subset is None, "No subsets for this dataset."
         assert len(img_size) == 4, "Image size needs to be 4D --> (batch_size, depth, height, width)."
@@ -38,6 +41,13 @@ class JIPDataset(CNNDataset):
         self.data_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"])
         self.train_path = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Train Data
         self.train_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"])
+
+        if preprocess:
+            return self.preprocess()
+
+        if build_dataset:
+            instances = self.buildDataset(dtype, noise)
+            super().__init__(instances=instances, name=self.global_name, modality='CT')
 
     def preprocess(self):
         r"""This function preprocesses (and augments) the input data."""
@@ -72,9 +82,16 @@ class JIPDataset(CNNDataset):
             (train -- inference). Noise specifies which data will be included in the dataset --> only used
             for training."""
         # Extract all images, if not already done
-        if not os.path.isdir(dataset_path) or not os.listdir(dataset_path):
-            print("Data needs to be preprocessed..")
-            self.preprocess()
+        if d_type == 'train':
+            if not os.path.isdir(self.train_dataset_path) or not os.listdir(self.train_dataset_path):
+                print("Train data needs to be preprocessed..")
+                self.data_type = d_type
+                self.preprocess()
+        else:
+            if not os.path.isdir(self.data_dataset_path) or not os.listdir(self.data_dataset_path):
+                print("Inference data needs to be preprocessed..")
+                self.data_type = d_type
+                self.preprocess()
 
         # Assert if d_type is 'all'
         assert d_type != 'all', "The dataset type can not be all, it needs to be either 'train' or 'inference'!"
@@ -86,67 +103,73 @@ class JIPDataset(CNNDataset):
 
             # Build instances, dataset without labels!
             instances = list()
+            print('\n')
             for num, name in enumerate(study_names):
-                #--- Remove when using the right model ---#
-                if num > self.nr_images:
-                    break
-
-                print('\n')
                 msg = 'Creating dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
                 print (msg, end = '\r')
                 if 'Decathlon' not in name:
                     a_name = name + '_' + str(noise)
                     instances.append(CNNInstance(
-                        x_path = os.path.join(name, 'img', 'img.nii.gz'),
+                        x_path = os.path.join(self.data_dataset_path, name, 'img', 'img.nii.gz'),
                         y_label = None,
                         name = name,
                         group_id = None
                         ))
-                else:
-                    if str(noise) in name:
-                        instances.append(CNNInstance(
-                            x_path = os.path.join(name, 'img', 'img.nii.gz'),
-                            y_label = None,
-                            name = name,
-                            group_id = None
-                            ))
+                elif 'Decathlon' in name or str(noise) in name:
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(self.data_dataset_path, name, 'img', 'img.nii.gz'),
+                        y_label = None,
+                        name = name,
+                        group_id = None
+                        ))
 
         if d_type == 'train':
             # Foldernames are patient_id
             study_names = [x for x in os.listdir(self.train_dataset_path) if 'DS_Store' not in x]
 
+            # --- Remove when using the right model --> only for dummy! --- #
+            noise_names = [x for x in study_names if 'DecathlonLung' in x and noise in x]
+            decathlon_names = [x for x in study_names if 'DecathlonLung' in x and not 'blur' in x\
+                               and not 'downsample' in x and not 'ghosting' in x and not 'motion' in x\
+                               and not 'noise' in x and not 'spike' in x]
+            decathlon_names = random.sample(decathlon_names, self.nr_images)
+
+            # Select intensities equally
+            for i in range(2, 6):
+                intensity_names = [x for x in noise_names if '_' + str(noise) + str(i) in x]
+                decathlon_names.extend(random.sample(intensity_names, self.nr_images))
+            study_names = decathlon_names
+            # --- Remove when using the right model --> only for dummy! --- #
+
             # Load labels and build one hot vector
             with open(os.path.join(self.train_dataset_path, 'labels.json'), 'r') as fp:
                 labels = json.load(fp)
-            one_hot = torch.nn.functional.one_hot(torch.arange(0, max_likert_value), num_classes=max_likert_value)
+            one_hot = torch.nn.functional.one_hot(torch.arange(0, self.max_likert_value), num_classes=self.max_likert_value)
 
             # Build instances
             instances = list()
+            print('\n')
             for num, name in enumerate(study_names):
-                print('\n')
                 msg = 'Creating dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
                 print (msg, end = '\r')
                 if 'Decathlon' not in name:
                     a_name = name + '_' + str(noise)
                     instances.append(CNNInstance(
-                        x_path = os.path.join(name, 'img', 'img.nii.gz'),
-                        y_label = one_hot[int(labels[a_name].item() * max_likert_value) - 1],
+                        x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
+                        y_label = one_hot[int(labels[a_name] * self.max_likert_value) - 1],
                         name = name,
                         group_id = None
                         ))
-                else:
-                    if str(noise) in name:
-                        instances.append(CNNInstance(
-                            x_path = os.path.join(name, 'img', 'img.nii.gz'),
-                            y_label = one_hot[int(labels[name].item() * max_likert_value) - 1],
-                            name = name,
-                            group_id = None
-                            ))
-                            
-        super().__init__(instances, name = self.global_name,   # super(CNNDataset, self)
-            modality = 'CT', nr_channels = 1, hold_out_ixs = [])
+                elif 'Decathlon' in name or str(noise) in name:
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
+                        y_label = one_hot[int(labels[name] * self.max_likert_value) - 1],
+                        name = name,
+                        group_id = None
+                        ))
+        return instances
 
 def _delete_images_and_labels(path):
     r"""This function deletes every nifti and json (labels) file in the path."""
@@ -271,36 +294,38 @@ def _whole_lung_captured(input_path, gpu=True, cuda=0):
 def _generate_labels(max_likert_value, source_path, target_path):
     r"""This function generates the labels.json file that is necessary for training."""
     # Foldernames are patient_id
-    filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x and 'DecathlonLung' in x]
+    filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x and 'DecathlonLung' in x\
+                 and not 'blur' in x and not 'downsample' in x and not 'ghosting' in x and not 'motion' in x\
+                 and not 'noise' in x and not 'spike' in x]
 
     # Generate labels for Decathlon with augmentation
     labels = dict()
     for name in filenames:
         labels[str(name)] = 1/max_likert_value
-        labels[str(name) + '_blur_2'] = 2/max_likert_value
-        labels[str(name) + '_blur_3'] = 3/max_likert_value
-        labels[str(name) + '_blur_4'] = 4/max_likert_value
-        labels[str(name) + '_blur_5'] = 5/max_likert_value
-        labels[str(name) + '_downsample_2'] = 2/max_likert_value
-        labels[str(name) + '_downsample_3'] = 3/max_likert_value
-        labels[str(name) + '_downsample_4'] = 4/max_likert_value
-        labels[str(name) + '_downsample_5'] = 5/max_likert_value
-        labels[str(name) + '_ghosting_2'] = 2/max_likert_value
-        labels[str(name) + '_ghosting_3'] = 3/max_likert_value
-        labels[str(name) + '_ghosting_4'] = 4/max_likert_value
-        labels[str(name) + '_ghosting_5'] = 5/max_likert_value
-        labels[str(name) + '_motion_2'] = 2/max_likert_value
-        labels[str(name) + '_motion_3'] = 3/max_likert_value
-        labels[str(name) + '_motion_4'] = 4/max_likert_value
-        labels[str(name) + '_motion_5'] = 5/max_likert_value
-        labels[str(name) + '_noise_2'] = 2/max_likert_value
-        labels[str(name) + '_noise_3'] = 3/max_likert_value
-        labels[str(name) + '_noise_4'] = 4/max_likert_value
-        labels[str(name) + '_noise_5'] = 5/max_likert_value
-        labels[str(name) + '_spike_2'] = 2/max_likert_value
-        labels[str(name) + '_spike_3'] = 3/max_likert_value
-        labels[str(name) + '_spike_4'] = 4/max_likert_value
-        labels[str(name) + '_spike_5'] = 5/max_likert_value
+        labels[str(name) + '_blur2'] = 2/max_likert_value
+        labels[str(name) + '_blur3'] = 3/max_likert_value
+        labels[str(name) + '_blur4'] = 4/max_likert_value
+        labels[str(name) + '_blur5'] = 5/max_likert_value
+        labels[str(name) + '_downsample2'] = 2/max_likert_value
+        labels[str(name) + '_downsample3'] = 3/max_likert_value
+        labels[str(name) + '_downsample4'] = 4/max_likert_value
+        labels[str(name) + '_downsample5'] = 5/max_likert_value
+        labels[str(name) + '_ghosting2'] = 2/max_likert_value
+        labels[str(name) + '_ghosting3'] = 3/max_likert_value
+        labels[str(name) + '_ghosting4'] = 4/max_likert_value
+        labels[str(name) + '_ghosting5'] = 5/max_likert_value
+        labels[str(name) + '_motion2'] = 2/max_likert_value
+        labels[str(name) + '_motion3'] = 3/max_likert_value
+        labels[str(name) + '_motion4'] = 4/max_likert_value
+        labels[str(name) + '_motion5'] = 5/max_likert_value
+        labels[str(name) + '_noise2'] = 2/max_likert_value
+        labels[str(name) + '_noise3'] = 3/max_likert_value
+        labels[str(name) + '_noise4'] = 4/max_likert_value
+        labels[str(name) + '_noise5'] = 5/max_likert_value
+        labels[str(name) + '_spike2'] = 2/max_likert_value
+        labels[str(name) + '_spike3'] = 3/max_likert_value
+        labels[str(name) + '_spike4'] = 4/max_likert_value
+        labels[str(name) + '_spike5'] = 5/max_likert_value
 
     # Add GC labels (defined by hand --> do not delete) to labels dict
     labels['GC_Corona_volume-covid19-A-0003'+'_blur'] = 1/max_likert_value

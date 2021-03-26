@@ -1,9 +1,8 @@
 # Import needed libraries
 import torch
 import os
-import numpy as np
-import pandas as pd
 import shutil
+import traceback
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
@@ -63,9 +62,10 @@ def _CNN_initialize_and_train(config):
     # 2. Define data
     data = Data()
     JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
-                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'])
+                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
+                     nr_images=config['nr_images'], build_dataset=True, dtype='train', noise=config['noise'])
 
-    data.add_dataset(JIP.buildDataset('train', config['noise']))
+    data.add_dataset(JIP)
     train_ds = (dataset_name, 'train')
     val_ds = (dataset_name, 'val')
     test_ds = (dataset_name, 'test')
@@ -102,10 +102,18 @@ def _CNN_initialize_and_train(config):
     for ds_name, ds in data.datasets.items():
         for split, data_ixs in splits[ds_name][0].items():
             if len(data_ixs) > 0: # Sometimes val indicess may be an empty list
-                aug = False if not('test' in split) else 'none'
+                aug = config['augment_strat'] if not('test' in split) else 'none'
+
+                # --- Remove when using right model --> Only for 2D dummy! --- #
                 datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
-                    ix_lst = data_ixs, size = input_shape, aug_key = aug, 
+                    ix_lst = data_ixs, size = (1, 299, 299), aug_key = aug, 
                     resize = False)
+                # --- Remove when using right model --> Only for 2D dummy! --- #
+                
+                """
+                datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
+                    ix_lst = data_ixs, size = config['input_shape'], aug_key = aug, 
+                    resize = False)"""
 
     # 6. Build train dataloader, and visualize
     dl = DataLoader(datasets[(train_ds)], 
@@ -146,7 +154,7 @@ def _CNN_initialize_and_train(config):
     losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'])
 
     # 12. Save results
-    save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_train,
+    save_results(model, config['noise'], paths, pathr, losses_train, losses_val, accuracy_train,
                  accuracy_det_train, accuracy_val, accuracy_det_val, losses_test, accuracy_test,
                  accuracy_det_test, losses_cum_train, losses_cum_val)
     
@@ -165,9 +173,10 @@ def _CNN_restore_and_train(config):
     # 2. Define data to restore dataset
     data = Data()
     JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
-                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'])
+                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
+                     nr_images=config['nr_images'], build_dataset=True, dtype='train', noise=config['noise'])
 
-    data.add_dataset(JIP.buildDataset('train', config['noise']))
+    data.add_dataset(JIP)
     train_ds = (dataset_name, 'train')
     val_ds = (dataset_name, 'val')
     test_ds = (dataset_name, 'test')
@@ -186,10 +195,18 @@ def _CNN_restore_and_train(config):
     for ds_name, ds in data.datasets.items():
         for split, data_ixs in splits[ds_name][0].items():
             if len(data_ixs) > 0: # Sometimes val indicess may be an empty list
-                aug = False if not('test' in split) else 'none'
+                aug = config['augment_strat'] if not('test' in split) else 'none'
+
+                # --- Remove when using right model --> Only for 2D dummy! --- #
                 datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
-                    ix_lst = data_ixs, size = input_shape, aug_key = aug, 
+                    ix_lst = data_ixs, size = (1, 299, 299), aug_key = aug, 
                     resize = False)
+                # --- Remove when using right model --> Only for 2D dummy! --- #
+                
+                """
+                datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
+                    ix_lst = data_ixs, size = config['input_shape'], aug_key = aug, 
+                    resize = False)"""
 
     # 6. Build train dataloader, and visualize
     dl = DataLoader(datasets[(train_ds)], 
@@ -226,7 +243,7 @@ def _CNN_restore_and_train(config):
     losses_train_r, losses_cum_train_r, losses_val_r, losses_cum_val_r, accuracy_train_r,\
     accuracy_det_train_r, accuracy_val_r, accuracy_det_val_r = restored_results
 
-    print('Training model in batches of {}..'.format(batch_size))
+    print('Training model in batches of {}..'.format(config['batch_size']))
     losses_train, losses_cum_train, losses_val, losses_cum_val,\
     accuracy_train, accuracy_det_train, accuracy_val,\
     accuracy_det_val = agent.train(optimizer, loss_f, dl,
@@ -240,8 +257,9 @@ def _CNN_restore_and_train(config):
         accuracy_detailed = accuracy_det_train_r.tolist(),
                    accuracy_val = accuracy_val_r.tolist(),
       accuracy_val_detailed = accuracy_det_val_r.tolist(),
-         save_interval = save_interval, msg_bot = msg_bot,
-                      bot_msg_interval = bot_msg_interval)
+                  save_interval = config['save_interval'],
+                              msg_bot = config['msg_bot'],
+            bot_msg_interval = config['bot_msg_interval'])
 
     # 10. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
@@ -252,7 +270,7 @@ def _CNN_restore_and_train(config):
     losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'])
 
     # 12. Save results
-    save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_train,
+    save_results(model, config['noise'], paths, pathr, losses_train, losses_val, accuracy_train,
                  accuracy_det_train, accuracy_val, accuracy_det_val, losses_test, accuracy_test,
                  accuracy_det_test, losses_cum_train, losses_cum_val)
 
@@ -286,9 +304,10 @@ def _CNN_predict(config):
     # 2. Define data
     data = Data()
     JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
-                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'])
+                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
+                     nr_images=config['nr_images'], build_dataset=True, dtype='train', noise=config['noise'])
 
-    data.add_dataset(JIP.buildDataset('train', config['noise']))
+    data.add_dataset(JIP)
 
     # 3. Split data (0% train, 100% test) and define path
     splits = dict()
@@ -312,10 +331,18 @@ def _CNN_predict(config):
     for ds_name, ds in data.datasets.items():
         for split, data_ixs in splits[ds_name][0].items():
             if len(data_ixs) > 0: # Sometimes val indicess may be an empty list
-                aug = False if not('test' in split) else 'none'
+                aug = config['augment_strat'] if not('test' in split) else 'none'
+
+                # --- Remove when using right model --> Only for 2D dummy! --- #
                 datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
-                    ix_lst = data_ixs, size = input_shape, aug_key = aug, 
+                    ix_lst = data_ixs, size = (1, 299, 299), aug_key = aug, 
                     resize = False)
+                # --- Remove when using right model --> Only for 2D dummy! --- #
+                
+                
+                #datasets[(ds_name, split)] = PytorchCNN2DDataset(ds, 
+                #    ix_lst = data_ixs, size = config['input_shape'], aug_key = aug, 
+                #    resize = False)
         
     # 6. Build test dataloader, and visualize
     dl = DataLoader(datasets[(test_ds)], 
@@ -323,7 +350,7 @@ def _CNN_predict(config):
         num_workers = 1)
 
     # 7. Load pretrained model
-    model = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], noise, 'model.zip'))
+    model = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], config['noise'], 'model.zip'))
     model.eval()
     model.to(device)
 
@@ -336,5 +363,5 @@ def _CNN_predict(config):
     losses_test, _, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'])
 
     # 10. Save results
-    save_only_test_results(noise, pathr, losses_test, accuracy_test, accuracy_det_test)
+    save_only_test_results(config['noise'], pathr, losses_test, accuracy_test, accuracy_det_test)
     """

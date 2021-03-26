@@ -79,8 +79,8 @@ if __name__ == "__main__":
     if mode == 'preprocess' and data_type is None:
         data_type = 'all'
     
-    if mode != 'preprocess' and noise_type is None:
-        noise_type = 'blur'
+    if mode != 'preprocess' and noise is None:
+        noise = 'blur'
 
         
     # 6. Define Telegram Bot
@@ -124,25 +124,19 @@ if __name__ == "__main__":
     persistent_dir = os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"])
     """
 
-    # nr_images and nr_slices: DecathlonLung - 40:25, UK_FRA - 40:25 -->
-    # Note: Dataset will be nr_images x nr_slices x 5 big!
-    # weight decays: DecathlonLung - 0.75, UK_FRA - 0.75
-    #config = {'device':cuda, 'nr_runs': 1, 'cross_validation': False, 
-    #          'val_ratio': 0.2, 'test_ratio': 0.2, 'input_shape': (1, 299, 299),
-    #          'resize': False, 'augmentation': 'none', 'lr': 0.001, 'batch_size': 64,
-    #          'max_likert_value': 5, 'nr_epochs': 300, 'noise': noise, 
-    #          'random_slices': True, 'nr_images': 40, 'nr_slices': 25,
-    #          'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
-    #          'bot_msg_interval': 20, 'augmented': True, 'dataset': ds
-    #         }
-
+    # ------------------------
     # Build config dictionary
+    # ------------------------
     # Note: Dataset will be nr_images x 5 big!
-    config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'msg_bot':msg_bot, 'augmentation':True,
-              'data_type':data_type, 'lr': 0.001, 'batch_size': 64, 'max_likert_value':5, 'nr_epochs': 300,
+    config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'msg_bot':msg_bot, 'augmentation': True,
+              'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'max_likert_value': 5, 'nr_epochs': 100,
               'noise': noise, 'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
-              'bot_msg_interval': 20, 'nr_images': 100, 'val_ratio': 0.2, 'test_ratio': 0.2}
+              'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none'}
 
+
+    # -------------------------
+    # Preprocess
+    # -------------------------
     if mode == 'preprocess':
         if msg_bot:
             bot.send_msg('Start to preprocess data..')
@@ -154,15 +148,56 @@ if __name__ == "__main__":
             if msg_bot:
                 bot.send_msg('Data could not be processed. The following error occured: {}.'.format(error))
 
+    # -------------------------
+    # Train
+    # -------------------------
     if mode == 'train':
+        dir_name = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"], noise, 'states')
+        if try_catch == 0:
+            try_catch = 1
+        for i in range(try_catch):
+            if not restore:
+                if msg_bot:
+                    bot.send_msg('Start to initialize and train the model for noise type {}..'.format(noise))
+                trained, error = train_model(config)
+                if trained and msg_bot:
+                    bot.send_msg('Finished training for noise type {}..'.format(noise))
+                    break
+                if not trained:
+                    print('Model for noise type {} could not be initialized/trained. The following error occured: {}.'.format(noise, error))
+                    if msg_bot:
+                        bot.send_msg('Model for noise type {} could not be trained. The following error occured: {}.'.format(noise, error))
+                    # Only restore, if a model state has already been saved, otherwise Index Error
+                    # occurs while trying to extract the highest saved state for restoring a state.
+                    # Check if the directory is empty. If so, restore = False, otherwise True.
+                    if os.path.exists(dir_name) and os.path.isdir(dir_name):
+                        if len(os.listdir(dir_name)) <= 1:
+                            # Directory only contains json splitting file but no model state!
+                            restore = False
+                        else:
+                            # Directory is not empty
+                            restore = True
+            else:
+                if msg_bot:
+                    bot.send_msg('Start to restore the model for noise type {} and continue training..'.format(noise))
+                trained, error = restore_train_model(config)
+                if trained and msg_bot:
+                    bot.send_msg('Finished training for noise type {}..'.format(noise))
+                    break
+                if not trained:
+                    print('Model for noise type {} could not be restored/trained. The following error occured: {}.'.format(noise, error))
+                    if msg_bot:
+                        bot.send_msg('Model for noise type {} could not be restored/trained. The following error occured: {}.'.format(noise, error))
+                        
+        """ Without try-catch-repeat
         if not restore:
             if msg_bot:
-                bot.send_msg('Start to train the model for noise type {}..'.format(noise))
+                bot.send_msg('Start to initialize and train the model for noise type {}..'.format(noise))
             trained, error = train_model(config)
             if trained and msg_bot:
                 bot.send_msg('Finished training for noise type {}..'.format(noise))
             if not trained:
-                print('Model for noise type {} could not be trained. The following error occured: {}.'.format(noise, error))
+                print('Model for noise type {} could not be initialized/trained. The following error occured: {}.'.format(noise, error))
                 if msg_bot:
                     bot.send_msg('Model for noise type {} could not be trained. The following error occured: {}.'.format(noise, error))
         else:
@@ -175,7 +210,11 @@ if __name__ == "__main__":
                 print('Model for noise type {} could not be restored/trained. The following error occured: {}.'.format(noise, error))
                 if msg_bot:
                     bot.send_msg('Model for noise type {} could not be restored/trained. The following error occured: {}.'.format(noise, error))
+        """
 
+    # -------------------------
+    # Interference
+    # -------------------------
     if mode == 'use':
         if msg_bot:
             bot.send_msg('Start the inference..')

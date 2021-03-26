@@ -7,5 +7,5 @@ def preprocess_data(config):
     
     JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
                      augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot=config['msg_bot'],\
-                     nr_images=config['nr_images'])
-    return JIP.preprocess()
+                     nr_images=config['nr_images'], preprocess=True)
+    return JIP

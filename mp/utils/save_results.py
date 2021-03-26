@@ -3,6 +3,7 @@ import torch
 import os
 import numpy as np
 import pandas as pd
+import shutil
 from mp.visualization.plot_results import plot_dataframe
 
 def save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_train,
@@ -11,7 +12,14 @@ def save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_
     r"""This function saves the results from a trained model, i.e. losses and accuracies."""
     print('Save trained model losses and accuracies..')
     torch.save(model.state_dict(), os.path.join(paths, 'model_state_dict.zip'))
-    torch.save(model, os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], noise, 'model.zip'))
+    model_path = os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], noise)
+    if not os.path.exists(model_path):
+        os.makedirs(model_path)
+    else:
+        # Empty directory
+        shutil.rmtree(model_path)
+        os.makedirs(model_path)
+    torch.save(model, os.path.join(model_path, 'model.zip'))
     np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
     np.save(os.path.join(pathr, 'losses_cum_train.npy'), np.array(losses_cum_train))
     np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_val))
