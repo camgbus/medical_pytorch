@@ -21,12 +21,13 @@ def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_n
         # Compute number of images to take samples from to adjust sample size. With rising number of images, 
         # small components get more weight, take care, might lead to negative effects
         nr_images = 0
-        for path in list_of_paths:
-                length = len(os.listdir(path))
-                nr_images += length
-        if verbose:
-                print('getting intensities for {} images'.format(nr_images))
-        number = int(150000/length)
+        if list_of_paths:
+                for path in list_of_paths:
+                        length = len(os.listdir(path))
+                        nr_images += length
+                if verbose:
+                        print('getting intensities for {} images'.format(nr_images))
+                number = min(int(150000/length),5000)
         
         list_intesities = []
         for path in list_of_paths:
