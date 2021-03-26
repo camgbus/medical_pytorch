@@ -4,7 +4,7 @@ import os
 from mp.utils.Iterators import Dataset_Iterator
 
 
-def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_name=None, save_descr=None):
+def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_name=None, save_descr=None, verbose=False):
         '''goes through the given directories and there through every image-segmentation
         pair, in order to sample intensity values from every consolidation bigger 
         then min_size. 
@@ -24,15 +24,12 @@ def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_n
         for path in list_of_paths:
                 length = len(os.listdir(path))
                 nr_images += length
+        if verbose:
+                print('getting intensities for {} images'.format(nr_images))
         number = int(150000/length)
         
         list_intesities = []
         for path in list_of_paths:
-                if not (mode == 'JIP'):
-                        if 'UK_Frankfurt2' in path:
-                                mode = 'UK_Frankfurt2'
-                        else:           
-                                mode = 'normal'
                 ds_iterator = Dataset_Iterator(path,mode=mode)
                 samples = ds_iterator.iterate_components(sample_intensities,
                                                 threshold=min_size,number=number)
@@ -77,7 +74,7 @@ def sample_intensities(img,seg,props,number=5000):
         coords = props.coords
         rng = np.random.default_rng()
         if len(coords) > number:
-                coords = rng.choice(coords,5000,replace=False,axis=0)
+                coords = rng.choice(coords,number,replace=False,axis=0)
 
         intensities = np.array([img[x,y,z] for x,y,z in coords])
         samples = np.random.choice(intensities,number)
