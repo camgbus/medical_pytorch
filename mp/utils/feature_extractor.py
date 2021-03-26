@@ -221,11 +221,6 @@ class Feature_extractor():
         '''
         list_list_features = []
         for path in list_paths:
-            if not (mode == 'JIP'):
-                if 'UK_Frankfurt2' in path:
-                    mode = 'UK_Frankfurt2'
-                else:
-                    mode = 'normal'
             ds_iterator = Dataset_Iterator(path,mode=mode)
             output = ds_iterator.iterate_images(self.get_features)
             # output is a list(list(numbers)), one list for every image; since we want the output list 

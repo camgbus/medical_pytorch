@@ -104,8 +104,8 @@ class Dataset_Iterator():
             if self.mode == 'JIP_test':
                 names = sorted(os.listdir(self.data_path))
                 for name in names: 
-                    seg_path = os.path.join(self.data_path,name,'seg','001.nii.gt')
-                    img_path = os.path.join(self.data_path,name,'img','img.nii.gt')
+                    seg_path = os.path.join(self.data_path,name,'seg','001.nii.gz')
+                    img_path = os.path.join(self.data_path,name,'img','img.nii.gz')
                     img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
                     seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
                     values = func(img,seg,**kwargs)
