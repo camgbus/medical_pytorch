@@ -38,7 +38,7 @@ def copyFilesDecathlon(datasetName, filenames, datasetDirectory, JIPDirectory):
     for num, fname in enumerate(filenames):
         msg = str(num + 1) + ' of ' + str(len(filenames)) + '.'
         print (msg, end = '\r')
-        foldername = datasetName + '_' + fname
+        foldername = datasetName + '_' + fname.split('.')[0]
         currJIPDirectory = os.path.join(JIPDirectory, foldername, 'img')
         # Create directories if not existing
         if not os.path.isdir(currJIPDirectory):
@@ -105,6 +105,7 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
     """
 
     # Grand Challenge Data
+    print('\n')
     if datasetName == 'GC_Corona':
         datasetDirectory = os.path.join(datasetDirectory, 'Train')
         # Filenames have the form 'volume-covid19-A-XXXX_ct.nii'
@@ -114,7 +115,8 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         # Copy files to JIP Directory
         copyFilesGC(datasetName, filenames, datasetDirectory, JIPDirectory)
 
-    # Decathlon Lung Data          
+    # Decathlon Lung Data 
+    print('\n')         
     if datasetName == 'DecathlonLung':
         datasetDirectory = os.path.join(datasetDirectory, 'imagesTr')
         # Filenames have the form 'lung_XXX.nii.gz'
@@ -124,6 +126,7 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         copyFilesDecathlon(datasetName, filenames, datasetDirectory, JIPDirectory)
 
     # Frankfurt Uniklinik Data
+    print('\n')
     if datasetName == 'FRACorona':
         datasetDirectory = os.path.join(datasetDirectory)
         # Filenames are provided in foldernames: patient_id/images.nii.gz
