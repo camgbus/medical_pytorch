@@ -173,7 +173,6 @@ class Feature_extractor():
         list_features = []
         for feature in self.features:
             feature = self.get_feature(feature,img,seg)
-            print(feature)
             for attr in feature:
                 list_features.append(attr)
         arr_features = np.array(list_features)
