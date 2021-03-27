@@ -31,10 +31,19 @@ def train_dice_predictor(model_name='',feature_names=[],dens_model='',dens_add_n
     density.load_density()
 
     #load feature extractor and get features 
+    #i assume, that there is either a list of paths or already extracted features or both
     feat_extr = Feature_extractor(density,feature_names)
-    features = np.array(feat_extr.get_features_from_paths(list_of_paths))
+    features = feat_extr.get_features_from_paths(list_of_paths)
     loaded_features = feat_extr.load_list_of_feature_vectors(names_extracted_features)
-    features = np.append(features,loaded_features)
+    #there are both, new features and loaded features
+    if list_of_paths and names_extracted_features:
+        features = np.append(features,loaded_features)
+    #there are only newly computed features
+    elif list_of_paths:
+        pass
+    #there are only loaded features
+    else: 
+        features=loaded_features
     X_train = features
     y_train = y_train 
 
