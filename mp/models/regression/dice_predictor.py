@@ -57,7 +57,7 @@ class Dice_predictor():
         with open(self.path_to_model,'wb') as saver:
             pickle.dump(self.regressor,saver)
         
-        self._save_descr(data_descr,model_descr,regressor_score**kwargs)
+        self._save_descr(data_descr,model_descr,regressor_score,**kwargs)
 
     def retrain(self,X_train,y_train,  data_descr='', model_descr='',
             **kwargs):
@@ -87,10 +87,10 @@ class Dice_predictor():
             file.write("Model describtion: \n")
             file.write(model_d)
             file.write("\n")
-            file.wirte("train parameter : \n")
+            file.write("train parameter : \n")
             file.write('{}'.format(kwargs))
             file.write("\n")
-            file.wirte("regressor loss on train data : \n")
+            file.write("regressor loss on train data : \n")
             file.write('{}'.format(score))
     
     def _add_descr(self,data_d,model_d,score,**kwargs):
@@ -102,13 +102,13 @@ class Dice_predictor():
             file.write("Model describtion: \n")
             file.write(model_d)
             file.write("\n")
-            file.wirte("train parameter : \n")
+            file.write("train parameter : \n")
             file.write('{}'.format(kwargs))
             file.write("\n")
-            file.wirte("regressor loss on train data : \n")
+            file.write("regressor loss on train data : \n")
             file.write('{}'.format(score))
 
     def print_description(self):
-        with open(self.path_to_model_descr,'w') as file:
+        with open(self.path_to_model_descr,'r') as file:
             for line in file:
                 print(line)
