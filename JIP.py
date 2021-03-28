@@ -39,7 +39,7 @@ if __name__ == "__main__":
                              'Default model type: blur.')
     #parser.add_argument('--model_type', choices=['cnn'], required=False,
     #                    help='Specify the model type that will be trained.')
-    parser.add_argument('--mode', choices=['preprocess', 'train', 'use'], required=True,
+    parser.add_argument('--mode', choices=['preprocess', 'train', 'inference'], required=True,
                         help='Specify in which mode to use the model. Either train a model or use'+
                              ' it for predictions. This can also be used to preprocess data (be)for(e) training.')
     parser.add_argument('--datatype', choices=['all', 'train', 'inference'], required=False,
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # -------------------------
     # Interference
     # -------------------------
-    if mode == 'use':
+    if mode == 'inference':
         if msg_bot:
             bot.send_msg('Start the inference..')
         inferred, error = do_inference(config)

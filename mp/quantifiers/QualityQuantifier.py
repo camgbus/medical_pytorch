@@ -15,7 +15,7 @@ class QualityQuantifier():
         self.version = version
         # Device where all calculations take place. The model and data should be
         # loaded here before performing inference. This is defined by @Simon.
-        self.device = 'cuda:0'
+        self.device = device #'cuda:0'
         # All models and information that is statically stored should be placed
         # here. This is defined by @Simon.
         # self.storage_path = storage_path
@@ -23,8 +23,8 @@ class QualityQuantifier():
 class ImgQualityQuantifier(QualityQuantifier):
     r"""Super-class for quantifiers of image quality.
     """
-    def __init__(self, version='0.0'):
-        super().__init__(version)
+    def __init__(self, device='cuda:0', version='0.0'):
+        super().__init__(device, version)
 
     def get_quality(self, x):
         r"""Get quality values for an image according to one or more metrics.

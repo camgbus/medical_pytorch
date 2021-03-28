@@ -28,7 +28,7 @@ class CNNInstance(Instance):
         Note that torchio images have the shape (channels, w, h, d)
         """
         assert isinstance(x_path, str)
-        assert torch.is_tensor(y_label)
+        assert torch.is_tensor(y_label) or y_label is None
         x = torchio.Image(x_path, type=torchio.INTENSITY)
         y = y_label
         self.shape = x.shape
