@@ -14,9 +14,9 @@ class Dice_predictor():
             os.makedirs(path)
 
         self.path_to_model = os.path.join(path,
-                    '{}_{}.sav'.format(features,add_to_name)) 
+                    '{}_{}.sav'.format(add_to_name)) 
         self.path_to_model_descr = os.path.join(path,
-                    '{}_{}_descr.txt'.format(features,add_to_name))
+                    '{}_{}_descr.txt'.format(add_to_name))
         self.verbose = verbose
 
     def predict(self, input):
