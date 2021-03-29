@@ -3,6 +3,8 @@ from mp.quantifiers.QualityQuantifier import SegImgQualityQuantifier
 from mp.models.densities.density import Density_model
 from mp.models.regression.dice_predictor import Dice_predictor
 from mp.utils.feature_extractor import Feature_extractor
+import torch 
+import torchio
 
 class IntBasedQuantifier(SegImgQualityQuantifier):
 
@@ -16,7 +18,7 @@ class IntBasedQuantifier(SegImgQualityQuantifier):
 
         Args:
             New Version: mask and x are lists of paths to images/segmentations
-            
+
             mask (numpy.Array): an int32 numpy array for a segmentation mask,
                 with dimensions (channels, width, height, depth). The 'channels'
                 dimension corresponds to the number of labels, the other
@@ -34,11 +36,11 @@ class IntBasedQuantifier(SegImgQualityQuantifier):
         features=['density_distance','dice_scores','connected_components']
 
         # load density model
-        density = Density_model(model='gaussian_kernel',add_to_name='standart')
+        density = Density_model(model='gaussian_kernel',add_to_name='dummy')
         density.load_density()
         
         #load dice predictor
-        dice_pred = Dice_predictor(features,add_to_name='standart')
+        dice_pred = Dice_predictor(features,add_to_name='UK_Fra_dummy')
         dice_pred.load()
 
         #load feature extractor
