@@ -15,6 +15,8 @@ class IntBasedQuantifier(SegImgQualityQuantifier):
         overwritten.
 
         Args:
+            New Version: mask and x are lists of paths to images/segmentations
+            
             mask (numpy.Array): an int32 numpy array for a segmentation mask,
                 with dimensions (channels, width, height, depth). The 'channels'
                 dimension corresponds to the number of labels, the other

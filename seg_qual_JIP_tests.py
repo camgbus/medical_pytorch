@@ -1,15 +1,17 @@
 import os 
 from mp.paths import JIP_dir
 from train_restore_use_models.train_retrain_density import train_density
+from train_restore_use_models.train_retrain_dice_predictor import train_dice_predictor
 from mp.utils.intensities import get_intensities
 from mp.utils.feature_extractor import Feature_extractor
 from mp.models.densities.density import Density_model
-from mp.models.regression
+from mp.models.regression.dice_predictor import Dice_predictor
 import numpy as np
-
+from mp.quantifiers.IntBasedQuantifier import IntBasedQuantifier
+from mp.data.DataConnectorJIP import DataConnector
 #set environmental variables
 os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
-os.environ["OPERATOR_IN_DIR"] = "input"
+os.environ["OPERATOR_IN_DIR"] = "input_small"
 os.environ["OPERATOR_OUT_DIR"] = "output"
 os.environ["OPERATOR_TEMP_DIR"] = "temp"
 os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'data_dirs', 'persistent')
@@ -44,8 +46,8 @@ def test_get_intensities_working():
 def test_feature_extractor_working():
     list_of_paths=[os.path.join(os.environ['WORKFLOW_DIR'],os.environ['OPERATOR_IN_DIR'])]
     save = True
-    save_name='UK_Fra_density_distances'
-    save_descr='all 30 img-seg pairs from UK Fra. Computed averaged density distances'
+    save_name='delete_me'
+    save_descr='please delete me '
     mode = 'JIP_test'
     features = ['density_distance','dice_scores','connected_components']
 
@@ -65,20 +67,29 @@ def test_dice_predictor_working():
     list_of_paths = []
     names_extracted_features = ['UK_Fra']
     #get a random vector of 30 labels, since no dice scores are present
-    y_train = np.random.rand(30)
-    data_describtion = 'using all of the data of UK_frankfurt with random labels'
+    y_train = np.ones(30)
+    data_describtion = 'using all of the data of UK_frankfurt with random labels. Features are con_comp, density_dist, dice_scores'
     model_describtion = 'a MLP model, further specs, see below'
     verbose = True 
 
     train_dice_predictor(model_name=model_name,feature_names=feature_names,dens_model=dens_model,dens_add_name=dens_add_name,
                             list_of_paths=list_of_paths, names_extracted_features=names_extracted_features ,y_train=y_train ,
                             data_describtion = data_describtion, model_describtion = model_describtion ,verbose=verbose , 
-                            solver ='adam',lr='adaptive',hidden_layer_sizes=(10,30,50,50,20))
+                            solver ='adam',learning_rate='adaptive',hidden_layer_sizes=(10,30,50,50,20))
 
+    print('Everything went through, so should be fine')
+
+def test_int_quantifier_working():
+    dc = DataConnector()
+    dc.loadData()
+    print(dc.instances)
+    quantifier = IntBasedQuantifier()
+
+test_int_quantifier_working()
+#test_dice_predictor_working()
 #test_get_intensities_working()
 #test_train_density_working()
 #test_feature_extractor_working()
-
 
 
     
