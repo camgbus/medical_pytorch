@@ -3,6 +3,9 @@ import torch
 import os
 import shutil
 import traceback
+import torch
+import json
+import SimpleITK as sitk
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
@@ -14,7 +17,7 @@ from mp.models.cnn.cnn import CNN_Net2D
 from mp.eval.losses.losses_cnn import LossCEL
 from mp.agents.cnn_agents import NetAgent
 from mp.utils.save_results import save_results, save_only_test_results
-import mp.quantifiers.NoiseQualityQuantifier as NoiseQualityQuantifier
+from mp.quantifiers.NoiseQualityQuantifier import NoiseQualityQuantifier
 from mp.data.DataConnectorJIP import DataConnector
 
 def train_model(config):
@@ -101,7 +104,7 @@ def _CNN_initialize_and_train(config):
     datasets = dict()
     for ds_name, ds in data.datasets.items():
         for split, data_ixs in splits[ds_name][0].items():
-            if len(data_ixs) > 0: # Sometimes val indicess may be an empty list
+            if len(data_ixs) > 0: # Sometimes val indices may be an empty list
                 aug = config['augment_strat'] if not('test' in split) else 'none'
 
                 # --- Remove when using right model --> Only for 2D dummy! --- #
@@ -276,18 +279,33 @@ def _CNN_restore_and_train(config):
 
 def _CNN_predict(config):
     r"""This function loads an existing (pre-trained) model and makes predictions based on the input file(s)."""
-    # Build DataConnector and load data
-    dc = DataConnector(extension="mhd")
-    dc.loadData()
+    # Load data
+    data = Data()
+    JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
+                     augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
+                     nr_images=config['nr_images'], build_dataset=True, dtype='inference', noise=config['noise'])
+    data.add_dataset(JIP)
+    # Load pre-trained models
+    NQQ = NoiseQualityQuantifier(device=config['device'])
 
-    # Obtain data as ITK and calculate metrices:
-    for inst in dc.instances:
-        img = inst.getItkImg()
-        metrics = NoiseQualityQuantifier.get_quality(x = sitk.GetArrayFromImage(img))
-        dc.appendMetric(metrics)
+    # Calculate metrices
+    metrices = dict()
+    for num, inst in enumerate(JIP.instances):
+        msg = "Loading SimpleITK images and calculating metrices (doing inference): "
+        msg += str(num + 1) + " of " + str(len(JIP.instances)) + "."
+        print (msg, end = "\r")
+        # --- Updating the dictionary results in one lin metrics for all scans in data_dir --> need a key that won't
+        # --- be updated. That's why a number/the patient id is used!
+        metrices[num+1] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2))    # Number to metrics
+        #metrices[inst.name] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2))  # Patient Name to metrics
 
-    # Save metrics
-    dc.createOutputJson()
+    # Save metrices as json
+    out_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ["OPERATOR_OUT_DIR"])
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+    out_file = os.path.join(out_dir, 'metrics.json')
+    with open(out_file, "w") as fp:
+        json.dump(metrices, fp, sort_keys=True, indent=4)
 
 #def _CNN_test(config):
     r"""This function loads an existing (pretrained) model and makes predictions based on the input file

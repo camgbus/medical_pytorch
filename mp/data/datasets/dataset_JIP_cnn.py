@@ -24,7 +24,7 @@ class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
     def __init__(self, subset=None, img_size=(1, 60, 299, 299), max_likert_value=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False,
-                 nr_images=20, preprocess=False, build_dataset=False, dtype='train', noise='blur'):
+                 nr_images=20, build_dataset=False, dtype='train', noise='blur'):
         r"""Constructor"""
         assert subset is None, "No subsets for this dataset."
         assert len(img_size) == 4, "Image size needs to be 4D --> (batch_size, depth, height, width)."
@@ -42,9 +42,6 @@ class JIPDataset(CNNDataset):
         self.train_path = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Train Data
         self.train_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"])
 
-        if preprocess:
-            return self.preprocess()
-
         if build_dataset:
             instances = self.buildDataset(dtype, noise)
             super().__init__(instances=instances, name=self.global_name, modality='CT')
@@ -55,8 +52,7 @@ class JIPDataset(CNNDataset):
         try:
             if self.data_type == 'inference':
                 _delete_images_and_labels(self.data_dataset_path)
-                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
-                _generate_labels(self.max_likert_value, self.data_dataset_path, self.data_dataset_path)
+                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda, True)
                 return True, None
             if self.data_type == 'train':
                 _delete_images_and_labels(self.train_dataset_path)
@@ -65,8 +61,7 @@ class JIPDataset(CNNDataset):
                 return True, None
             if self.data_type == 'all':
                 _delete_images_and_labels(self.data_dataset_path)
-                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
-                _generate_labels(self.max_likert_value, self.data_dataset_path, self.data_dataset_path)
+                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda, True)
                 _delete_images_and_labels(self.train_dataset_path)
                 _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
                 _generate_labels(self.max_likert_value, self.train_dataset_path, self.train_dataset_path)
@@ -103,11 +98,12 @@ class JIPDataset(CNNDataset):
 
             # Build instances, dataset without labels!
             instances = list()
-            print('\n')
+            print()
             for num, name in enumerate(study_names):
-                msg = 'Creating dataset from images: '
+                msg = 'Creating inference dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
                 print (msg, end = '\r')
+                """
                 if 'Decathlon' not in name:
                     a_name = name + '_' + str(noise)
                     instances.append(CNNInstance(
@@ -116,13 +112,13 @@ class JIPDataset(CNNDataset):
                         name = name,
                         group_id = None
                         ))
-                elif 'Decathlon' in name or str(noise) in name:
-                    instances.append(CNNInstance(
-                        x_path = os.path.join(self.data_dataset_path, name, 'img', 'img.nii.gz'),
-                        y_label = None,
-                        name = name,
-                        group_id = None
-                        ))
+                elif 'Decathlon' in name or str(noise) in name:"""
+                instances.append(CNNInstance(
+                    x_path = os.path.join(self.data_dataset_path, name, 'img', 'img.nii.gz'),
+                    y_label = None,
+                    name = name,
+                    group_id = None
+                    ))
 
         if d_type == 'train':
             # Foldernames are patient_id
@@ -149,7 +145,7 @@ class JIPDataset(CNNDataset):
 
             # Build instances
             instances = list()
-            print('\n')
+            print()
             for num, name in enumerate(study_names):
                 msg = 'Creating dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
@@ -184,7 +180,7 @@ def _delete_images_and_labels(path):
                 fpath = os.path.dirname(dname)
                 shutil.rmtree(fpath)
 
-def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmentation=False, gpu=False, cuda=0):
+def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmentation=False, gpu=False, cuda=0, inference=False):
     r"""Extracts CT images and saves the modified images."""
     # Foldernames are patient_id
     filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x]
@@ -202,12 +198,14 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
         if not discard:
             # Extract all images (3D)
             x = resample(sitk.ReadImage(os.path.join(source_path, filename, 'img', 'img.nii.gz'))[:,:,start_slc:end_slc])
-            y = resample(sitk.ReadImage(os.path.join(source_path, filename, 'seg', '001.nii.gz'))[:,:,start_slc:end_slc])
             x = torch.from_numpy(sitk.GetArrayFromImage(x)).unsqueeze_(0)
-            y = torch.from_numpy(sitk.GetArrayFromImage(y).astype(np.int16)).unsqueeze_(0)
+            if not inference:
+                y = resample(sitk.ReadImage(os.path.join(source_path, filename, 'seg', '001.nii.gz'))[:,:,start_slc:end_slc])
+                y = torch.from_numpy(sitk.GetArrayFromImage(y).astype(np.int16)).unsqueeze_(0)
             try:
                 x = centre_crop_pad_3d(x, img_size)[0]
-                y = centre_crop_pad_3d(y, img_size)[0]
+                if not inference:
+                    y = centre_crop_pad_3d(y, img_size)[0]
                 if augmentation and 'DecathlonLung' in filename:
                     xs = list()
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='blur'))
@@ -221,13 +219,14 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 .format(filename))
                 continue
             # Create directories
-            os.makedirs(os.path.join(target_path, filename, 'img'))
-            os.makedirs(os.path.join(target_path, filename, 'seg'))
             # Save new images so they can be loaded directly
+            os.makedirs(os.path.join(target_path, filename, 'img'))
             sitk.WriteImage(sitk.GetImageFromArray(x), 
                 os.path.join(target_path, filename, 'img', "img.nii.gz"))
-            sitk.WriteImage(sitk.GetImageFromArray(y), 
-                os.path.join(target_path, filename, 'seg', "001.nii.gz"))
+            if not inference:
+                os.makedirs(os.path.join(target_path, filename, 'seg'))
+                sitk.WriteImage(sitk.GetImageFromArray(y), 
+                    os.path.join(target_path, filename, 'seg', "001.nii.gz"))
             if augmentation and 'DecathlonLung' in filename:
                 augmented = ['blur', 'downsample', 'ghosting', 'motion', 'noise', 'spike']
                 for a_idx, a_type in enumerate(augmented):
@@ -235,13 +234,14 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                         # Build new filename
                         a_filename = filename.split('.')[0] + '_' + a_type + str(i)
                         # Make directories
-                        os.makedirs(os.path.join(target_path, a_filename, 'img'))
-                        os.makedirs(os.path.join(target_path, a_filename, 'seg'))
                         # Save augmented image and original label
+                        os.makedirs(os.path.join(target_path, a_filename, 'img'))
                         sitk.WriteImage(xs[a_idx+idx],
                             os.path.join(target_path, a_filename, 'img', "img.nii.gz"))
-                        sitk.WriteImage(sitk.GetImageFromArray(y),
-                            os.path.join(target_path, filename, 'seg', "001.nii.gz"))
+                        if not inference:
+                            os.makedirs(os.path.join(target_path, a_filename, 'seg'))
+                            sitk.WriteImage(sitk.GetImageFromArray(y),
+                                os.path.join(target_path, filename, 'seg', "001.nii.gz"))
 
 
 def _extract_lung_segmentation(input_path, gpu, cuda):
