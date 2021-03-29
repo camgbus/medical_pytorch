@@ -14,9 +14,9 @@ class Dice_predictor():
             os.makedirs(path)
 
         self.path_to_model = os.path.join(path,
-                    '{}_{}.sav'.format(add_to_name)) 
+                    '{}.sav'.format(add_to_name)) 
         self.path_to_model_descr = os.path.join(path,
-                    '{}_{}_descr.txt'.format(add_to_name))
+                    '{}_descr.txt'.format(add_to_name))
         self.verbose = verbose
 
     def predict(self, input):
@@ -84,6 +84,9 @@ class Dice_predictor():
             file.write("Data describtion: \n")
             file.write(data_d)
             file.write("\n")
+            file.write("Used features: \n")
+            file.write('{}'.format(self.features))
+            file.write("\n")
             file.write("Model describtion: \n")
             file.write(model_d)
             file.write("\n")
@@ -98,6 +101,9 @@ class Dice_predictor():
             file.write(r'Model has been retrained, new settings: \n')
             file.write("Data describtion: \n")
             file.write(data_d)
+            file.write("\n")
+            file.write("Used features: \n")
+            file.write('{}'.format(self.features))
             file.write("\n")
             file.write("Model describtion: \n")
             file.write(model_d)
