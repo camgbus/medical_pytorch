@@ -1,7 +1,7 @@
 # Import needed libraries
 from mp.data.datasets.dataset_JIP_cnn import JIPDataset
 import numpy as np
-
+import SimpleITK as sitk
 def preprocess_data(config):
     r"""This function is used to load the original data from the workflow and preprocesses it
         by saving it in the preprocessed workflow."""
