@@ -128,8 +128,11 @@ if __name__ == "__main__":
     # Build config dictionary
     # ------------------------
     # Note: Dataset will be nr_images x 5 big!
-    config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'msg_bot':msg_bot, 'augmentation': True,
-              'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'max_likert_value': 5, 'nr_epochs': 100,
+    # Note: num_intensities embodies the number of quality values 1 to 5), where 1 is a bad quality
+    #       and 5 is a the best quality. This will be transformed into values between 0 and 1 in
+    #       the inference step, whereas 0s is bad quality and 1 is the best quality.
+    config = {'device':cuda, 'input_shape':(1, 60, 299, 299), 'augmentation': True,
+              'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 100,
               'noise': noise, 'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot,
               'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none'}
 

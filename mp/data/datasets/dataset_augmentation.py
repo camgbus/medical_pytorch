@@ -26,16 +26,16 @@ def augment_image_in_four_intensities(image, noise='blur'):
         return blur2(image), blur3(image), blur4(image), blur5(image)
 
     if noise == 'downsample':
-        downsample2 = random_downsample(axes=(0, 1, 2),
+        downsample2 = random_downsample(axes=0,
                                         downsampling=4,
                                         seed=42)
-        downsample3 = random_downsample(axes=(0, 1, 2),
+        downsample3 = random_downsample(axes=0,
                                         downsampling=6,
                                         seed=42)
-        downsample4 = random_downsample(axes=(0, 1, 2),
+        downsample4 = random_downsample(axes=0,
                                         downsampling=8,
                                         seed=42)
-        downsample5 = random_downsample(axes=(0, 1, 2),
+        downsample5 = random_downsample(axes=0,
                                         downsampling=10,
                                         seed=42)
         return downsample2(image), downsample3(image), downsample4(image), downsample5(image)
