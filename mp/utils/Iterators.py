@@ -98,7 +98,7 @@ class Dataset_Iterator():
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.extension))
                     img_path = os.path.join(self.data_path,name,'img','img.{}'.format(self.extension))
-                    func(img_path,seg_path,name,self.extension)
+                    func(img_path,seg_path,name)
             else:
                 for name in names: 
                     seg_path = os.path.join(self.data_path,name,'seg','001.{}'.format(self.extension))

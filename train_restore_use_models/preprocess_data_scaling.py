@@ -12,19 +12,23 @@ def preprocess_data_scaling(mode='JIP'):
     ds_iterator = Dataset_Iterator(input_path, mode=mode)
     ds_iterator.iterate_images(scale_image_save_it,preprocess_mode=True)
     
-def scale_image_save_it(img_path,seg_path,name,ending):
+def scale_image_save_it(img_path,seg_path,name):
     '''takes a name to an image, scales the image to [0,1] and then saves it in the appropriate format in 
     preprocessed_dir/output_scaled/id/img/....nii'''
     img = scale_image(img_path)
-    save_preprocessed_img_seg(img,seg_path,name,ending)
+    save_preprocessed_img_seg(img,seg_path,name)
 
-def save_preprocessed_img_seg(img,seg_path,name,ending):
+def save_preprocessed_img_seg(img,seg_path,name):
     '''takes and image and saves it in PREPROCESSED_OPERATOR_OUT_SCALED_DIR'''
     #get the paths 
-    save_path_i = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],name,'img')
-    save_path_s = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],name,'seg')
-    save_path_img = os.path.join(save_path_i,'img.{}'.format(ending))
-    save_path_seg = os.path.join(save_path_s,'001.{}'.format(ending))
+    if os.environ["INFERENCE_OR_TRAIN"] == 'inference':
+        save_path_i = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],name,'img')
+        save_path_s = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],name,'seg')
+    if os.environ["INFERENCE_OR_TRAIN"] == 'train':
+        save_path_i = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"],name,'img')
+        save_path_s = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"],name,'seg')
+    save_path_img = os.path.join(save_path_i,'img.nii.gz')
+    save_path_seg = os.path.join(save_path_s,'001.nii.gz')
 
     #make directories 
     if not os.path.isdir(save_path_i):
