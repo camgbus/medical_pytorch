@@ -3,7 +3,10 @@ from mp.utils.Iterators import Component_Iterator, Dataset_Iterator
 from skimage.measure import label
 from scipy.ndimage import gaussian_filter
 import os 
+import json 
+import SimpleITK as sitk
 import torch
+import torchio
 
 def get_array_of_dicescores(seg): 
     '''computes the array of dicescores for the given segmentation,
@@ -209,7 +212,7 @@ class Feature_extractor():
                 print('Image has no usable components, no reliable computations can be made')
                 similarity_scores = np.array([0])
             average = np.mean(np.array(similarity_scores))
-            return np.array([average])
+            return average
         if feature == 'dice_scores':
             dice_metrices = component_iterator.iterate(get_dice_averages)
             if not dice_metrices:
@@ -222,10 +225,10 @@ class Feature_extractor():
                 dice_metrices = np.array([1,0])
             dice_metrices = np.array(dice_metrices)
             dice_metrices = np.mean(dice_metrices,0)
-            return dice_metrices
+            return list(dice_metrices)
         if feature == 'connected_components':
             _,number_components = label(seg,return_num=True)
-            return np.array([number_components])
+            return number_components
 
     def get_features_from_paths(self,list_paths,mode='JIP',save=False,save_name=None,save_descr=None):
         '''Extracts the features from all img-seg pairs in all paths 
@@ -250,6 +253,44 @@ class Feature_extractor():
         if save:
             self.save_feature_vector(arr_arr_features,save_name,save_descr)
         return arr_arr_features
+
+    def compute_features_id(self,id):
+        #get id path depending on global mode 
+        if not os.environ["INFERENCE_OR_TRAIN"] == 'train':
+            id_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],id)
+        else : 
+            id_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"],id)
+        img_path = os.path.join(id_path,'img','img.nii.gz')
+
+        #get path to segmentation mask 
+        if os.path.exists(os.path.join(id_path,'seg')):   
+            mask_path_short = os.path.join(id_path,'seg')
+            self.save_feat_dict_from_paths(id_path,img_path,mask_path_short)
+        
+        if  os.path.exists(os.path.join(id_path,'pred')):
+            for i in range(len(os.listdir(os.path.join(id_path,'pred')))):
+                mask_path_short = os.path.join(id_path,'pred','pred_{}'.format(i))
+                self.save_feat_dict_from_paths(id_path,img_path,mask_path_short,i)
+
+    def save_feat_dict_from_paths (self,id_path,img_path,mask_path_short,i=0):
+        #either we have segmententation or prediction
+        if os.path.exists(os.path.join(mask_path_short,'001.nii.gz')):
+            mask_path = os.path.join(mask_path_short,'001.nii.gz')
+        else : 
+            mask_path = os.path.join(id_path,'pred','pred_{}'.format(i),'pred_'+str(i)+'.nii.gz')
+
+        #load image and mask and compute the feature dict
+        img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+        mask = torch.tensor(torchio.Image(mask_path, type=torchio.LABEL).numpy())[0]
+        feat_dict = {}
+        for feat in self.features:
+            feat_dict[feat] = self.get_feature(feat,img,mask)
+        
+        #save the features in a json file 
+        feature_save_path = os.path.join(mask_path_short,'features.json')
+        print(feat_dict)
+        with open (feature_save_path,'w') as f:
+            json.dump(feat_dict,f)
 
     def load_feature_vector(self,name):
         path_to_features_save = os.path.join(self.path_to_features,name+'.npy')
