@@ -151,8 +151,8 @@ class Component_Iterator():
     ''' In order to iterate over the components segmentation using the intensity image
     '''
     def __init__(self,img,seg,threshold=1000):
-        self.img = torch.tensor(img)
-        self.seg = torch.tensor(seg)
+        self.img = img
+        self.seg = seg
         self.threshold = threshold
     
     def iterate(self,func,**kwargs):
