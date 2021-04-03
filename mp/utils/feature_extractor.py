@@ -288,7 +288,6 @@ class Feature_extractor():
         
         #save the features in a json file 
         feature_save_path = os.path.join(mask_path_short,'features.json')
-        print(feat_dict)
         with open (feature_save_path,'w') as f:
             json.dump(feat_dict,f)
 
