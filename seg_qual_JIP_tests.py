@@ -9,6 +9,9 @@ from mp.models.regression.dice_predictor import Dice_predictor
 import numpy as np
 from mp.quantifiers.IntBasedQuantifier import IntBasedQuantifier
 from mp.data.DataConnectorJIP import DataConnector
+from train_restore_use_models.preprocess_data_scaling import preprocess_data_scaling
+from train_restore_use_models.preprocess_data_scaling_train import preprocess_data_scaling_train
+
 #set environmental variables
 os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
 os.environ["OPERATOR_IN_DIR"] = "input_small"
@@ -16,6 +19,21 @@ os.environ["OPERATOR_OUT_DIR"] = "output"
 os.environ["OPERATOR_TEMP_DIR"] = "temp"
 os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'data_dirs', 'persistent')
 
+os.environ["PREPROCESSED_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'preprocessed_dirs')
+os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"] = "output_scaled"
+os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"] = "output_scaled_train"
+
+os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs')
+os.environ["TRAIN_WORKFLOW_DIR_GT"] = os.path.join('Covid-RACOON','All images and labels')
+os.environ["TRAIN_WORKFLOW_DIR_PRED"] = os.path.join('Covid-RACOON','All predictions')
+
+os.environ["INFERENCE_OR_TRAIN"] = 'inference'
+
+os.environ["INPUT_FILE_ENDING"] = 'nii.gz'
+
+os.environ["DENSITY_MODEL_NAME"] = 'dummy'
+
+#The following tests wokr per se, but are not fitted to the structure of incoming new train data
 def test_train_density_working():
     
     #set the params 
@@ -80,16 +98,22 @@ def test_dice_predictor_working():
     print('Everything went through, so should be fine')
 
 def test_int_quantifier_working():
-    dc = DataConnector()
-    dc.loadData()
-    print(dc.instances)
+    img_path = os.path.join(JIP_dir, 'data_dirs','input_small','FRACorona_KGU-8160FACFB08D','img','img.nii.gz')
+    seg_path = os.path.join(JIP_dir, 'data_dirs','input_small','FRACorona_KGU-8160FACFB08D','seg','001.nii.gz')
+    img_instance = [img_path,img_path]
+    seg_instance = [seg_path,seg_path]
     quantifier = IntBasedQuantifier()
-
-test_int_quantifier_working()
-#test_dice_predictor_working()
-#test_get_intensities_working()
-#test_train_density_working()
-#test_feature_extractor_working()
+    print(quantifier.get_quality(seg_instance,img_instance))
 
 
+
+#The following tests are working on the JIP structure and use environ vars for that 
+def test_inference_preprocess_workflow():
+    preprocess_data_scaling()
+
+def test_train_preprocess_workflow():
+    preprocess_data_scaling_train()
+
+#test_inference_preprocess_workflow()
+#test_train_preprocess_workflow()
     

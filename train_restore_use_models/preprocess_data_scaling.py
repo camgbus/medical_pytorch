@@ -3,14 +3,33 @@ import SimpleITK as sitk
 import os 
 from mp.utils.Iterators import Dataset_Iterator
 import shutil
+from mp.utils.feature_extractor import Feature_extractor
+from mp.models.densities.density import Density_model
 
 def preprocess_data_scaling(mode='JIP'):
     '''deletes the old data files in preprocess_dir/output_scaled and replaces them with preprocessed data from data_dir_input'''
-    input_path =   os.path.join(os.environ["WORKFLOW_DIR"],os.environ["OPERATOR_IN_DIR"])
-    output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"])
-    _delete_images_and_labels(output_path)
-    ds_iterator = Dataset_Iterator(input_path, mode=mode)
-    ds_iterator.iterate_images(scale_image_save_it,preprocess_mode=True)
+
+    if os.environ["INFERENCE_OR_TRAIN"] == 'inference': 
+        #get paths 
+        input_path = os.path.join(os.environ["WORKFLOW_DIR"],os.environ["OPERATOR_IN_DIR"])
+        output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"])
+
+        #delete old images and features
+        _delete_images_and_labels(output_path)
+
+        #get the scaled version of the images and copy the segmentations
+        ds_iterator = Dataset_Iterator(input_path, mode=mode)
+        ds_iterator.iterate_images(scale_image_save_it,preprocess_mode=True)
+
+        #compute the features of the segmentations
+        density = Density_model(add_to_name = os.environ["DENSITY_MODEL_NAME"])
+        feat_extr = Feature_extractor(density,['density_distance','dice_scores','connected_components'])
+        for id in os.listdir(output_path):
+            feat_extr.compute_features_id(id)
+    else:
+        print("cant use this function in train time")
+        RuntimeError
+
     
 def scale_image_save_it(img_path,seg_path,name):
     '''takes a name to an image, scales the image to [0,1] and then saves it in the appropriate format in 
