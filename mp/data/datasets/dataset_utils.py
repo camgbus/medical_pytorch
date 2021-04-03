@@ -4,6 +4,8 @@
 
 import numpy as np
 import torch
+import os
+import shutil
 from mp.paths import original_data_paths
 
 def get_original_data_path(global_name):
@@ -80,3 +82,16 @@ def get_normalization_values(instances):
         std = (count * std + sum_of_square) / (count + nb_pixels)
         count += nb_pixels
     return {'mean': mean, 'std': torch.sqrt(std - mean ** 2)}
+
+def delete_images_and_labels(path):
+    r"""This function deletes every nifti and json (labels) file in the path."""
+    # Walk through path and delete all .nii files
+    print('Walk trough directory \'{}\' and delete nifti files..'.format(path))
+    for dname, dirs, files in os.walk(path):
+        for num, fname in enumerate(files):
+            msg = str(num + 1) + '_ of ' + str(len(files)) + '_ file(s).'
+            print (msg, end = '\r')
+            # Check if file is a nifti file and delete it
+            if '.nii' in fname or '.json' in fname:
+                fpath = os.path.dirname(dname)
+                shutil.rmtree(fpath)

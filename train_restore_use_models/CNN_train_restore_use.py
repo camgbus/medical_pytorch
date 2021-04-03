@@ -59,12 +59,12 @@ def _CNN_initialize_and_train(config):
     device = config['device']
     device_name = torch.cuda.get_device_name(device)
     print('Device name: {}'.format(device_name))
-    output_features = config['max_likert_value']
+    output_features = config['num_intensities']
     dataset_name = 'JIP'
 
     # 2. Define data
     data = Data()
-    JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
+    JIP = JIPDataset(img_size=config['input_shape'], num_intensities=config['num_intensities'], data_type=config['data_type'],\
                      augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
                      nr_images=config['nr_images'], build_dataset=True, dtype='train', noise=config['noise'])
 
@@ -170,12 +170,12 @@ def _CNN_restore_and_train(config):
     device = config['device']
     device_name = torch.cuda.get_device_name(device)
     print('Device name: {}'.format(device_name))
-    output_features = config['max_likert_value']
+    output_features = config['num_intensities']
     dataset_name = 'JIP'
 
     # 2. Define data to restore dataset
     data = Data()
-    JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
+    JIP = JIPDataset(img_size=config['input_shape'], num_intensities=config['num_intensities'], data_type=config['data_type'],\
                      augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
                      nr_images=config['nr_images'], build_dataset=True, dtype='train', noise=config['noise'])
 
@@ -281,7 +281,7 @@ def _CNN_predict(config):
     r"""This function loads an existing (pre-trained) model and makes predictions based on the input file(s)."""
     # Load data
     data = Data()
-    JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
+    JIP = JIPDataset(img_size=config['input_shape'], num_intensities=config['num_intensities'], data_type=config['data_type'],\
                      augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
                      nr_images=config['nr_images'], build_dataset=True, dtype='inference', noise=config['noise'])
     data.add_dataset(JIP)
@@ -296,8 +296,9 @@ def _CNN_predict(config):
         print (msg, end = "\r")
         # --- Updating the dictionary results in one lin metrics for all scans in data_dir --> need a key that won't
         # --- be updated. That's why a number/the patient id is used!
-        metrices[num+1] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2))    # Number to metrics
-        #metrices[inst.name] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2))  # Patient Name to metrics
+        path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"], inst.name, 'img', 'img.nii.gz')
+        #metrices[num+1] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2), path=path)    # Number to metrics
+        metrices[inst.name] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2), path=path)  # Patient Name to metrics
 
     # Save metrices as json
     out_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ["OPERATOR_OUT_DIR"])
@@ -316,12 +317,12 @@ def _CNN_predict(config):
     device = config['device']
     device_name = torch.cuda.get_device_name(device)
     print('Device name: {}'.format(device_name))
-    output_features = config['max_likert_value']
+    output_features = config['num_intensities']
     dataset_name = 'JIP'
 
     # 2. Define data
     data = Data()
-    JIP = JIPDataset(img_size=config['input_shape'], max_likert_value=config['max_likert_value'], data_type=config['data_type'],\
+    JIP = JIPDataset(img_size=config['input_shape'], num_intensities=config['num_intensities'], data_type=config['data_type'],\
                      augmentation=config['augmentation'], gpu=True, cuda=config['device'], msg_bot = config['msg_bot'],\
                      nr_images=config['nr_images'], build_dataset=True, dtype='train', noise=config['noise'])
 
