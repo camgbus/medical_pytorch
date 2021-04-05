@@ -166,7 +166,8 @@ class Feature_extractor():
         self.density.load_density()
 
     def get_features(self,img,seg):
-        '''extracts all of self.features for a given image-seg pair
+        '''
+        !!!! DEPRICATED !!!!!extracts all of self.features for a given image-seg pair
         assumes, that each extracteted feature is an integer or a list/array of integers
         Args: 
             img (ndarray): an image 
@@ -191,10 +192,10 @@ class Feature_extractor():
             seg (ndarray): The corresponding mask
 
         Returns (object): depending on the feature: 
-            density_distance -> (ndarray with one enty): The average density distance of the connected components and 
+            density_distance -> (integer): The average density distance of the connected components and 
                 the precomputed density
             dice_scores -> (ndarray with two entries): array with two entries, the dice averages and dice_diff averages 
-            connected_components -> (ndarray with one int): The number of connected components
+            connected_components -> (integer): The number of connected components
         '''
         component_iterator = Component_Iterator(img,seg)
         original_threshhold = component_iterator.threshold
@@ -231,7 +232,9 @@ class Feature_extractor():
             return number_components
 
     def get_features_from_paths(self,list_paths,mode='JIP',save=False,save_name=None,save_descr=None):
-        '''Extracts the features from all img-seg pairs in all paths 
+        '''
+        !!! DEPRECATED!!! 
+        Extracts the features from all img-seg pairs in all paths 
 
         Args:
             list_paths (list(str)): a list of strings, each string is the path to a dir containing 
@@ -253,8 +256,12 @@ class Feature_extractor():
         if save:
             self.save_feature_vector(arr_arr_features,save_name,save_descr)
         return arr_arr_features
-
     def compute_features_id(self,id):
+        '''Computes all features for the img-seg and img-pred pairs (if existing)
+        and saves them in the preprocessed_dir/.../id/...
+        Args:
+            id (str): the id of the patient to compute the features for
+        '''
         #get id path depending on global mode 
         if not os.environ["INFERENCE_OR_TRAIN"] == 'train':
             id_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],id)
@@ -273,6 +280,18 @@ class Feature_extractor():
                 self.save_feat_dict_from_paths(id_path,img_path,mask_path_short,i)
 
     def save_feat_dict_from_paths (self,id_path,img_path,mask_path_short,i=0):
+        '''takes the paths to an img and a mask and a number for a prediction, 
+        computes a dictionary of features and saves them in a dictionary 
+        in the path of the prediction
+        Args: 
+            id_path(str): The path to the target folder of the id 
+            img_path(str):the path to the img
+            mask_path_short(str): The string to either the dir of the seg
+                                        gets used, depending if we use seg or 
+                                        pred
+            i (int): the number of the prediction whose mask we want to use
+                                        only gets use if we use prediction 
+        '''
         #either we have segmententation or prediction
         if os.path.exists(os.path.join(mask_path_short,'001.nii.gz')):
             mask_path = os.path.join(mask_path_short,'001.nii.gz')
