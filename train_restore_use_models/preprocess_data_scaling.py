@@ -49,6 +49,8 @@ def scale_image_save_it(img_path,seg_path,name):
 
 def save_preprocessed_img_seg(img,seg_path,name):
     '''takes and image and saves it in PREPROCESSED_OPERATOR_OUT_SCALED_DIR
+    can be used for either train or inference mode, but only for img-seg pairs 
+    
     Args:
         img(nd.array): the scaled input image
         seg_path(str): string to the scaled image
