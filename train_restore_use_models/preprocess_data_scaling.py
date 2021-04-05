@@ -7,7 +7,12 @@ from mp.utils.feature_extractor import Feature_extractor
 from mp.models.densities.density import Density_model
 
 def preprocess_data_scaling(mode='JIP'):
-    '''deletes the old data files in preprocess_dir/output_scaled and replaces them with preprocessed data from data_dir_input'''
+    '''deletes the old data files in preprocess_dir/output_scaled and replaces 
+    them with preprocessed data from data_dir_input
+    Args:
+        mode(str): the mode that gets passed to the iterator.
+                    Has to be 'JIP', is just there because i dont know why
+    '''
 
     if os.environ["INFERENCE_OR_TRAIN"] == 'inference': 
         #get paths 
@@ -32,13 +37,22 @@ def preprocess_data_scaling(mode='JIP'):
 
     
 def scale_image_save_it(img_path,seg_path,name):
-    '''takes a name to an image, scales the image to [0,1] and then saves it in the appropriate format in 
-    preprocessed_dir/output_scaled/id/img/....nii'''
+    '''takes a name(id) to an image, scales the image to [0,1] and then saves it in the appropriate format in 
+    preprocessed_dir/output_scaled/id/img/....nii
+    Args: 
+        img_path(str): path to the image
+        seg_path(str): path to the segmentation
+        name(str): the id of the img
+    '''
     img = scale_image(img_path)
     save_preprocessed_img_seg(img,seg_path,name)
 
 def save_preprocessed_img_seg(img,seg_path,name):
-    '''takes and image and saves it in PREPROCESSED_OPERATOR_OUT_SCALED_DIR'''
+    '''takes and image and saves it in PREPROCESSED_OPERATOR_OUT_SCALED_DIR
+    Args:
+        img(nd.array): the scaled input image
+        seg_path(str): string to the scaled image
+        name(str): name/id to the img'''
     #get the paths 
     if os.environ["INFERENCE_OR_TRAIN"] == 'inference':
         save_path_i = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],name,'img')
