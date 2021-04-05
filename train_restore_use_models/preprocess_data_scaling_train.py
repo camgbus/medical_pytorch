@@ -8,7 +8,15 @@ from mp.utils.feature_extractor import Feature_extractor
 from mp.models.densities.density import Density_model
 
 def preprocess_data_scaling_train():
-
+    '''goes through the prespecified train_dir/... and 
+        1. deletes the files in the preprocess/.._scaled
+        goes through the img-seg folder and id-wise
+            2. extracts the scaled images and the segmentations
+            3. extracts the predictions if existing 
+        Afterwards
+        4. computes the feature for the img-seg and img-pred pairs,
+                who are stored as dicts in a .json file
+    '''
     if os.environ["INFERENCE_OR_TRAIN"] == 'train': 
         
         #get the paths 
@@ -35,14 +43,17 @@ def preprocess_data_scaling_train():
         RuntimeError
 
 def get_features_of_prepr_data():
+    '''goes through the preprocess_dir/..._scaled dir and extracts the features.
+    They are stored as a dictionary in a json file
+    '''
     density = Density_model(add_to_name = os.environ["DENSITY_MODEL_NAME"])
     feat_extr = Feature_extractor(density,['density_distance','dice_scores','connected_components'])
     for id in os.listdir(os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])):
         feat_extr.compute_features_id(id)
 
 def load_predictions_and_dice(task,id,name):
-    nr_pred = 0
     
+    nr_pred = 0
     pred_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_PRED"])
     #iterate over all models, that made predictions 
     for model in os.listdir(pred_data):
