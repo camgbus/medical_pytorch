@@ -14,7 +14,7 @@ class Density_model():
         add_to_name = str ; give model a name to find it again and not overwrite models
         verbose = bool ; if model shall be verbose '''
     
-    def __init__(self, clusters=False, model='gaussian_kernel',add_to_name='',verbose=False):
+    def __init__(self, clusters=False, model='gaussian_kernel',add_to_name='standart',verbose=False):
         self.model = model
         self.density = None
         self.clusters = clusters

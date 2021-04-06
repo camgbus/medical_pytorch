@@ -44,7 +44,7 @@ class Dataset_Iterator():
     '''in order to iterate ove a dataset
     '''
 
-    def __init__(self,data_path,mode='UK_Frankfurt2'):
+    def __init__(self,data_path,mode='JIP'):
         '''A iterator, who iterates over the all images in a given folder
 
         Args:
