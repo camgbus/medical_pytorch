@@ -7,6 +7,7 @@ import json
 import SimpleITK as sitk
 import torch
 import torchio
+from mp.models.densities.density import Density_model
 
 def get_array_of_dicescores(seg): 
     '''computes the array of dicescores for the given segmentation,
@@ -154,7 +155,7 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, density, features=[]):
+    def __init__(self, density=Density_model(add_to_name='standart'), features=['density_distance','dice_scores','connected_components']):
         self.features = features
         self.nr_features = len(features)
         self.density = density
@@ -211,7 +212,7 @@ class Feature_extractor():
                 component_iterator.threshold = original_threshhold
             if not similarity_scores:
                 print('Image has no usable components, no reliable computations can be made')
-                similarity_scores = np.array([0])
+                similarity_scores = 0
             average = np.mean(np.array(similarity_scores))
             return average
         if feature == 'dice_scores':
@@ -256,6 +257,7 @@ class Feature_extractor():
         if save:
             self.save_feature_vector(arr_arr_features,save_name,save_descr)
         return arr_arr_features
+        
     def compute_features_id(self,id):
         '''Computes all features for the img-seg and img-pred pairs (if existing)
         and saves them in the preprocessed_dir/.../id/...
@@ -309,6 +311,48 @@ class Feature_extractor():
         feature_save_path = os.path.join(mask_path_short,'features.json')
         with open (feature_save_path,'w') as f:
             json.dump(feat_dict,f)
+
+    def collect_train_data(self):
+        if os.environ["INFERENCE_OR_TRAIN"] == 'train':
+            all_features = []
+            labels = []
+            path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"] ,os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
+            for id in os.listdir(path):
+                all_pred_path = os.path.join(path,id,'pred')
+                for pred_nr in os.listdir(all_pred_path):
+                    pred_path = os.path.join(all_pred_path,pred_nr)
+                    feature_path = os.path.join(pred_path,'features.json')
+                    label_path = os.path.join(pred_path,'dice_score.json')
+                    feature_vec = self.read_feature_vector(feature_path)
+                    label = self.read_prediction_label(label_path)
+                    #filter out any nans 
+                    if np.isnan(np.sum(np.array(feature_vec))):
+                        pass 
+                    else:
+                        all_features.append(feature_vec)
+                        labels.append(label)
+        else:
+            print('This method is only for train time')
+            RuntimeError
+        return np.array(all_features),np.array(labels)
+
+    def read_feature_vector(self,feature_path):
+        feature_vec = []
+        with open(feature_path,'r') as file:
+            feat_dict = json.load(file)
+            for feature_name in self.features:
+                feature = feat_dict[feature_name]
+                if isinstance(feature,list): 
+                    for entry in feature:
+                        feature_vec.append(entry)
+                else:
+                    feature_vec.append(feature)
+        return feature_vec
+
+    def read_prediction_label(self,label_path):
+        with open(label_path,'r') as file:
+            label = json.load(file)
+        return label
 
     def load_feature_vector(self,name):
         path_to_features_save = os.path.join(self.path_to_features,name+'.npy')
