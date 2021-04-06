@@ -3,9 +3,8 @@ from mp.utils.feature_extractor import Feature_extractor
 from mp.models.densities.density import Density_model
 import numpy as np
 
-def train_dice_predictor(model_name='',feature_names=[],dens_model='',dens_add_name='',list_of_paths=[],
-                            names_extracted_features=[],y_train=None,data_describtion = '',
-                            model_describtion = '',verbose=False,**kwargs):
+def train_dice_predictor(model_name='standart',feature_extractor=Feature_extractor(),data_describtion = 'all of train data',
+                            model_describtion = 'MLP',verbose=False,**kwargs):
     '''Trains a dice predictor model based on features extracted from image-seg pairs
      a standart setting for kwargs is: 
      kwargs = {'solver'='adam','lr'='adaptive','hidden_layer_sizes'=(10,30,50,50,20)}
@@ -23,29 +22,13 @@ def train_dice_predictor(model_name='',feature_names=[],dens_model='',dens_add_n
         data_describtion (str): a describtion of the used data
         model_describtion (str): a describtion of the used model and density model
     '''
+
     #initiate model
-    dice_pred = Dice_predictor(features=feature_names,add_to_name=model_name,verbose=verbose)
+    dice_pred = Dice_predictor(features=feature_extractor.features,add_to_name=model_name,verbose=verbose)
 
-    #get density model
-    density = Density_model(model=dens_model,add_to_name=dens_add_name)
-    density.load_density()
-
-    #load feature extractor and get features 
-    #i assume, that there is either a list of paths or already extracted features or both
-    feat_extr = Feature_extractor(density,feature_names)
-    features = feat_extr.get_features_from_paths(list_of_paths)
-    loaded_features = feat_extr.load_list_of_feature_vectors(names_extracted_features)
-    #there are both, new features and loaded features
-    if list_of_paths and names_extracted_features:
-        features = np.append(features,loaded_features)
-    #there are only newly computed features
-    elif list_of_paths:
-        pass
-    #there are only loaded features
-    else: 
-        features=loaded_features
-    X_train = features
-    y_train = y_train 
+    #Load the features 
+    X_train,y_train = feature_extractor.collect_train_data()
+    print(len(X_train),len(y_train))
 
     #train model
     dice_pred.train(X_train,y_train, data_describtion, model_describtion,**kwargs)

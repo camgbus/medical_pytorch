@@ -3,9 +3,15 @@ from mp.utils.intensities import get_intensities, load_intensities
 import os
 import numpy as np
 
-def train_density(model = '',ending_of_model = '',list_of_paths = [],data_mode='',
-                    data_describtion = '', model_describtion = '', 
-                    precom_intensities=[], verbose=False, **kwargs):
+def train_density(model = 'gaussian_kernel',
+                    ending_of_model = 'standart',
+                    list_of_paths = [os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])],
+                    data_mode='JIP',
+                    data_describtion = 'training on nearly all data from COVID-RACOON at 5.4.2021', 
+                    model_describtion = 'gaussian model with bw 0.005', 
+                    precom_intensities=[], 
+                    verbose=False, 
+                    **kwargs):
     '''Trains a density model from a list of given paths to directories, where img-seg pairs can be found
         and stores it
 
