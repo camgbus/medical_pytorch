@@ -5,6 +5,7 @@ paths.py
 
 # Private files (e.g. sontaining private data information)
 *_private.py
+*_private.txt
 
 # VS code project setup
 .vscode
