@@ -1,16 +1,16 @@
 import os 
 from mp.paths import JIP_dir
-from train_restore_use_models.train_retrain_density import train_density
-from train_restore_use_models.train_retrain_dice_predictor import train_dice_predictor
-from mp.utils.intensities import get_intensities
-from mp.utils.feature_extractor import Feature_extractor
-from mp.models.densities.density import Density_model
-from mp.models.regression.dice_predictor import Dice_predictor
+#from train_restore_use_models.train_retrain_density import train_density
+#from train_restore_use_models.train_retrain_dice_predictor import train_dice_predictor
+#from mp.utils.intensities import get_intensities
+# from mp.utils.feature_extractor import Feature_extractor
+#from mp.models.densities.density import Density_model
+# from mp.models.regression.dice_predictor import Dice_predictor
 import numpy as np
-from mp.quantifiers.IntBasedQuantifier import IntBasedQuantifier
-from mp.data.DataConnectorJIP import DataConnector
-from train_restore_use_models.preprocess_data_scaling import preprocess_data_scaling
-from train_restore_use_models.preprocess_data_scaling_train import preprocess_data_scaling_train
+# from mp.quantifiers.IntBasedQuantifier import IntBasedQuantifier
+# from mp.data.DataConnectorJIP import DataConnector
+# from train_restore_use_models.preprocess_data_scaling import preprocess_data_scaling
+# from train_restore_use_models.preprocess_data_scaling_train import preprocess_data_scaling_train
 
 #set environmental variables
 os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
@@ -27,7 +27,7 @@ os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs')
 os.environ["TRAIN_WORKFLOW_DIR_GT"] = os.path.join('Covid-RACOON','All images and labels')
 os.environ["TRAIN_WORKFLOW_DIR_PRED"] = os.path.join('Covid-RACOON','All predictions')
 
-os.environ["INFERENCE_OR_TRAIN"] = 'inference'
+os.environ["INFERENCE_OR_TRAIN"] = 'train'
 
 os.environ["INPUT_FILE_ENDING"] = 'nii.gz'
 
@@ -107,13 +107,45 @@ def test_int_quantifier_working():
 
 
 
-#The following tests are working on the JIP structure and use environ vars for that 
+#The following tests are working on the JIP structure and use environ vars for that purpose
+
+### Inference Workflow 
 def test_inference_preprocess_workflow():
+    from train_restore_use_models.preprocess_data_scaling import preprocess_data_scaling
     preprocess_data_scaling()
 
+### Train Workflow
 def test_train_preprocess_workflow():
+    '''preprocess the data'''
+    from train_restore_use_models.preprocess_data_scaling_train import preprocess_data_scaling_train
     preprocess_data_scaling_train()
 
+def test_train_density_train_workflow():
+    '''this one comes after the preprocessing of the train data
+    trains the density model '''
+    from train_restore_use_models.train_retrain_density import train_density
+    train_density(verbose=False,bandwidth=0.005)
+
+def test_train_feat_extraction():
+    '''after the density has been trained, the features can be extracted'''
+    from train_restore_use_models.preprocess_data_scaling_train import get_features_of_prepr_data
+    get_features_of_prepr_data()
+
+def test_train_dice_pred_train_workflow():
+    '''In the end, train the dice_predictor on the extracted features'''
+    from train_restore_use_models.train_retrain_dice_predictor import train_dice_predictor
+    train_dice_predictor(verbose=True,solver='adam',learning_rate='adaptive',hidden_layer_sizes=(10,30,50,50,20))
+
+#working, even though slow through density
 #test_inference_preprocess_workflow()
-#test_train_preprocess_workflow()
-    
+
+## some files have different ending then id_0000, but seem to have id_1_0000, TODO should work now ????
+test_train_preprocess_workflow()
+
+# a very small amount of images takes very long, maybe force downsclaing on some very big images 
+# there are also some emtpy slices (4 times up until now: mean of empty slice)
+# test_train_feat_extraction()
+
+#sollte nen anderes model nutzen
+#test_train_dice_pred_train_workflow()
+
