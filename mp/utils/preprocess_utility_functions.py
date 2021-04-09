@@ -10,6 +10,14 @@ from mp.utils.Iterators import Dataset_Iterator
 from mp.eval.metrics.simple_scores import dice_score
 from mp.data.pytorch.transformation import resize_3d
 
+def basic_preprocessing():
+    '''does the 3 basic preprocessing steps of copying the data in the right format 
+    scaling the images and 
+    resizes the images'''
+    copy_data_into_preprocess_dir()
+    bring_all_data_into_right_size()
+    scale_all_images()
+    
 #first make functions to copy the data into the right storage format
 def copy_data_into_preprocess_dir():
     if os.environ["INFERENCE_OR_TRAIN"] == 'inference':
