@@ -3,10 +3,11 @@ import time
 import os 
 import SimpleITK as sitk 
 import numpy as np 
+import torch
 from mp.utils.feature_extractor import Feature_extractor
 from mp.utils.Iterators import Dataset_Iterator
 from mp.eval.metrics.simple_scores import dice_score
-
+from mp.data.pytorch.transformation import resize_3d
 #first make functions to copy the data into the right storage format
 def copy_data_into_preprocess_dir():
     if os.environ["INFERENCE_OR_TRAIN"] == 'inference':
@@ -163,7 +164,7 @@ def check_needs_downsize(img):
     Returns(bool): whether the image is too big
     '''
     shape = np.shape(img)
-    if shape[0] > 300 or shape[1] > 700 or shape[2] > 700:
+    if shape[0] > 50 or shape[1] > 512 or shape[2] > 512:
         print(shape)
         return True 
     else:
@@ -178,12 +179,12 @@ def downsize_img_seg_pred(id_path,img):
     Returns 2(nd.array): img,seg resized'''
     #get the right shape 
     shape = np.shape(img)
-    new_shape_d = min(100,shape[0])
+    new_shape_d = min(50,shape[0])
     new_shape_wh = min(512,shape[1])
     size = (1,new_shape_d,new_shape_wh,new_shape_wh)
 
     #downsize the image
-    img_path = os.join(id_path,'img','img.nii.gz')
+    img_path = os.path.join(id_path,'img','img.nii.gz')
     img = torch.from_numpy(img)
     img.unsqueeze_(0)
     img = resize_3d(img,size,label=False)
@@ -193,7 +194,7 @@ def downsize_img_seg_pred(id_path,img):
     sitk.WriteImage(img,img_path)
 
     #downsize the segmentation 
-    seg_path = os.join(id_path,'seg','001.nii.gz')
+    seg_path = os.path.join(id_path,'seg','001.nii.gz')
     seg = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
     seg = torch.from_numpy(seg)
     seg.unsqueeze_(0)
@@ -204,11 +205,11 @@ def downsize_img_seg_pred(id_path,img):
     sitk.WriteImage(seg,seg_path)
     
     #downsize possible predictions, its l8, bad code
-    all_pred_path = os.join(id_path,'pred')
+    all_pred_path = os.path.join(id_path,'pred')
     if os.path.exists(all_pred_path):
         nr_pred = len(os.listdir(all_pred_path))
         for i in range(nr_pred):
-            pred_path = os.join(id_path,'pred','pred_{}'.format(i),'pred_{}.nii.gz'.format(i))
+            pred_path = os.path.join(id_path,'pred','pred_{}'.format(i),'pred_{}.nii.gz'.format(i))
             pred = sitk.GetArrayFromImage(sitk.ReadImage(pred_path))
             pred = torch.from_numpy(pred)
             pred.unsqueeze_(0)
