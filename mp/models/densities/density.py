@@ -19,6 +19,7 @@ class Density_model():
         self.density = None
         self.clusters = clusters
         self.verbose = verbose
+        self.density_values = None
 
         density_path = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'density_models')
         if not os.path.isdir(density_path):
@@ -29,28 +30,26 @@ class Density_model():
                     self.model+'_cluster_'+add_to_name+'.sav')
             self.path_to_model_descr = os.path.join(density_path,
                     self.model+'_cluster_'+add_to_name+'_descr.txt')
-            self.path_to_int_values = os.path.join(density_path,
-                    self.model+'_cluster_'+add_to_name+'int_values.npy')
+            self.path_to_dens_values = os.path.join(density_path,
+                    self.model+'_cluster_'+add_to_name+'_values.npy')
         else:
             self.path_to_model = os.path.join(density_path,
                     self.model+'_no_cluster_'+add_to_name+'.sav')
             self.path_to_model_descr = os.path.join(density_path,
                     self.model+'_no_cluster_'+add_to_name+'_descr.txt')
-            self.path_to_int_values = os.path.join(density_path,
-                    self.model+'_no_cluster_'+add_to_name+'int_values.npy')
+            self.path_to_dens_values = os.path.join(density_path,
+                    self.model+'_no_cluster_'+add_to_name+'_values.npy')
 
     def load_density(self):
         '''loads density, depending on clusters,model,add_to_name'''
-        if self.model == 'gaussian_kernel':
-            try:
-                self.density = pickle.load(open(self.path_to_model,'rb'))
-            except:
-                print('there is no density model with this name, please it train first before loading')
-                raise RuntimeError
+
+        self.density = pickle.load(open(self.path_to_model,'rb'))
         if self.verbose:
             self.print_description()
         
-    
+    def load_density_values(self):
+        self.density_values = np.load(self.path_to_dens_values,allow_pickle=True)
+
     def train_density(self, int_values, data_descr='', 
                         model_descr='',**kwargs):
         '''trains a density for the given int_values, saves a descr with same name as model 
@@ -70,7 +69,7 @@ class Density_model():
             else :
                 data = np.reshape(int_values, newshape=(-1,1))
                 self.density = KernelDensity(kernel='gaussian', **kwargs).fit(data)
-
+        self._save_density_values()
         pickle.dump(self.density,open(self.path_to_model,'wb'))
         self._save_descr(data_descr,model_descr,**kwargs)
 
@@ -132,6 +131,10 @@ class Density_model():
             file.write("Model Settings: \n")
             file.write('{}'.format(kwargs))
     
+    def _save_density_values(self):
+        density_values = self.get_values()
+        np.save(self.path_to_dens_values,density_values)
+
     def print_description(self):
         with open(self.path_to_model_descr,'w') as file:
             for line in file:

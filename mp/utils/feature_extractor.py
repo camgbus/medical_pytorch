@@ -158,13 +158,15 @@ class Feature_extractor():
     def __init__(self, density=Density_model(add_to_name='standart'), features=['density_distance','dice_scores','connected_components']):
         self.features = features
         self.nr_features = len(features)
+
         self.density = density
-        self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features')
+        self.density_values = self.density.load_density_values()
+        self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features') #deprecated
         
         if not os.path.isdir(self.path_to_features):
             os.makedirs(self.path_to_features)
         
-        self.density.load_density()
+        
 
     def get_features(self,img,seg):
         '''
@@ -201,7 +203,7 @@ class Feature_extractor():
         component_iterator = Component_Iterator(img,seg)
         original_threshhold = component_iterator.threshold
         if feature == 'density_distance':
-            density_values = self.density.get_values()
+            density_values = self.density_values
             similarity_scores= component_iterator.iterate(get_similarities,
                     density_values=density_values)
             if not similarity_scores:
