@@ -4,10 +4,12 @@ import os
 import SimpleITK as sitk 
 import numpy as np 
 import torch
+import json 
 from mp.utils.feature_extractor import Feature_extractor
 from mp.utils.Iterators import Dataset_Iterator
 from mp.eval.metrics.simple_scores import dice_score
 from mp.data.pytorch.transformation import resize_3d
+
 #first make functions to copy the data into the right storage format
 def copy_data_into_preprocess_dir():
     if os.environ["INFERENCE_OR_TRAIN"] == 'inference':
@@ -95,6 +97,7 @@ def compute_all_prediction_dice_scores():
         RuntimeError
     for id in os.listdir(work_path):
         start_time = time.time()
+        id_path = os.path.join(work_path,id)
         compute_prediction_dice_scores_for_id(id_path)
         end_time = time.time()
         dur = end_time-start_time
@@ -253,12 +256,12 @@ def copy_predictions (task,id,name):
     
 def compute_prediction_dice_scores_for_id(id_path): 
     seg_path = os.path.join(id_path,'seg','001.nii.gz')
-    all_pred_path = os.join(id_path,'pred')
+    all_pred_path = os.path.join(id_path,'pred')
     if os.path.exists(all_pred_path):
         nr_pred = len(os.listdir(all_pred_path))
         seg = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
         for i in range(nr_pred):
-            pred_path = os.join(id_path,'pred','pred_{}'.format(i),'pred_{}.nii.gz'.format(i))
+            pred_path = os.path.join(id_path,'pred','pred_{}'.format(i),'pred_{}.nii.gz'.format(i))
             dice_score_save_path = os.path.join(id_path,'pred','pred_{}'.format(i),'dice_score.json')
             prediction = sitk.GetArrayFromImage(sitk.ReadImage(pred_path))
             dice = dice_score(seg,prediction)

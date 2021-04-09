@@ -160,7 +160,8 @@ class Feature_extractor():
         self.nr_features = len(features)
 
         self.density = density
-        self.density_values = self.density.load_density_values()
+        self.density.load_density_values()
+        self.density_values = self.density.density_values
         self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features') #deprecated
         
         if not os.path.isdir(self.path_to_features):
