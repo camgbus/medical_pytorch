@@ -4,7 +4,8 @@ import os
 from mp.utils.Iterators import Dataset_Iterator
 
 
-def get_intensities(list_of_paths, min_size=100, mode='JIP',save = False, save_name=None, save_descr=None, verbose=False):
+def get_intensities(list_of_paths, min_size=100, mode='JIP',save = True, save_name='intensities_last_density_train', 
+        save_descr='intensities_last_density train', verbose=False):
         '''goes through the given directories and there through every image-segmentation
         pair, in order to sample intensity values from every consolidation bigger 
         then min_size. 
