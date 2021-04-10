@@ -12,10 +12,10 @@ class Density_model():
 
         model: str; in order to tell code, which model is being used
         clusters (not implemented) if multiple densities are computed, one for each cluster
-        add_to_name = str ; give model a name to find it again and not overwrite models
+        version = str ; give model a name to find it again and not overwrite models
         verbose = bool ; if model shall be verbose '''
     
-    def __init__(self, model_name='gaussian_mixture',add_to_name='standart',verbose=False):
+    def __init__(self, model_name='gaussian_mixture',version='standart',verbose=False):
         self.model_name = model_name
         self.model = None
         self.verbose = verbose
@@ -27,11 +27,11 @@ class Density_model():
             os.makedirs(density_path)
 
         self.path_to_model = os.path.join(density_path,
-                self.model_name+'_no_cluster_'+add_to_name+'.sav')
+                self.model_name+'_no_cluster_'+version+'.sav')
         self.path_to_model_descr = os.path.join(density_path,
-                self.model_name+'_no_cluster_'+add_to_name+'_descr.txt')
+                self.model_name+'_no_cluster_'+version+'_descr.txt')
         self.path_to_dens_values = os.path.join(density_path,
-                self.model_name+'_no_cluster_'+add_to_name+'_values.npy')
+                self.model_name+'_no_cluster_'+version+'_values.npy')
 
     def load_density(self):
         '''loads density'''
