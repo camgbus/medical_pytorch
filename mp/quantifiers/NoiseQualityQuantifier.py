@@ -13,7 +13,7 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
             self.models[artefact] = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], artefact, 'model.zip'))
         super().__init__(device, version)
 
-    def get_quality(self, x, path):
+    def get_quality(self, x, path, gpu, cuda):
         r"""Get quality values for an image representing the maximum intensity of artefacts in it.
 
         Args:

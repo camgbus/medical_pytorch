@@ -3,7 +3,6 @@ import torch
 import os
 import shutil
 import traceback
-import torch
 import json
 import SimpleITK as sitk
 from torch.utils.data import DataLoader
@@ -297,8 +296,8 @@ def _CNN_predict(config):
         # --- Updating the dictionary results in one lin metrics for all scans in data_dir --> need a key that won't
         # --- be updated. That's why a number/the patient id is used!
         path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"], inst.name, 'img', 'img.nii.gz')
-        #metrices[num+1] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2), path=path)    # Number to metrics
-        metrices[inst.name] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2), path=path)  # Patient Name to metrics
+        #metrices[num+1] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2), path=path, gpu=True, cuda=config['device'])    # Number to metrics
+        metrices[inst.name] = NQQ.get_quality(x=inst.x.tensor.permute(3, 0, 1, 2), path=path, gpu=True, cuda=config['device'])  # Patient Name to metrics
 
     # Save metrices as json
     out_dir = os.path.join('/', os.environ['WORKFLOW_DIR'], os.environ["OPERATOR_OUT_DIR"])

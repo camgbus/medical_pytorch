@@ -134,7 +134,7 @@ class JIPDataset(CNNDataset):
             decathlon_names = random.sample(decathlon_names, self.nr_images)
 
             # Select intensities equally
-            for i in range(2, 6):
+            for i in range(1, 5):
                 intensity_names = [x for x in noise_names if '_' + str(noise) + str(i) in x]
                 decathlon_names.extend(random.sample(intensity_names, self.nr_images))
             study_names = decathlon_names
