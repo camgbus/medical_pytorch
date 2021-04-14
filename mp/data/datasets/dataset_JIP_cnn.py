@@ -129,7 +129,7 @@ class JIPDataset(CNNDataset):
             # --- Remove when using the right model --> only for dummy! --- #
             noise_names = [x for x in study_names if 'DecathlonLung' in x and noise in x]
             decathlon_names = [x for x in study_names if 'DecathlonLung' in x and not 'blur' in x\
-                               and not 'downsample' in x and not 'ghosting' in x and not 'motion' in x\
+                               and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
                                and not 'noise' in x and not 'spike' in x]
             decathlon_names = random.sample(decathlon_names, self.nr_images)
 
@@ -204,7 +204,7 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 if augmentation and 'DecathlonLung' in filename:
                     xs = list()
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='blur'))
-                    xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='downsample'))
+                    xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='resolution'))
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='ghosting'))
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='motion'))
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='noise'))
@@ -223,7 +223,7 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 sitk.WriteImage(sitk.GetImageFromArray(y), 
                     os.path.join(target_path, filename, 'seg', "001.nii.gz"))
             if augmentation and 'DecathlonLung' in filename:
-                augmented = ['blur', 'downsample', 'ghosting', 'motion', 'noise', 'spike']
+                augmented = ['blur', 'resolution', 'ghosting', 'motion', 'noise', 'spike']
                 for a_idx, a_type in enumerate(augmented):
                     for idx, i in enumerate(range(4, 0, -1)): # Loop backwards through [1, 2, 3, 4] since the high numbers are of better quality
                         # Build new filename

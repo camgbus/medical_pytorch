@@ -48,4 +48,25 @@ def whole_lung_captured(input_path, gpu=True, cuda=0):
                 discard = True
                 break
 
+    # Check now for each slice, if the lung is surrounded by non lung tissue,
+    # ie. segmented tissue surrounded by zero values
+    if not discard:
+        for ct_slice in scan_np:
+            # Check that top row from slice contains only 0
+            if ct_slice[0].any():   # Contains at least one non zero value
+                discard = True
+                break
+            # Check that bottom row from slice contains only 0
+            if ct_slice[-1].any():  # Contains at least one non zero value
+                discard = True
+                break
+            # Check that left column from slice contains only 0
+            if ct_slice[:,0].any(): # Contains at least one non zero value
+                discard = True
+                break
+            # Check that right column from slice contains only 0
+            if ct_slice[:,-1].any():# Contains at least one non zero value
+                discard = True
+                break
+
     return discard, start_seg_idx, end_seg_idx

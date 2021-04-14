@@ -33,7 +33,7 @@ from train_restore_use_models.CNN_train_restore_use import do_inference
 if __name__ == "__main__": 
     # Build Argumentparser
     parser = argparse.ArgumentParser(description='Train, reterain or use a specified model to predict the quality of CT scans.')
-    parser.add_argument('--noise_type', choices=['blur', 'downsample', 'ghosting', 'noise',
+    parser.add_argument('--noise_type', choices=['blur', 'resolution', 'ghosting', 'noise',
                                                 'motion', 'spike'], required=False,
                         help='Specify the CT artefact on which the model will be trained. '+
                              'Default model type: blur.')

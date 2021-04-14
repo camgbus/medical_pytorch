@@ -7,7 +7,7 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
     def __init__(self, device='cuda:0', version='0.0'):
         # Load models
         self.models = dict()
-        self.artefacts = ['blur', 'downsample', 'ghosting', 'motion', 'noise', 'spike']
+        self.artefacts = ['blur', 'resolution', 'ghosting', 'motion', 'noise', 'spike']
         self.quality_values = [0, 0.25, 0.5, 0.75, 1]
         for artefact in self.artefacts:
             self.models[artefact] = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], artefact, 'model.zip'))
@@ -30,6 +30,7 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
         metrices = dict()
         # Add metric if lung is fully captured in the scan
         discard, _, _ = LungFullyCaptured(path, gpu, cuda)
+        #metrices['LFC'] = not discard
         metrices['Lung fully captured'] = not discard
 
         for artefact in self.artefacts:
@@ -37,19 +38,19 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
             model = self.models[artefact]
             model.eval()
             model.to(self.device)
-            min_yhat = 1 # Artefact intensity == 0 --> perfect images
+            min_yhat = 1.0 # Artefact intensity == 0 --> perfect image
             # Do inference
             with torch.no_grad():
                 for x_slice in x:
                     yhat = model(x_slice.unsqueeze(0).to(self.device))
 
-                    # Only for 2D models, not necessary for 3D path trained models, since the whole volume will be inputted
+                    # Only for 2D models, not necessary for 3D patch trained models, since the whole volume will be inputted
                     # ---------------------------------------------------
                     yhat = yhat.cpu().detach()#.numpy()
                     # Transform one hot vector to likert value
                     _, yhat = torch.max(yhat, 1)
                     yhat = self.quality_values[yhat.item()]
-                    # Update max intensity value
+                    # Update min intensity value
                     if yhat < min_yhat:
                         min_yhat = yhat
                     # ---------------------------------------------------
