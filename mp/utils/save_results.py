@@ -19,7 +19,8 @@ def save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_
         # Empty directory
         shutil.rmtree(model_path)
         os.makedirs(model_path)
-    torch.save(model, os.path.join(model_path, 'model.zip'))
+    #torch.save(model, os.path.join(model_path, 'model.zip'))
+    torch.save(model.state_dict(), os.path.join(model_path, 'model_state_dict.zip'))
     np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
     np.save(os.path.join(pathr, 'losses_cum_train.npy'), np.array(losses_cum_train))
     np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_val))

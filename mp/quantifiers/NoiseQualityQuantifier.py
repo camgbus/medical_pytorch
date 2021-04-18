@@ -1,16 +1,20 @@
 import os
 import torch
+from mp.models.cnn.cnn import CNN_Net2D, CNN_Net3D
 from mp.quantifiers.QualityQuantifier import ImgQualityQuantifier
 from mp.utils.lung_captured import whole_lung_captured as LungFullyCaptured
 
 class NoiseQualityQuantifier(ImgQualityQuantifier):
-    def __init__(self, device='cuda:0', version='0.0'):
+    def __init__(self, output_features, device='cuda:0', version='0.0'):
         # Load models
         self.models = dict()
         self.artefacts = ['blur', 'resolution', 'ghosting', 'motion', 'noise', 'spike']
         self.quality_values = [0, 0.25, 0.5, 0.75, 1]
         for artefact in self.artefacts:
-            self.models[artefact] = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], artefact, 'model.zip'))
+            model = CNN_Net2D(output_features)
+            state_dict = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], artefact, 'model_state_dict.zip'))
+            model.load_state_dict(state_dict)
+            self.models[artefact] = model
         super().__init__(device, version)
 
     def get_quality(self, x, path, gpu, cuda):
@@ -30,8 +34,7 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
         metrices = dict()
         # Add metric if lung is fully captured in the scan
         discard, _, _ = LungFullyCaptured(path, gpu, cuda)
-        #metrices['LFC'] = not discard
-        metrices['Lung fully captured'] = not discard
+        metrices['LFC'] = not discard
 
         for artefact in self.artefacts:
             # Load model

@@ -20,7 +20,7 @@ def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
                 raise FileExistsError
             shutil.rmtree(state_full_path)
         os.makedirs(state_full_path)
-        save_model_state(self.model, 'model', state_full_path)
+        save_model_state(self.model, 'model_state_dict', state_full_path)
         pkl_dump(self.agent_state_dict, 'agent_state_dict', state_full_path)
         if optimizer is not None:
             save_optimizer_state(optimizer, 'optimizer', state_full_path)
@@ -49,7 +49,7 @@ def restore_state(self, states_path, state_name, optimizer=None):
     """
     state_full_path = os.path.join(states_path, state_name)
     try:
-        correct_load = load_model_state(self.model, 'model', state_full_path, device=self.device)
+        correct_load = load_model_state(self.model, 'model_state_dict', state_full_path, device=self.device)
         assert correct_load
         agent_state_dict = pkl_load('agent_state_dict', state_full_path)
         assert agent_state_dict is not None

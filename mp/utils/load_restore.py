@@ -7,7 +7,9 @@ import pickle
 import numpy as np
 import json
 import functools
+import torch
 import SimpleITK as sitk
+import mp.models.cnn.cnn as models
 
 # PICKLE
 def pkl_dump(obj, name, path='obj'):
@@ -62,6 +64,14 @@ def load_json(path, name):
     with open(os.path.join(path, name), 'r') as json_file:
         return json.load(json_file)
 
+def save_json_beautiful(data, path, name):
+    r"""This function saves a dictionary as a json file at the specified path with indention."""
+    if not os.path.exists(path):
+        os.makedirs(path)
+    out_file = os.path.join(path, name, '.json')
+    with open(out_file, "w") as fp:
+        json.dump(data, fp, sort_keys=True, indent=4)
+
 # NIFTY
 def nifty_dump(x, name, path):
     r"""Save a tensor of numpy array in nifty format."""
@@ -80,3 +90,15 @@ def nifty_dump(x, name, path):
 def join_path(list):
     r"""From a list of chained directories, forms a path"""
     return functools.reduce(os.path.join, list)
+
+def load_model(model_name, output_features, path, weights):
+    r"""This function creates a model and based on path and weights, it loads the
+        corresponding state_dict and returns the model."""
+        model = getattr(models, model_name)(output_features)    # Same as models.model_name(output_features)
+        # If weights, than load the state dict from path
+        if weights:
+            state_dict = torch.load(path)
+            model.load_state_dict(state_dict)
+            model.eval()
+        # Return the model
+        return model

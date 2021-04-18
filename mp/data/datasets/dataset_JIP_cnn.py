@@ -7,6 +7,7 @@ import os
 import shutil
 import torch
 import json
+import random
 import torchio as tio
 import traceback
 import numpy as np
@@ -18,15 +19,11 @@ from mp.utils.lung_captured import whole_lung_captured as LungFullyCaptured
 from mp.utils.generate_labels import generate_labels
 from mp.data.datasets.dataset_utils import delete_images_and_labels
 
-#--- remove --> only for dummy model ---#
-import random
-#--- remove --> only for dummy model ---#
-
 class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
     def __init__(self, subset=None, img_size=(1, 60, 299, 299), num_intensities=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False,
-                 nr_images=20, build_dataset=False, dtype='train', noise='blur'):
+                 nr_images=20, build_dataset=False, dtype='train', noise='blur', ds_name='Decathlon'):
         r"""Constructor"""
         assert subset is None, "No subsets for this dataset."
         assert len(img_size) == 4, "Image size needs to be 4D --> (batch_size, depth, height, width)."
@@ -37,7 +34,7 @@ class JIPDataset(CNNDataset):
         self.cuda = cuda
         self.msg_bot = msg_bot
         self.data_type = data_type
-        self.global_name = 'JIP'
+        self.ds_name = ds_name
         self.nr_images = nr_images
         self.data_path = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]) # Inference Data
         self.data_dataset_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"])
@@ -46,7 +43,7 @@ class JIPDataset(CNNDataset):
 
         if build_dataset:
             instances = self.buildDataset(dtype, noise)
-            super().__init__(instances=instances, name=self.global_name, modality='CT')
+            super().__init__(instances=instances, name=self.ds_name, modality='CT')
 
     def preprocess(self):
         r"""This function preprocesses (and augments) the input data."""
@@ -77,7 +74,8 @@ class JIPDataset(CNNDataset):
             either for training or inference. The d_type is the same as self.data_type, however it can not be
             'all' in this case, since it is important to be able to distinguish to which type a scan belongs
             (train -- inference). Noise specifies which data will be included in the dataset --> only used
-            for training."""
+            for training. ds_name specifies which dataset should be build, based on its name (in foldername).
+            This can be 'Decathlon', 'GC' or 'FRA'. ds_name is only necessary for d_type == 'train'."""
         # Extract all images, if not already done
         if d_type == 'train':
             if not os.path.isdir(self.train_dataset_path) or not os.listdir(self.train_dataset_path):
@@ -105,16 +103,6 @@ class JIPDataset(CNNDataset):
                 msg = 'Creating inference dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
                 print (msg, end = '\r')
-                """
-                if 'Decathlon' not in name:
-                    a_name = name + '_' + str(noise)
-                    instances.append(CNNInstance(
-                        x_path = os.path.join(self.data_dataset_path, name, 'img', 'img.nii.gz'),
-                        y_label = None,
-                        name = name,
-                        group_id = None
-                        ))
-                elif 'Decathlon' in name or str(noise) in name:"""
                 instances.append(CNNInstance(
                     x_path = os.path.join(self.data_dataset_path, name, 'img', 'img.nii.gz'),
                     y_label = None,
@@ -126,33 +114,39 @@ class JIPDataset(CNNDataset):
             # Foldernames are patient_id
             study_names = [x for x in os.listdir(self.train_dataset_path) if 'DS_Store' not in x]
 
-            # --- Remove when using the right model --> only for dummy! --- #
-            noise_names = [x for x in study_names if 'DecathlonLung' in x and noise in x]
-            decathlon_names = [x for x in study_names if 'DecathlonLung' in x and not 'blur' in x\
-                               and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
-                               and not 'noise' in x and not 'spike' in x]
-            decathlon_names = random.sample(decathlon_names, self.nr_images)
-
-            # Select intensities equally
-            for i in range(1, 5):
-                intensity_names = [x for x in noise_names if '_' + str(noise) + str(i) in x]
-                decathlon_names.extend(random.sample(intensity_names, self.nr_images))
-            study_names = decathlon_names
-            # --- Remove when using the right model --> only for dummy! --- #
-
             # Load labels and build one hot vector
             with open(os.path.join(self.train_dataset_path, 'labels.json'), 'r') as fp:
                 labels = json.load(fp)
             one_hot = torch.nn.functional.one_hot(torch.arange(0, self.num_intensities), num_classes=self.num_intensities)
 
-            # Build instances
+            # Build instances list
             instances = list()
             print()
-            for num, name in enumerate(study_names):
-                msg = 'Creating dataset from images: '
-                msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
-                print (msg, end = '\r')
-                if 'Decathlon' not in name:
+
+            if self.ds_name == 'Decathlon':
+                study_names = _get_equally_distributed_names(study_names, self.ds_name, noise, self.nr_images, self.num_intensities)
+                # Build instances
+                for num, name in enumerate(study_names):
+                    msg = 'Creating dataset from images: '
+                    msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                    print (msg, end = '\r')
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
+                        y_label = one_hot[int(labels[name] * self.num_intensities) - 1],
+                        name = name,
+                        group_id = None
+                        ))
+
+            elif self.ds_name == 'GC':
+                GC_names = [x for x in study_names if self.ds_name in x]
+                if len(GC_names) > 5 * self.nr_images:
+                    GC_names = random.sample(GC_names, 5 * self.nr_images)
+                study_names = GC_names
+                # Build instances
+                for num, name in enumerate(study_names):
+                    msg = 'Creating dataset from images: '
+                    msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                    print (msg, end = '\r')
                     a_name = name + '_' + str(noise)
                     instances.append(CNNInstance(
                         x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
@@ -160,14 +154,85 @@ class JIPDataset(CNNDataset):
                         name = name,
                         group_id = None
                         ))
-                elif 'Decathlon' in name or str(noise) in name:
+
+            elif self.ds_name == 'FRA':
+                FRA_names = [x for x in study_names if self.ds_name in x]
+                if len(FRA_names) > 5 * self.nr_images:
+                    FRA_names = random.sample(FRA_names, 5 * self.nr_images)
+                study_names = FRA_names
+                # Build instances
+                for num, name in enumerate(study_names):
+                    msg = 'Creating dataset from images: '
+                    msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                    print (msg, end = '\r')
+                    a_name = name + '_' + str(noise)
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
+                        y_label = one_hot[int(labels[a_name] * self.num_intensities) - 1],
+                        name = name,
+                        group_id = None
+                        ))
+
+            elif self.ds_name == 'mixed':
+                # Decathlon + 2 x self.nr_images random GC and 2 x self.nr_images random FRA
+                Decathlon_names = _get_equally_distributed_names(study_names, 'Decathlon', noise, self.nr_images, self.num_intensities)
+                GC_names = [x for x in study_names if 'GC' in x]
+                FRA_names = [x for x in study_names if 'FRA' in x]
+                if len(GC_names) > 2 * self.nr_images:
+                    GC_names = random.sample(GC_names, 2 * self.nr_images)
+                if len(FRA_names) > 2 * self.nr_images:
+                    FRA_names = random.sample(FRA_names, 2 * self.nr_images)
+                study_names = Decathlon_names + GC_names + FRA_names
+                # Build instances for Decathlon, GC and FRA
+                for num, name in enumerate(study_names):
+                    msg = 'Creating dataset from images: '
+                    msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                    print (msg, end = '\r')
+                    if 'Decathlon' in name:
+                        a_name = name
+                    else:
+                        a_name = name + '_' + str(noise)
+                    instances.append(CNNInstance(
+                        x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
+                        y_label = one_hot[int(labels[a_name] * self.num_intensities) - 1],
+                        name = name,
+                        group_id = None
+                        ))
+
+            else:
+                # Retraining performed by institutes with their own dataset.
+                # NOTE: Data is already preprocessed and saved under
+                # preprocessed_dirs/output_train in defined structure. --> All this data will be loaded!
+                # NOTE: Labels dictionary for this data is saved under preprocessed_dirs/output_train/labels.json
+                # Build instances
+                for num, name in enumerate(study_names):
+                    msg = 'Creating dataset from images: '
+                    msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
+                    print (msg, end = '\r')
                     instances.append(CNNInstance(
                         x_path = os.path.join(self.train_dataset_path, name, 'img', 'img.nii.gz'),
                         y_label = one_hot[int(labels[name] * self.num_intensities) - 1],
                         name = name,
                         group_id = None
                         ))
+
         return instances
+
+def _get_equally_distributed_names(study_names, ds_name, noise, nr_images, num_intensities):
+    r"""Extracts a list of folder names representing ds_name Dataset, based on noise and nr_images.
+        An equal distribution of images will be extracted, ie. nr_images from each intensity level resulting
+        in a dataset of num_intensities x nr_images foldernames."""
+    noise_names = [x for x in study_names if ds_name in x and noise in x] # Augmented scans
+    ds_names = [x for x in study_names if ds_name in x and not 'blur' in x\
+                    and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
+                    and not 'noise' in x and not 'spike' in x] # Original scans
+    ds_names = random.sample(ds_names, nr_images)
+    # Select intensities equally
+    for i in range(1, num_intensities):
+        intensity_names = [x for x in noise_names if '_' + str(noise) + str(i) in x]
+        ds_names.extend(random.sample(intensity_names, nr_images))
+    return ds_names
+
 
 def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmentation=False, gpu=False, cuda=0, inference=False):
     r"""Extracts CT images and saves the modified images."""
@@ -201,7 +266,7 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 x = centre_crop_pad_3d(x, img_size)[0]
                 if not inference:
                     y = centre_crop_pad_3d(y, img_size)[0]
-                if augmentation and 'DecathlonLung' in filename:
+                if augmentation and 'Decathlon' in filename:
                     xs = list()
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='blur'))
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='resolution'))
@@ -222,18 +287,21 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 os.makedirs(os.path.join(target_path, filename, 'seg'))
                 sitk.WriteImage(sitk.GetImageFromArray(y), 
                     os.path.join(target_path, filename, 'seg', "001.nii.gz"))
-            if augmentation and 'DecathlonLung' in filename:
+            if augmentation and 'Decathlon' in filename:
                 augmented = ['blur', 'resolution', 'ghosting', 'motion', 'noise', 'spike']
                 for a_idx, a_type in enumerate(augmented):
                     for idx, i in enumerate(range(4, 0, -1)): # Loop backwards through [1, 2, 3, 4] since the high numbers are of better quality
                         # Build new filename
                         a_filename = filename.split('.')[0] + '_' + a_type + str(i)
                         # Make directories
-                        # Save augmented image and original label
+                        # Save augmented image (--> only) ? and original label ?
                         os.makedirs(os.path.join(target_path, a_filename, 'img'))
                         sitk.WriteImage(xs[a_idx+idx],
                             os.path.join(target_path, a_filename, 'img', "img.nii.gz"))
+
+                        # Add original labels, that are not augmented --> Better discard this step ?
+                        """
                         if not inference:
                             os.makedirs(os.path.join(target_path, a_filename, 'seg'))
                             sitk.WriteImage(sitk.GetImageFromArray(y),
-                                os.path.join(target_path, filename, 'seg', "001.nii.gz"))
+                                os.path.join(target_path, filename, 'seg', "001.nii.gz"))"""
