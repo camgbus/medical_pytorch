@@ -59,7 +59,7 @@ def save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_
 
 def save_only_test_results(noise, path, losses_test, accuracy_test, accuracy_det_test):
     r"""This function saves the test results from a pretrained model, i.e. losses and accuracies."""
-    print('Save pretrained model losses and accuracies on test dataset..')
+    print('Save pre-trained model losses and accuracies on test dataset..')
     np.save(os.path.join(path, 'losses_test.npy'), np.array(losses_test))
     np.save(os.path.join(path, 'accuracy_test.npy'), np.array(accuracy_test))
     np.save(os.path.join(path, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))

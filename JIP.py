@@ -40,10 +40,10 @@ if __name__ == "__main__":
                              'Default model type: blur.')
     #parser.add_argument('--model_type', choices=['cnn'], required=False,
     #                    help='Specify the model type that will be trained.')
-    parser.add_argument('--mode', choices=['preprocess', 'train', 'retrain', 'inference'], required=True,
+    parser.add_argument('--mode', choices=['preprocess', 'train', 'retrain', 'test', 'inference'], required=True,
                         help='Specify in which mode to use the model. Either train a model or use'+
                              ' it for predictions. This can also be used to preprocess data (be)for(e) training.')
-    parser.add_argument('--datatype', choices=['all', 'train', 'inference'], required=False,
+    parser.add_argument('--datatype', choices=['all', 'train', 'test', 'inference'], required=False,
                         help='Only necessary for mode preprocessing. Indicates which data should be preprocessed.'+
                              ' If not specified, \'all\' will be used for preprocessing.')
     parser.add_argument('--device', action='store', type=int, nargs=1, default=4,
@@ -103,7 +103,7 @@ if __name__ == "__main__":
     # -------------------------
     # Build environmental vars
     # -------------------------
-    print('Building environmental variables')
+    print('Building environmental variables..')
     # The environmental vars will later be automatically set by the workflow that triggers the docker container
     # data_dirs (for inference)
     os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
@@ -115,10 +115,14 @@ if __name__ == "__main__":
     # preprocessed_dirs (for preprocessed data (output of this workflow = input for main workflow)
     os.environ["PREPROCESSED_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'preprocessed_dirs')
     os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"] = "output_train"
+    os.environ["PREPROCESSED_OPERATOR_OUT_TEST_DIR"] = "output_test"
     os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"] = "output_data"
 
     # train_dirs (for training data)
     os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs')
+
+    # test_dirs (for test data)
+    os.environ["TEST_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'test_dirs')
 
     # ------------------------
     # Build config dictionary
@@ -129,8 +133,6 @@ if __name__ == "__main__":
     # NOTE: num_intensities embodies the number of quality values 1 to 5), where 1 is a bad quality
     #       and 5 is a the best quality. This will be transformed into values between 0 and 1 in
     #       the inference step, whereas 0s is bad quality and 1 is the best quality.
-    # NOTE: For 3D patch training and inference use a batch_size of 6, resulting in 6 patches with 10
-    #       channels each --> One full volume!
     # NOTE: train_on is includes all datasets, on which the model needs to be trained. The list will be used for EWC
     #       approach. For the conventional approach, only the first entry of the list will be considered.
     #       {'Decathlon', 'GC', 'FRA', 'mixed'}. For institutes that use this method to retrain a pre-trained model
@@ -141,10 +143,22 @@ if __name__ == "__main__":
     # NOTE: sample_size represents the number of samples that will be used for the EWC approach (combined with importance).
     config = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True,
               'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 100,
-              'noise': noise, 'weight_decay': 0.75, 'save_interval': 25, 'msg_bot': msg_bot, 'importance': 1000,
+              'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
               'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
               'train_on': ['Decathlon', 'GC', 'FRA'], 'sample_size': 60}
+    
+    config_ewc = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True,
+                  'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 100,
+                  'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
+                  'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
+                  'train_on': ['Decathlon', 'GC', 'FRA'], 'sample_size': 60}
 
+    config_nml = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True,
+                  'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 300,
+                  'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
+                  'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
+                  'train_on': ['mixed'], 'sample_size': 60}
+    
     # -------------------------
     # Preprocess
     # -------------------------
@@ -246,7 +260,13 @@ if __name__ == "__main__":
                         bot.send_msg('Model for noise type {} could not be restored/retrained. The following error occured: {}.'.format(noise, error))
 
     # -------------------------
-    # Interference
+    # Test
+    # -------------------------
+    if mode == 'test':
+        pass
+
+    # -------------------------
+    # Inference
     # -------------------------
     if mode == 'inference':
         if msg_bot:

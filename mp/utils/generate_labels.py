@@ -1,7 +1,7 @@
 import os
 import json
 
-def generate_labels(num_intensities, source_path, target_path):
+def generate_train_labels(num_intensities, source_path, target_path):
     r"""This function generates the labels.json file that is necessary for training."""
     # Foldernames are patient_id
     filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x and 'DecathlonLung' in x\
@@ -1420,6 +1420,208 @@ def generate_labels(num_intensities, source_path, target_path):
     labels['FRACorona_KGU-C0199AED68D5'+'_motion'] = 5/num_intensities
     labels['FRACorona_KGU-C0199AED68D5'+'_noise'] = 4/num_intensities
     labels['FRACorona_KGU-C0199AED68D5'+'_spike'] = 5/num_intensities
+
+    # Foldernames are patient_id
+    filenames_FRA = [x for x in os.listdir(source_path) if 'DS_Store' not in x and 'FRACorona' in x\
+                 and not 'blur' in x and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
+                 and not 'noise' in x and not 'spike' in x]
+    filenames_GC = [x for x in os.listdir(source_path) if 'DS_Store' not in x and 'GC_Corona' in x\
+                 and not 'blur' in x and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
+                 and not 'noise' in x and not 'spike' in x]
+    filenames = filenames_FRA + filenames_GC
+
+    # Generate labels for FRA and GC augmentation
+    labels = dict()
+    for name in filenames:
+        # Extract corresponding values
+        blur_value = label[str(name)+'_blur'] * num_intensities
+        resolution_value = label[str(name)+'_resolution'] * num_intensities
+        ghosting_value = label[str(name)+'_ghosting'] * num_intensities
+        motion_value = label[str(name)+'_motion'] * num_intensities
+        noise_value = label[str(name)+'_noise'] * num_intensities
+        spike_value = label[str(name)+'_spike'] * num_intensities
+
+        # Augmented blurred images
+        labels[str(name) + '_blur4_blur'] =  (1/num_intensities) if (blur_value - 1) < 1 else (blur_value - 1)/num_intensities # Good quality image --> blur_4
+        labels[str(name) + '_blur4_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_blur4_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_blur4_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_blur4_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_blur4_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_blur3_blur'] =  (1/num_intensities) if (blur_value - 2) < 1 else (blur_value - 2)/num_intensities  # blur_3
+        labels[str(name) + '_blur3_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_blur3_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_blur3_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_blur3_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_blur3_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_blur2_blur'] =  (1/num_intensities) if (blur_value - 3) < 1 else (blur_value - 3)/num_intensities  # blur_2
+        labels[str(name) + '_blur2_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_blur2_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_blur2_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_blur2_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_blur2_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_blur1_blur'] =  (1/num_intensities) if (blur_value - 4) < 1 else (blur_value - 4)/num_intensities  # Bad quality image --> blur_1
+        labels[str(name) + '_blur1_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_blur1_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_blur1_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_blur1_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_blur1_spike'] =  label[str(name)+'_spike']
+        
+        # Augmented downsampled images
+        labels[str(name) + '_resolution4_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_resolution4_resolution'] =  (1/num_intensities) if (resolution_value - 1) < 1 else (resolution_value - 1)/num_intensities  # Good quality image --> resolution_4
+        labels[str(name) + '_resolution4_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_resolution4_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_resolution4_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_resolution4_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_resolution3_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_resolution3_resolution'] =  (1/num_intensities) if (resolution_value - 2) < 1 else (resolution_value - 2)/num_intensities  # resolution_3
+        labels[str(name) + '_resolution3_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_resolution3_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_resolution3_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_resolution3_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_resolution2_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_resolution2_resolution'] =  (1/num_intensities) if (resolution_value - 3) < 1 else (resolution_value - 3)/num_intensities  # resolution_2
+        labels[str(name) + '_resolution2_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_resolution2_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_resolution2_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_resolution2_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_resolution1_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_resolution1_resolution'] =  (1/num_intensities) if (resolution_value - 4) < 1 else (resolution_value - 4)/num_intensities  # Bad quality image --> resolution_1
+        labels[str(name) + '_resolution1_ghosting'] =  label[str(name)+'_ghosting']
+        labels[str(name) + '_resolution1_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_resolution1_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_resolution1_spike'] =  label[str(name)+'_spike']
+
+        # Augmented ghosted images
+        labels[str(name) + '_ghosting4_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_ghosting4_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_ghosting4_ghosting'] = (1/num_intensities) if (ghosting_value - 1) < 1 else (ghosting_value - 1)/num_intensities  # Good quality image --> ghosting_4
+        labels[str(name) + '_ghosting4_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_ghosting4_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_ghosting4_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_ghosting3_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_ghosting3_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_ghosting3_ghosting'] = (1/num_intensities) if (ghosting_value - 2) < 1 else (ghosting_value - 2)/num_intensities  # ghosting_3
+        labels[str(name) + '_ghosting3_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_ghosting3_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_ghosting3_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_ghosting2_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_ghosting2_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_ghosting2_ghosting'] = (1/num_intensities) if (ghosting_value - 3) < 1 else (ghosting_value - 3)/num_intensities  # ghosting_2
+        labels[str(name) + '_ghosting2_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_ghosting2_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_ghosting2_spike'] =  label[str(name)+'_spike']
+        labels[str(name) + '_ghosting1_blur'] =   label[str(name)+'_blur']
+        labels[str(name) + '_ghosting1_resolution'] =  label[str(name)+'_resolution']
+        labels[str(name) + '_ghosting1_ghosting'] = (1/num_intensities) if (ghosting_value - 4) < 1 else (ghosting_value - 4)/num_intensities  # Bad quality image --> ghosting_1
+        labels[str(name) + '_ghosting1_motion'] =  label[str(name)+'_motion']
+        labels[str(name) + '_ghosting1_noise'] =  label[str(name)+'_noise']
+        labels[str(name) + '_ghosting1_spike'] =  label[str(name)+'_spike']
+    
+        # Augmented motion images
+        labels[str(name) + '_motion4_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_motion4_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_motion4_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_motion4_motion'] = (1/num_intensities) if (motion_value - 1) < 1 else (motion_value - 1)/num_intensities  # Good quality image --> motion_4
+        labels[str(name) + '_motion4_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_motion4_spike'] = label[str(name)+'_spike']
+        labels[str(name) + '_motion3_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_motion3_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_motion3_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_motion3_motion'] = (1/num_intensities) if (motion_value - 2) < 1 else (motion_value - 2)/num_intensities  # motion_3
+        labels[str(name) + '_motion3_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_motion3_spike'] = label[str(name)+'_spike']
+        labels[str(name) + '_motion2_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_motion2_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_motion2_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_motion2_motion'] = (1/num_intensities) if (motion_value - 3) < 1 else (motion_value - 3)/num_intensities  # motion_2
+        labels[str(name) + '_motion2_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_motion2_spike'] = label[str(name)+'_spike']
+        labels[str(name) + '_motion1_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_motion1_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_motion1_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_motion1_motion'] = (1/num_intensities) if (motion_value - 4) < 1 else (motion_value - 4)/num_intensities  # Good quality image --> motion_1
+        labels[str(name) + '_motion1_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_motion1_spike'] = label[str(name)+'_spike']
+        
+        # Augmented noise images
+        labels[str(name) + '_noise4_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_noise4_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_noise4_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_noise4_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_noise4_noise'] = (1/num_intensities) if (noise_value - 1) < 1 else (noise_value - 1)/num_intensities  # Good quality image --> noise_4
+        labels[str(name) + '_noise4_spike'] = label[str(name)+'_spike']
+        labels[str(name) + '_noise3_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_noise3_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_noise3_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_noise3_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_noise3_noise'] = (1/num_intensities) if (noise_value - 2) < 1 else (noise_value - 2)/num_intensities  # noise_3
+        labels[str(name) + '_noise3_spike'] = label[str(name)+'_spike']
+        labels[str(name) + '_noise2_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_noise2_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_noise2_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_noise2_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_noise2_noise'] = (1/num_intensities) if (noise_value - 3) < 1 else (noise_value - 3)/num_intensities  # noise_2
+        labels[str(name) + '_noise2_spike'] = label[str(name)+'_spike']
+        labels[str(name) + '_noise1_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_noise1_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_noise1_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_noise1_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_noise1_noise'] = (1/num_intensities) if (noise_value - 4) < 1 else (noise_value - 4)/num_intensities  # Bad quality image --> noise_1
+        labels[str(name) + '_noise1_spike'] = label[str(name)+'_spike']
+
+        # Augmented spike images
+        labels[str(name) + '_spike4_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_spike4_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_spike4_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_spike4_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_spike4_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_spike4_spike'] = (1/num_intensities) if (spike_value - 1) < 1 else (spike_value - 1)/num_intensities  # Good quality image --> spike_4
+        labels[str(name) + '_spike3_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_spike3_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_spike3_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_spike3_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_spike3_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_spike3_spike'] = (1/num_intensities) if (spike_value - 2) < 1 else (spike_value - 2)/num_intensities  # spike_3
+        labels[str(name) + '_spike2_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_spike2_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_spike2_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_spike2_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_spike2_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_spike2_spike'] = (1/num_intensities) if (spike_value - 3) < 1 else (spike_value - 3)/num_intensities  # spike_2
+        labels[str(name) + '_spike1_blur'] = label[str(name)+'_blur']
+        labels[str(name) + '_spike1_resolution'] = label[str(name)+'_resolution']
+        labels[str(name) + '_spike1_ghosting'] = label[str(name)+'_ghosting']
+        labels[str(name) + '_spike1_motion'] = label[str(name)+'_motion']
+        labels[str(name) + '_spike1_noise'] = label[str(name)+'_noise']
+        labels[str(name) + '_spike1_spike'] = (1/num_intensities) if (spike_value - 4) < 1 else (spike_value - 4)/num_intensities  # Bad quality image --> spike_1
+
+    # Save labels
+    print("Saving generated labels..")
+    if not os.path.isdir(target_path):
+        os.makedirs(target_path)
+    with open(os.path.join(target_path, 'labels.json'), 'w') as fp:
+        json.dump(labels, fp, sort_keys=True, indent=4)
+
+
+def generate_test_labels(num_intensities, source_path, target_path):
+    r"""This function generates the labels.json file that is necessary for testing on an unseen dataset."""
+    # Foldernames are patient_id
+    filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x and 'DecathlonLung' in x\
+                 and not 'blur' in x and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
+                 and not 'noise' in x and not 'spike' in x]
+
+    # Generate labels for Decathlon with augmentation
+    labels = dict()
+
+    # Add FRA_UK labels (defined by hand --> do not delete) to labels dict
+    labels['FRACorona_KGU-DC381269940F'+'_blur'] = 3/num_intensities
+    labels['FRACorona_KGU-DC381269940F'+'_resolution'] = 5/num_intensities
+    labels['FRACorona_KGU-DC381269940F'+'_ghosting'] = 5/num_intensities
+    labels['FRACorona_KGU-DC381269940F'+'_motion'] = 5/num_intensities
+    labels['FRACorona_KGU-DC381269940F'+'_noise'] = 5/num_intensities
+    labels['FRACorona_KGU-DC381269940F'+'_spike'] = 5/num_intensities
 
     # Save labels
     print("Saving generated labels..")

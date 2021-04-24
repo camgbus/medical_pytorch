@@ -51,13 +51,14 @@ class EWC(object):
             precision_metrices[n] = Variable(p.data)
 
         self.model.eval()
-        #for _, (x, y) in enumerate(self.dataset):
-        for x in self.dataset:
+        for x, y in self.dataset:
             self.model.zero_grad()
+            x = x.unsqueeze(0)
             x = Variable(x)
             x = x.to(self.device)
+            y = y.to(self.device)
             yhat = self.model(x).view(1, -1)
-            label = yhat.max(1)[1].view(-1)
+            label = torch.max(y, 0)[1].view(-1)
             loss = F.nll_loss(F.log_softmax(yhat, dim=1), label)
             loss.backward()
 

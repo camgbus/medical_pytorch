@@ -111,3 +111,6 @@ def plot_dataframe(result, save_path=None, save_name=None,
         file_name = file_name.split('.')[0]+ending
         plt.savefig(os.path.join(save_path, file_name), facecolor='w', 
             bbox_inches="tight", dpi = 300)
+        
+    # Clear figure
+    plt.clf()

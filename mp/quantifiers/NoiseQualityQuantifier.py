@@ -1,6 +1,6 @@
 import os
 import torch
-from mp.models.cnn.cnn import CNN_Net2D, CNN_Net3D
+import mp.utils.load_restore as lr
 from mp.quantifiers.QualityQuantifier import ImgQualityQuantifier
 from mp.utils.lung_captured import whole_lung_captured as LungFullyCaptured
 
@@ -11,9 +11,8 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
         self.artefacts = ['blur', 'resolution', 'ghosting', 'motion', 'noise', 'spike']
         self.quality_values = [0, 0.25, 0.5, 0.75, 1]
         for artefact in self.artefacts:
-            model = CNN_Net2D(output_features)
-            state_dict = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], artefact, 'model_state_dict.zip'))
-            model.load_state_dict(state_dict)
+            path_m = os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], artefact, 'model_state_dict.zip')
+            model = lr.load_model('CNNModel', output_features, path_m, True)
             self.models[artefact] = model
         super().__init__(device, version)
 
@@ -39,7 +38,7 @@ class NoiseQualityQuantifier(ImgQualityQuantifier):
         for artefact in self.artefacts:
             # Load model
             model = self.models[artefact]
-            model.eval()
+            #model.eval()    # Executed 2 times!!
             model.to(self.device)
             min_yhat = 1.0 # Artefact intensity == 0 --> perfect image
             # Do inference
