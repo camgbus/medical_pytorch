@@ -46,7 +46,7 @@ def train_workflow(preprocess=True,train_density=True,train_dice_pred=True,verbo
     os.environ["INFERENCE_OR_TRAIN"] = 'train'
     from train_restore_use_models.train_int_based_quantifier import train_int_based_quantifier
     train_int_based_quantifier(preprocess,train_density,train_dice_pred,verbose,label)
-#test_train_workflow()
+#train_workflow()
 
 
 def l2_loss(pred,truth):
