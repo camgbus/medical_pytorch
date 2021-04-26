@@ -15,7 +15,7 @@ class Density_model():
         version = str ; give model a name to find it again and not overwrite models
         verbose = bool ; if model shall be verbose '''
     
-    def __init__(self, model_name='gaussian_mixture',version='standart',verbose=False):
+    def __init__(self, model_name='gaussian_mixture',version='standart',verbose=False, label=1):
         self.model_name = model_name
         self.model = None
         self.verbose = verbose
@@ -27,11 +27,11 @@ class Density_model():
             os.makedirs(density_path)
 
         self.path_to_model = os.path.join(density_path,
-                self.model_name+'_no_cluster_'+version+'.sav')
+                self.model_name+'_no_cluster_'+version+'_label_{}'.format(label)+'.sav')
         self.path_to_model_descr = os.path.join(density_path,
-                self.model_name+'_no_cluster_'+version+'_descr.txt')
+                self.model_name+'_no_cluster_'+version+'_label_{}'.format(label)+'_descr.txt')
         self.path_to_dens_values = os.path.join(density_path,
-                self.model_name+'_no_cluster_'+version+'_values.npy')
+                self.model_name+'_no_cluster_'+version+'_label_{}'.format(label)+'_values.npy')
 
     def load_density(self):
         '''loads density'''

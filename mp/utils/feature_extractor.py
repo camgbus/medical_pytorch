@@ -156,7 +156,7 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, density=Density_model(), features=['density_distance','dice_scores','connected_components']):
+    def __init__(self, density, features=['density_distance','dice_scores','connected_components']):
         self.features = features
         self.nr_features = len(features)
 
@@ -233,32 +233,6 @@ class Feature_extractor():
         if feature == 'connected_components':
             _,number_components = label(seg,return_num=True)
             return number_components
-
-    def get_features_from_paths(self,list_paths,mode='JIP',save=False,save_name=None,save_descr=None):
-        '''
-        !!! DEPRECATED!!! 
-        Extracts the features from all img-seg pairs in all paths 
-
-        Args:
-            list_paths (list(str)): a list of strings, each string is the path to a dir containing 
-                img-seg pairs in some form
-            mode (str) :the saving format of the images
-        
-        Returns: (2dim ndarray): For every image an array of features
-        '''
-        list_list_features = []
-        for path in list_paths:
-            ds_iterator = Dataset_Iterator(path,mode=mode)
-            output = ds_iterator.iterate_images(self.get_features)
-            # output is a list(list(numbers)), one list for every image; since we want the output list 
-            # list_list_features to have the same format, we cant simply append the whole list, but
-            # we append every feature-list to the list_list_features over a loop.
-            for list in output:
-                list_list_features.append(list)
-        arr_arr_features = np.array(list_list_features)
-        if save:
-            self.save_feature_vector(arr_arr_features,save_name,save_descr)
-        return arr_arr_features
         
     def compute_features_id(self,id):
         '''Computes all features for the img-seg and img-pred pairs (if existing)

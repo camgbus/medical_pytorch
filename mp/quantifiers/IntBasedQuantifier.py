@@ -5,13 +5,33 @@ from mp.models.regression.dice_predictor import Dice_predictor
 from mp.utils.feature_extractor import Feature_extractor
 import torch 
 import torchio
+from mp.utils.preprocess_utility_functions import basic_preprocessing, extract_features_all_data
+import os
+import json 
 
 class IntBasedQuantifier(SegImgQualityQuantifier):
 
-    def __init__(self, version='0.0'):
+    def __init__(self, label=1, version='0.0'):
         super().__init__(version)
 
-    def get_quality(self, mask, x=None):
+        self.label = label
+
+        self.density = Density_model(label=label)
+        self.feat_extr = Feature_extractor(density=self.density)
+        self.dice_pred = Dice_predictor(label=label,version='standart')
+        self.dice_pred.load()
+
+        self.work_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"])
+        self.output_path = os.path.join(os.environ["WORKFLOW_DIR"],os.environ["OPERATOR_OUT_DIR"],'segmentation_quality_metrics.json')
+
+    def preprocess_data(self):
+        '''copies the data from the input dir into preprocessed scaled dir 
+        and extracts the features of the data'''
+        os.environ["INFERENCE_OR_TRAIN"] = 'inference'
+        basic_preprocessing(label=self.label)
+        extract_features_all_data(label=self.label)
+
+    def get_quality(self):
         r"""Get quality values for a segmentation mask, optionally together with
         an image, according to one or more metrics. This method should be
         overwritten.
@@ -30,54 +50,18 @@ class IntBasedQuantifier(SegImgQualityQuantifier):
         Returns (dict[str -> float]): a dictionary linking metric names to float
             quality estimates
         """
-        # 1. prepare for use and load models 
-
-        #set features to use: 
-        features=['density_distance','dice_scores','connected_components']
-
-        # load density model
-        density = Density_model(model='gaussian_kernel',add_to_name='dummy')
-        density.load_density()
+        self.preprocess_data()
+        output_dict=dict()
+        for id in os.listdir(self.work_path):
+            id_dict = dict()
+            path_to_features = os.path.join(self.work_path,id,'seg','features.json')
+            feature_vec = self.feat_extr.read_feature_vector(path_to_features)
+            prediction = self.dice_pred.predict([feature_vec])[0]
+            id_dict['dice_pred']=prediction
+            output_dict[id]=id_dict
         
-        #load dice predictor
-        dice_pred = Dice_predictor(features,add_to_name='UK_Fra_dummy')
-        dice_pred.load()
-
-        #load feature extractor
-        feature_extractor = Feature_extractor(density,features=features)
-        
-        #get score
-        score = self.get_score_from_paths(x,mask,density,dice_pred,feature_extractor)
-
-        return {'predicted dice score':score}
-
-
-    def get_score_from_paths(self,list_img_paths,list_seg_paths,density,dice_pred,feature_extractor):
-        '''gets a list paths to images and a list of paths to segmentations and computes the average 
-                score over these img-seg pairs.
-
-        Args:
-            list_img_paths (list(str)):the list of paths to the images
-            list_seg_paths (list(str)):the list of paths to the segmentations
-            density (instance of Density_model): A density model used to compute score 
-            dice_pred (instance of Dice_predictor): A model that tries to predict the dice score
-            feature extractor (instance of Feature_extractor): a util instance, that computes the 
-                features from a given img-seg pair
-        
-        Returns (float): the predicted score averaged over all the images
-        '''
-        list_of_scores = []
-        for img_path,seg_path in zip(list_img_paths,list_seg_paths):
-            img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
-            seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0] 
-            features = feature_extractor.get_features(img,seg)
-            dice_value = dice_pred.predict(features)
-            list_of_scores.append(dice_value)
-        
-        # after scores are computed, we can compute the mean and return it
-        arr_of_scores = np.array(list_of_scores)
-        score = np.mean(arr_of_scores)
-        return score
+        with open(self.output_path,'w') as file:
+            json.dump(output_dict,file)
 
 
         

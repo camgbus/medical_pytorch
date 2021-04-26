@@ -5,17 +5,19 @@ import SimpleITK as sitk
 import numpy as np 
 import torch
 import json 
+from mp.models.densities.density import Density_model
 from mp.utils.feature_extractor import Feature_extractor
 from mp.utils.Iterators import Dataset_Iterator
 from mp.eval.metrics.simple_scores import dice_score
 from mp.data.pytorch.transformation import resize_3d
 
-def basic_preprocessing():
+def basic_preprocessing(label=1):
     '''does the 3 basic preprocessing steps of copying the data in the right format 
     scaling the images and 
     resizes the images'''
     copy_data_into_preprocess_dir()
     bring_all_data_into_right_size()
+    mask_out_labels_all_seg(label=label)
     scale_all_images()
     
 #first make functions to copy the data into the right storage format
@@ -52,6 +54,29 @@ def copy_data_into_preprocess_dir():
                     file.write('Copying on {} {} took {}'.format(task,id,dur))
                     file.write("\r")
 
+#mask out all labels for one image, everything except the label get mapped to 0 
+# the laben gets mapped to 1 
+def mask_out_label(seg_path,label):
+    seg = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
+    seg = np.ma.masked_not_equal(seg,label)
+    seg = np.ma.filled(seg,0)
+    seg = np.ma.masked_not_equal(seg,0)
+    seg = np.ma.filled(seg,1)
+    sitk.WriteImage(sitk.GetImageFromArray(seg),seg_path)
+
+# mask out every label except for 0 (background) and the given label for all segmentations
+def mask_out_labels_all_seg(label):
+    work_path = get_workflow_dir()
+    for id in os.listdir(work_path):
+        start_time = time.time()
+        seg_path = os.path.join(work_path,id,'seg','001.nii.gz')
+        mask_out_label(seg_path,label)
+        end_time = time.time()
+        dur = end_time-start_time
+        with open('logging_info_private.txt','a') as file: 
+            file.write('Masking labels on {} took {}'.format(id,dur))
+            file.write("\r")
+
 #then scale all images
 def scale_all_images():
     '''now we can assume, all data is in the same JIP data - format'''
@@ -84,9 +109,10 @@ def bring_all_data_into_right_size():
             file.write("\r")
 
 #extract the features for the img-seg and img-pred pairs 
-def extract_features_all_data():
+def extract_features_all_data(label):
     work_path = get_workflow_dir()
-    feat_extr = Feature_extractor()
+    dens = Density_model(label=label)
+    feat_extr = Feature_extractor(density=dens)
     for id in os.listdir(work_path):
         start_time = time.time()
         feat_extr.compute_features_id(id)

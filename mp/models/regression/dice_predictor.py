@@ -7,8 +7,9 @@ from sklearn.linear_model import Ridge
 class Dice_predictor():
     '''a simple linear Ridge Regressor model ,that predicts a dice score from a feature vector
     '''
-    def __init__(self, features = [], version='', verbose=False):
-
+    def __init__(self, features = [], version='', verbose=False, label=1):
+        
+        self.label = label
         self.regressor = None
         self.features = features
         
@@ -18,11 +19,11 @@ class Dice_predictor():
 
         self.scaler = None
 
-        self.path_to_scaler = os.path.join(path,'{}_scaler.sav')
+        self.path_to_scaler = os.path.join(path,'label_{}_{}_scaler.sav'.format(self.label,version))
         self.path_to_model = os.path.join(path,
-                    '{}.sav'.format(version)) 
+                    'label_{}_{}.sav'.format(self.label,version)) 
         self.path_to_model_descr = os.path.join(path,
-                    '{}_descr.txt'.format(version))
+                    'label_{}_{}_descr.txt'.format(self.label,version))
         self.verbose = verbose
 
 
@@ -71,7 +72,7 @@ class Dice_predictor():
         '''predicts dice scores, for given feature matrix''' 
         input = self.scaler.transform(input)
         output = self.regressor.predict(input)
-        return output[0]
+        return output
 
     def l2_loss(self, X_scaled, truth):
         n = len(truth)
