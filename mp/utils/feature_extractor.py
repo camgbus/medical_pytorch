@@ -394,13 +394,13 @@ class Feature_extractor():
                 file.write("\n")
                 file.write("With features: {}".format(self.features))
     
-    def bring_features_into_intervall(self,features_vec):
-        scores = []
-        precom_features = self.load_feature_vector('extracted_features_last_training')
-        for i,feature in enumerate(features_vec):
-            #sort feature vector
-            #find place 
-            #return place
+    # def bring_features_into_intervall(self,features_vec):
+    #     scores = []
+    #     precom_features = self.load_feature_vector('extracted_features_last_training')
+    #     for i,feature in enumerate(features_vec):
+    #         #sort feature vector
+    #         #find place 
+    #         #return place
             
 
 

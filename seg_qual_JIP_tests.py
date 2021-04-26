@@ -123,23 +123,8 @@ def test_train_workflow(preprocess=True,train_density=True,train_dice_pred=True,
     train_int_based_quantifier(preprocess,train_density,train_dice_pred,verbose)
 
 #working even though dice predictor performs terrible
-#test_train_workflow(preprocess=False,train_density=False)
+test_train_workflow(preprocess=False,train_density=False )
 
-from mp.utils.feature_extractor import Feature_extractor 
-from sklearn.model_selection import train_test_split
 
-feat_extr = Feature_extractor()
-X,y = feat_extr.collect_train_data()
-
-def scale_arr(arr):
-
-    max_val = np.max(arr)
-    min_val = np.min(arr)
-    span = max_val - min_val
-
-    shape = np.shape(arr)
-    add_array = np.ones(shape)*min_val
-    arr = arr - add_array
-    arr = arr * 1/span  
 
 

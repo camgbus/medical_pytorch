@@ -57,11 +57,11 @@ def train_density(model = '',
 
     #initialise density model
     if model and ending_of_model:
-        density_model = Density_model(model=model,add_to_name=ending_of_model,verbose=verbose)
+        density_model = Density_model(model=model,version=ending_of_model,verbose=verbose)
     if model and not ending_of_model:
         density_model = Density_model(model=model,verbose=verbose)
     if not model and ending_of_model:
-        density_model = Density_model(add_to_name=ending_of_model,verbose=verbose)
+        density_model = Density_model(version=ending_of_model,verbose=verbose)
     if not model and not ending_of_model:
         density_model = Density_model(verbose=verbose)
     
@@ -101,7 +101,7 @@ def train_dice_predictor(model_name='standart',feature_extractor=None,data_descr
         feature_extractor = Feature_extractor()
 
     #initiate model
-    dice_pred = Dice_predictor(features=feature_extractor.features,add_to_name=model_name,verbose=verbose)
+    dice_pred = Dice_predictor(features=feature_extractor.features,version=model_name,verbose=verbose)
 
     #Load the features 
     X_train,y_train = feature_extractor.collect_train_data()

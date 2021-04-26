@@ -55,7 +55,7 @@ class Dice_predictor():
         regressor_score = self.regressor.score(X_train_scaled,y_train)
         regressor_l2_loss = self.l2_loss(X_train_scaled,y_train)
 
-        losses_string = 'The regressor has a score of {} in train data and an l2 loss of{}'.format(regressor_score,regressor_l2_loss)
+        losses_string = 'The regressor has a score of {} in train data and an l2 loss of {}'.format(regressor_score,regressor_l2_loss)
         if self.verbose:
             print(losses_string)
 
