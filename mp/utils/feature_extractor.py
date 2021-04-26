@@ -213,7 +213,7 @@ class Feature_extractor():
                     density_values=density_values)
                 component_iterator.threshold = original_threshhold
             if not similarity_scores:
-                print('Image has no usable components, no reliable computations can be made')
+                print('Image has no usable components, no reliable computations can be made for density_dis')
                 similarity_scores = 0
             average = np.mean(np.array(similarity_scores))
             return average
@@ -225,8 +225,8 @@ class Feature_extractor():
                 dice_metrices = component_iterator.iterate(get_dice_averages)
                 component_iterator.threshold = original_threshhold
             if not dice_metrices:
-                print('Image has no usable components, no reliable computations can be made')
-                dice_metrices = np.array([1,0])
+                print('Image has no usable components, no reliable computations can be made for dice')
+                return [1,0]
             dice_metrices = np.array(dice_metrices)
             dice_metrices = np.mean(dice_metrices,0)
             return list(dice_metrices)

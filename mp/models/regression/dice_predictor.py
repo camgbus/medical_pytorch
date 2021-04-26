@@ -2,7 +2,7 @@ import os
 import pickle
 import numpy as np
 from sklearn.preprocessing import StandardScaler
-from sklearn.linear_model import Ridge
+from sklearn.svm import SVR
 
 class Dice_predictor():
     '''a simple linear Ridge Regressor model ,that predicts a dice score from a feature vector
@@ -47,9 +47,9 @@ class Dice_predictor():
         X_train_scaled = self.scaler.fit_transform(X_train)
 
         if kwargs:
-            self.regressor = Ridge(**kwargs)
+            self.regressor = SVR(**kwargs)
         else:
-            self.regressor = Ridge(normalize=False)
+            self.regressor = SVR()
         
         self.regressor.fit(X_train_scaled,y_train)
 

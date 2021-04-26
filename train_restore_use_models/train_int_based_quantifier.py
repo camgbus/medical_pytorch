@@ -7,22 +7,22 @@ from mp.utils.feature_extractor import Feature_extractor
 from mp.utils.preprocess_utility_functions import basic_preprocessing
 from mp.utils.preprocess_utility_functions import extract_features_all_data,compute_all_prediction_dice_scores
 
-def train_int_based_quantifier(preprocess=True,train_dens=True,train_dice_pred=True,verbose=False):
+def train_int_based_quantifier(preprocess=True,train_dens=True,train_dice_pred=True,verbose=False,label=1):
     if os.environ["INFERENCE_OR_TRAIN"] == 'train':
         if preprocess:
             if verbose:
                 print('Preprocessing data ...')
-            basic_preprocessing() 
+            basic_preprocessing(label=label) 
         if train_dens:
             if verbose:
                 print('Training density ...')
-            train_density(verbose=verbose)
+            train_density(verbose=verbose, label=label)
         if train_dice_pred:
             if verbose:
                 print('Training dice predictor ...')
-            extract_features_all_data()
+            extract_features_all_data(label=label)
             compute_all_prediction_dice_scores()
-            train_dice_predictor(verbose=verbose)
+            train_dice_predictor(verbose=verbose,label=label)
     else : 
         print('This is only for Train mode')
 
@@ -35,6 +35,7 @@ def train_density(model = '',
                     model_describtion = 'gaussian model with bw 0.005', 
                     precom_intensities=[], 
                     verbose=False, 
+                    label = 1,
                     **kwargs):
     '''Trains a density model from a list of given paths to directories, where img-seg pairs can be found
         and stores it
@@ -57,13 +58,13 @@ def train_density(model = '',
 
     #initialise density model
     if model and ending_of_model:
-        density_model = Density_model(model=model,version=ending_of_model,verbose=verbose)
+        density_model = Density_model(model=model,version=ending_of_model,verbose=verbose,label=label)
     if model and not ending_of_model:
-        density_model = Density_model(model=model,verbose=verbose)
+        density_model = Density_model(model=model,verbose=verbose,label=label)
     if not model and ending_of_model:
-        density_model = Density_model(version=ending_of_model,verbose=verbose)
+        density_model = Density_model(version=ending_of_model,verbose=verbose,label=label)
     if not model and not ending_of_model:
-        density_model = Density_model(verbose=verbose)
+        density_model = Density_model(verbose=verbose,label=label)
     
 
     #get the intensity values from the images 
@@ -87,7 +88,7 @@ def train_density(model = '',
 
 
 def train_dice_predictor(model_name='standart',feature_extractor=None,data_describtion = 'all of train data',
-                            model_describtion = 'MLP',verbose=False,**kwargs):
+                            model_describtion = 'MLP',verbose=False,label=1,**kwargs):
     '''Trains a dice predictor model based on features extracted from image-seg pairs
 
     Args:
@@ -98,14 +99,14 @@ def train_dice_predictor(model_name='standart',feature_extractor=None,data_descr
         verbose(bool): whether the model shall print output
     '''
     if not feature_extractor:
-        feature_extractor = Feature_extractor()
+        dens = Density_model(label=label)
+        feature_extractor = Feature_extractor(dens)
 
     #initiate model
-    dice_pred = Dice_predictor(features=feature_extractor.features,version=model_name,verbose=verbose)
+    dice_pred = Dice_predictor(features=feature_extractor.features,version=model_name,verbose=verbose,label=label)
 
     #Load the features 
     X_train,y_train = feature_extractor.collect_train_data()
-    print(len(X_train),len(y_train))
 
     #train model
     dice_pred.train(X_train,y_train, data_describtion, model_describtion,**kwargs)
