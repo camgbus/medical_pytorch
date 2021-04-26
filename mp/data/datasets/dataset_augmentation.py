@@ -25,20 +25,20 @@ def augment_image_in_four_intensities(image, noise='blur'):
         blur5 = random_blur(std=4, seed=42)
         return blur2(image), blur3(image), blur4(image), blur5(image)
 
-    if noise == 'downsample':
-        downsample2 = random_downsample(axes=0,
+    if noise == 'resolution':
+        resolution2 = random_downsample(axes=0,
                                         downsampling=4,
                                         seed=42)
-        downsample3 = random_downsample(axes=0,
+        resolution3 = random_downsample(axes=0,
                                         downsampling=6,
                                         seed=42)
-        downsample4 = random_downsample(axes=0,
+        resolution4 = random_downsample(axes=0,
                                         downsampling=8,
                                         seed=42)
-        downsample5 = random_downsample(axes=0,
+        resolution5 = random_downsample(axes=0,
                                         downsampling=10,
                                         seed=42)
-        return downsample2(image), downsample3(image), downsample4(image), downsample5(image)
+        return resolution2(image), resolution3(image), resolution4(image), resolution5(image)
 
     if noise == 'ghosting':
         ghosting2 = random_ghosting(intensity=0.55,
@@ -137,8 +137,8 @@ def random_downsample(axes=(0, 1, 2), downsampling=(1.5, 5), p=1,
     - seed: Seed for torch random number generator.
     - keys: Mandatory if the input is a Python dictionary.
         The transform will be applied only to the data in each key."""
-    downsample = tio.RandomDownsample(axes, downsampling, p, seed, keys)
-    return downsample
+    resolution = tio.RandomDownsample(axes, downsampling, p, seed, keys)
+    return resolution
 
 def random_elastic_deformation(num_control_points=7, max_displacement=7.5,
                                locked_borders=2, image_interpolation='linear',
