@@ -39,13 +39,14 @@ def inference(label=1):
     from mp.quantifiers.IntBasedQuantifier import IntBasedQuantifier
     quantifier = IntBasedQuantifier(label=label)
     quantifier.get_quality()    
+#inference()
 
 # Train Workflow
-def test_train_workflow(preprocess=True,train_density=True,train_dice_pred=True,verbose=True, label=1):
+def train_workflow(preprocess=True,train_density=True,train_dice_pred=True,verbose=True, label=1):
     os.environ["INFERENCE_OR_TRAIN"] = 'train'
     from train_restore_use_models.train_int_based_quantifier import train_int_based_quantifier
     train_int_based_quantifier(preprocess,train_density,train_dice_pred,verbose,label)
-test_train_workflow()
+#test_train_workflow()
 
 
 def l2_loss(pred,truth):
