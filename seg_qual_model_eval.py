@@ -65,9 +65,15 @@ def sample_filtered_intensities(filter):
     return output
 
 def filter_feature_extr(id,model):
-    return 'train'
+    if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
+        return 'train'
+    if model[:7] in ['Task740'] and id[:7] in ['Task542','Task741']:
+        return 'id'
+    if model[:7] in ['Task740'] and id[:7] not in ['Task740','Task541','Task741','Task542']:
+        return 'od'
+    return 'other'
 
-def extract_features_train_id_od():
+def extract_features_train_id_od(filter):
     X_train = []
     X_id= []
     X_od = []
@@ -81,19 +87,24 @@ def extract_features_train_id_od():
         all_pred_path = os.path.join(work_path,id,'pred')
         if os.path.exists(all_pred_path):
             for model in os.listdir(all_pred_path):
-                feature_path = os.path.join(all_pred_path,model,'features.json')
-                label_path = os.path.join(all_pred_path,model,'dice_score.json')
-                feat_vec = feat_extr.read_feature_vector(feature_path)
-                label = feat_extr.read_prediction_label(label_path)
-                if filter_feature_extr=='train':
-                    X_train.append(feat_vec)
-                    y_train.append(label)
-                if filter_feature_extr=='id':
-                    X_id.append(feat_vec)
-                    y_id.append(label)
-                if filter_feature_extr=='od':
-                    X_od.append(feat_vec)
-                    y_od.append(label)
+                split = filter(id,model)
+                if split in ['train','id','od']:
+                    feature_path = os.path.join(all_pred_path,model,'features.json')
+                    label_path = os.path.join(all_pred_path,model,'dice_score.json')
+                    feat_vec = feat_extr.read_feature_vector(feature_path)
+                    label = feat_extr.read_prediction_label(label_path)
+                    if np.isnan(np.sum(np.array(feat_vec))):
+                        pass 
+                    else:
+                        if filter(id,model)=='train':
+                            X_train.append(feat_vec)
+                            y_train.append(label)
+                        if filter(id,model)=='id':
+                            X_id.append(feat_vec)
+                            y_id.append(label)
+                        if filter(id,model)=='od':
+                            X_od.append(feat_vec)
+                            y_od.append(label)
     return X_train, X_id, X_od, y_train, y_id, y_od
 
 def l2_loss(pred,truth):
@@ -111,18 +122,89 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,model_tra
         intensities = sample_filtered_intensities(filter_segmentations_dens)
         density_model = Density_model(verbose=False,label=label)
         density_model.train_density(intensities)
+        density_model.plot_density()
     if feature_extraction:
         extract_features_all_data(label)
         compute_all_prediction_dice_scores()
     if model_train:
-        X_train, X_id, X_od, y_train, y_id, y_od = extract_features_train_id_od()
-        # scale data 
-        # train model 
-        # eval model 
+        from sklearn.preprocessing import StandardScaler
+        from sklearn.svm import SVR
+        from sklearn.linear_model import Ridge
+        from sklearn.neural_network import MLPRegressor
+
+        scaler = StandardScaler()
+        X_train, X_id, X_od, y_train, y_id, y_od = extract_features_train_id_od(filter_feature_extr)
+        print(len(X_train), len(X_id), len(X_od),len(y_train), len(y_id), len(y_od))
+
+        X_train_scaled = scaler.fit_transform(X_train)
+
+        ridge = Ridge(normalize=False)
+        svr = SVR()
+        mlp = MLPRegressor((50,100,100,50))
+
+        ridge.fit(X_train_scaled,y_train)
+        svr.fit(X_train_scaled,y_train)
+        mlp.fit(X_train_scaled,y_train)
+
+        y_ridge_train = ridge.predict(X_train_scaled)
+        y_svr_train = svr.predict(X_train_scaled)
+        y_mlp_train = mlp.predict(X_train_scaled)
+
+        ridge_train_loss = l2_loss(y_ridge_train,y_train)
+        svr_train_loss = l2_loss(y_svr_train,y_train)
+        mlp_train_loss = l2_loss(y_mlp_train,y_train)
+
+        ridge_train_err = l1_loss(y_ridge_train,y_train)
+        svr_train_err = l1_loss(y_svr_train,y_train)
+        mlp_train_err = l1_loss(y_mlp_train,y_train)
+
+        print('TRAINING: ridge   svr      mlp  ')
+        print('error   {:.3f},   {:.3f},  {:.3f}'.format(ridge_train_err,svr_train_err,mlp_train_err))
+        print('loss    {:.3f},   {:.3f},  {:.3f}'.format(ridge_train_loss,svr_train_loss,mlp_train_loss))
+        print()
+
+        if X_id: 
+            X_id_scaled = scaler.transform(X_id)
+
+            y_ridge_id = ridge.predict(X_id_scaled)
+            y_svr_id = svr.predict(X_id_scaled)
+            y_mlp_id = mlp.predict(X_id_scaled)
+
+            ridge_id_loss = l2_loss(y_ridge_id,y_id)
+            svr_id_loss = l2_loss(y_svr_id,y_id)
+            mlp_id_loss = l2_loss(y_mlp_id,y_id)
+
+            ridge_id_err = l1_loss(y_ridge_id,y_id)
+            svr_id_err = l1_loss(y_svr_id,y_id)
+            mlp_id_err = l1_loss(y_mlp_id,y_id)
+        
+            print('In Distr: ridge   svr      mlp  ')
+            print('error     {:.3f}, {:.3f}, {:.3f}'.format(ridge_id_err,svr_id_err,mlp_id_err))
+            print('loss     {:.3f},  {:.3f}, {:.3f}'.format(ridge_id_loss,svr_id_loss,mlp_id_loss))
+            print()
+
+        if X_od:
+            X_od_scaled = scaler.transform(X_od)
+
+            y_ridge_od = ridge.predict(X_od_scaled)
+            y_svr_od = svr.predict(X_od_scaled)
+            y_mlp_od = mlp.predict(X_od_scaled)
+        
+            ridge_od_loss = l2_loss(y_ridge_od,y_od)
+            svr_od_loss = l2_loss(y_svr_od,y_od)
+            mlp_od_loss = l2_loss(y_mlp_od,y_od)
+
+            ridge_od_err = l1_loss(y_ridge_od,y_od)
+            svr_od_err = l1_loss(y_svr_od,y_od)
+            mlp_od_err =  l1_loss(y_mlp_od,y_od)
+
+            print('Out Distr: ridge   svr       mlp  ')
+            print('error    {:.3f},   {:.3f},  {:.3f}'.format(ridge_od_err,svr_od_err,mlp_od_err))
+            print('loss     {:.3f},   {:.3f},  {:.3f}'.format(ridge_od_loss,svr_od_loss,mlp_od_loss))
 
 
-
-
+if __name__ == "__main__":
+    main(preprocessing=False,train_density=False,feature_extraction=False,model_train=True)
 
 def test_models_accuracy(times=50, mode=1):
     from mp.utils.feature_extractor import Feature_extractor
@@ -208,4 +290,3 @@ def test_models_accuracy(times=50, mode=1):
 
         print('ridge loss :{} , svr loss: {}, mlp loss: {}'.format(l2_loss(y_test,y_ridge),l2_loss(y_test,y_svr),l2_loss(y_test,y_mlp)))
         print('ridge acc :{} , svr acc: {}, mlp acc: {}'.format(l1_loss(y_test,y_ridge),l1_loss(y_test,y_svr),l1_loss(y_test,y_mlp)))
-#test_models_accuracy()
