@@ -36,34 +36,62 @@ def copy_data_into_preprocess_dir():
 
     if os.environ["INFERENCE_OR_TRAIN"] == 'train':
         #get the paths 
-        input_path = os.environ["TRAIN_WORKFLOW_DIR"]
+
+        # # for NEW DATA FORMAT on JIP platform
+        # input_path = os.environ["TRAIN_WORKFLOW_DIR"]
+        # output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
+        # if not os.path.isdir(output_path):
+        #     os.makedirs(output_path)
+        # _delete_images_and_labels(output_path)
+
+        # #copy the images and segmentations into right format
+        # for id in os.listdir(input_path):
+        #     start_time = time.time()
+        #     id_path = os.path.join(input_path,id)
+        #     img_path = os.path.join(id_path,'img','img.nii.gz')
+        #     seg_path = os.path.join(id_path,'seg','001.nii.gz')
+        #     copy_img_seg(img_path,seg_path,id)
+        #     for pred in os.listdir(os.path.join(id_path,'pred')):
+        #         new_pred_path = os.path.join(output_path,id,'pred',pred)
+        #         if not os.path.isdir(new_pred_path):
+        #             os.makedirs(new_pred_path)
+        #         shutil.copyfile(os.path.join(id_path,'pred',pred,pred+'.nii.gz'),os.path.join(new_pred_path,pred+'.nii.gz'))
+        #     end_time = time.time()
+        #     dur = end_time-start_time
+        #     with open('logging_info_private.txt','a') as file: 
+        #         file.write('Copying on {} took {}'.format(id,dur))
+        #         file.write("\r")
+
+        # For OLD DATA format OLD TRAIN PROCEDURE 
         output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
-        if not os.path.isdir(output_path):
-            os.makedirs(output_path)
+        gt_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_GT"])
         _delete_images_and_labels(output_path)
 
         #copy the images and segmentations into right format
-        for id in os.listdir(input_path):
-            start_time = time.time()
-            id_path = os.path.join(input_path,id)
-            img_path = os.path.join(id_path,'img','img.nii.gz')
-            seg_path = os.path.join(id_path,'seg','001.nii.gz')
-            copy_img_seg(img_path,seg_path,id)
-            for pred in os.listdir(os.path.join(id_path,'pred')):
-                new_pred_path = os.path.join(output_path,id,'pred',pred)
-                if not os.path.isdir(new_pred_path):
-                    os.makedirs(new_pred_path)
-                shutil.copyfile(os.path.join(id_path,'pred',pred,pred+'.nii.gz'),os.path.join(new_pred_path,pred+'.nii.gz'))
-            end_time = time.time()
-            dur = end_time-start_time
-            with open('logging_info_private.txt','a') as file: 
-                file.write('Copying on {} took {}'.format(id,dur))
-                file.write("\r")
-        ## For old data format
+        for task in os.listdir(gt_data):
+            ids = [id.split('_')[0]  for id in os.listdir(os.path.join(gt_data,task,'imagesTr'))]
+            for id in ids:
+                start_time = time.time()
+                img_path = os.path.join(gt_data,task,'imagesTr',id+'_0000.'+os.environ["INPUT_FILE_ENDING"])
+                seg_path = os.path.join(gt_data,task,'labelsTr',id+'.'+os.environ["INPUT_FILE_ENDING"])
+                name = task + '_' + id
+                copy_img_seg(img_path,seg_path,name)
+                copy_predictions(task,id,name)
+                end_time = time.time()
+                dur = end_time-start_time
+                with open('logging_info_private.txt','a') as file: 
+                    file.write('Copying on {} {} took {}'.format(task,id,dur))
+                    file.write("\r")
+
+        # For OLD DATA format NEW TRAIN PROCEDURE 
         # output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
         # gt_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_GT"])
         # _delete_images_and_labels(output_path)
 
+        # global nr_train 
+        # global nr_test 
+        # nr_test = 0 
+        # nr_train = 0
         # #copy the images and segmentations into right format
         # for task in os.listdir(gt_data):
         #     ids = [id.split('_')[0]  for id in os.listdir(os.path.join(gt_data,task,'imagesTr'))]
@@ -72,13 +100,16 @@ def copy_data_into_preprocess_dir():
         #         img_path = os.path.join(gt_data,task,'imagesTr',id+'_0000.'+os.environ["INPUT_FILE_ENDING"])
         #         seg_path = os.path.join(gt_data,task,'labelsTr',id+'.'+os.environ["INPUT_FILE_ENDING"])
         #         name = task + '_' + id
-        #         copy_img_seg(img_path,seg_path,name)
-        #         copy_predictions(task,id,name)
+        #         if useable_prediction_exists(task,id):
+        #             copy_img_seg(img_path,seg_path,name)
+        #             copy_useable_predictions(task,id,name)
         #         end_time = time.time()
         #         dur = end_time-start_time
         #         with open('logging_info_private.txt','a') as file: 
         #             file.write('Copying on {} {} took {}'.format(task,id,dur))
         #             file.write("\r")
+        # print('nr train : {}, nr test: {}'.format(nr_train,nr_test))
+# function to get the task name of a data probe. Only used to evaluation of training
 
 #mask out all labels for one image, everything except the label get mapped to 0 
 # the laben gets mapped to 1 
@@ -97,6 +128,12 @@ def mask_out_labels_all_seg(label):
         start_time = time.time()
         seg_path = os.path.join(work_path,id,'seg','001.nii.gz')
         mask_out_label(seg_path,label)
+        # now do the same for predictions
+        all_pred_path = os.path.join(work_path,id,'pred')
+        if os.path.exists(all_pred_path):
+            for model in os.listdir(all_pred_path):
+                pred_path = os.path.join(all_pred_path,model,'pred.nii.gz')
+                mask_out_label(pred_path, label)
         end_time = time.time()
         dur = end_time-start_time
         with open('logging_info_private.txt','a') as file: 
@@ -271,9 +308,8 @@ def downsize_img_seg_pred(id_path,img):
     #downsize possible predictions, its l8, bad code
     all_pred_path = os.path.join(id_path,'pred')
     if os.path.exists(all_pred_path):
-        nr_pred = len(os.listdir(all_pred_path))
-        for i in range(nr_pred):
-            pred_path = os.path.join(id_path,'pred','pred_{}'.format(i),'pred_{}.nii.gz'.format(i))
+        for model in os.listdir(all_pred_path):
+            pred_path = os.path.join(id_path,'pred',model,'pred.nii.gz')
             pred = sitk.GetArrayFromImage(sitk.ReadImage(pred_path))
             pred = torch.from_numpy(pred)
             pred.unsqueeze_(0)
@@ -298,7 +334,7 @@ def _delete_images_and_labels(path):
                 shutil.rmtree(fpath)
 
 def copy_predictions (task,id,name):
-    nr_pred = 0
+
     pred_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_PRED"])
     #iterate over all models, that made predictions 
     for model in os.listdir(pred_data):
@@ -307,25 +343,75 @@ def copy_predictions (task,id,name):
         origin_pred_path = os.path.join(pred_data,model,task,id+'.'+os.environ["INPUT_FILE_ENDING"])
         if os.path.exists(origin_pred_path):
             path_to_id = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"],name)
-            pred_path = os.path.join(path_to_id,'pred','pred_{}'.format(nr_pred))
+            pred_path = os.path.join(path_to_id,'pred',model)
 
             #copy the prediction
-
-            dst_pred_path = os.path.join(pred_path,'pred_'+str(nr_pred)+'.nii.gz')
+            dst_pred_path = os.path.join(pred_path,'pred.nii.gz')
             if not os.path.isdir(pred_path):
                 os.makedirs(pred_path)
             shutil.copyfile(origin_pred_path,dst_pred_path)
-    
+
 def compute_prediction_dice_scores_for_id(id_path): 
     seg_path = os.path.join(id_path,'seg','001.nii.gz')
     all_pred_path = os.path.join(id_path,'pred')
     if os.path.exists(all_pred_path):
-        nr_pred = len(os.listdir(all_pred_path))
         seg = sitk.GetArrayFromImage(sitk.ReadImage(seg_path))
-        for i in range(nr_pred):
-            pred_path = os.path.join(id_path,'pred','pred_{}'.format(i),'pred_{}.nii.gz'.format(i))
-            dice_score_save_path = os.path.join(id_path,'pred','pred_{}'.format(i),'dice_score.json')
+        for model in os.listdir(all_pred_path):
+            pred_path = os.path.join(id_path,'pred',model,'pred.nii.gz')
+            dice_score_save_path = os.path.join(id_path,'pred',model,'dice_score.json')
             prediction = sitk.GetArrayFromImage(sitk.ReadImage(pred_path))
             dice = dice_score(seg,prediction)
             with open(dice_score_save_path,'w') as file:
                 json.dump(dice,file)
+
+
+# Below unused functions in normal case 
+
+def copy_useable_predictions(task,id,name):
+    # DEPRECATED
+    global nr_train
+    global nr_test
+    nr_pred = 0
+    pred_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_PRED"])
+    #iterate over all models, that made predictions 
+    for model in os.listdir(pred_data):
+        
+        #look up, if there is a prediction for the img-seg pair
+        origin_pred_path = os.path.join(pred_data,model,task,id+'.'+os.environ["INPUT_FILE_ENDING"])
+        if os.path.exists(origin_pred_path) and is_useable_prediction(task,model):
+            path_to_id = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"],name)
+            pred_path = os.path.join(path_to_id,'pred','pred_{}'.format(nr_pred))
+
+            #copy the prediction
+            dst_pred_path = os.path.join(pred_path,'pred_'+str(nr_pred)+'.nii.gz')
+            if not os.path.isdir(pred_path):
+                os.makedirs(pred_path)
+            shutil.copyfile(origin_pred_path,dst_pred_path)
+
+            if get_task(task)==7:
+                nr_train += 1
+            if get_task(task) in [0,1,2,5]:
+                nr_test += 1 
+def get_task(task):
+    #returns the first digit of the task number
+    return int(task.split('_')[0][4])
+
+# returns whether there exists a prediction for that specific task
+def useable_prediction_exists(task,id):  
+    pred_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_PRED"])
+    for model in os.listdir(pred_data):
+        #look up, if there is a prediction for the img-seg pair
+        origin_pred_path = os.path.join(pred_data,model,task,id+'.'+os.environ["INPUT_FILE_ENDING"])
+        if get_task(task) == 7: 
+            if get_task(task) == get_task(model) and os.path.exists(origin_pred_path):
+                return True
+        if get_task(task) in [0,1,2,5] and get_task(model) in [0,1,2,5]:
+            if os.path.exists(origin_pred_path):
+                return True
+    return False
+            
+def is_useable_prediction(task,model):
+    if get_task(task) == 7: 
+        return get_task(task) == get_task(model)
+    if get_task(task) in [0,1,2,5]:
+        return get_task(model) in [0,1,2,5]

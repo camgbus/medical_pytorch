@@ -55,8 +55,8 @@ class Dice_predictor():
 
         regressor_score = self.regressor.score(X_train_scaled,y_train)
         regressor_l2_loss = self.l2_loss(X_train_scaled,y_train)
-
-        losses_string = 'The regressor has a score of {} in train data and an l2 loss of {}'.format(regressor_score,regressor_l2_loss)
+        regressor_l1_loss = self.l1_loss(X_train_scaled,y_train)
+        losses_string = 'The regressor has a score of {} in train data, an l2 loss of {} and an l1 loss (avg. accuracy) of {}'.format(regressor_score,regressor_l2_loss,regressor_l1_loss)
         if self.verbose:
             print(losses_string)
 
@@ -79,6 +79,11 @@ class Dice_predictor():
         y_pred = self.regressor.predict(X_scaled)
         loss_sum = np.sum((y_pred - truth)**2)
         return loss_sum/n
+
+    def l1_loss(self,X_scaled,truth):
+        n=len(truth)
+        y_pred = self.regressor.predict(X_scaled)
+        return (1/n)*np.sum(np.absolute(y_pred-truth))
 
     def _save_descr(self,data_d,model_d,losses_string,**kwargs):
         with open(self.path_to_model_descr,'w') as file:

@@ -246,18 +246,15 @@ class Feature_extractor():
         else : 
             id_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"],id)
         img_path = os.path.join(id_path,'img','img.nii.gz')
-
-        #get path to segmentation mask 
-        if os.path.exists(os.path.join(id_path,'seg')):   
-            mask_path_short = os.path.join(id_path,'seg')
-            self.save_feat_dict_from_paths(id_path,img_path,mask_path_short)
         
-        if  os.path.exists(os.path.join(id_path,'pred')):
-            for i in range(len(os.listdir(os.path.join(id_path,'pred')))):
-                mask_path_short = os.path.join(id_path,'pred','pred_{}'.format(i))
-                self.save_feat_dict_from_paths(id_path,img_path,mask_path_short,i)
+        #get the features for the predictions
+        all_pred_path = os.path.join(id_path,'pred')
+        if  os.path.exists(all_pred_path):
+            for model in os.listdir(all_pred_path):
+                mask_path_short = os.path.join(id_path,'pred',model)
+                self.save_feat_dict_from_paths(img_path,mask_path_short)
 
-    def save_feat_dict_from_paths (self,id_path,img_path,mask_path_short,i=0):
+    def save_feat_dict_from_paths (self,img_path,mask_path_short):
         '''takes the paths to an img and a mask and a number for a prediction, 
         computes a dictionary of features and saves them in a dictionary 
         in the path of the prediction
@@ -270,11 +267,7 @@ class Feature_extractor():
             i (int): the number of the prediction whose mask we want to use
                                         only gets use if we use prediction 
         '''
-        #either we have segmententation or prediction
-        if os.path.exists(os.path.join(mask_path_short,'001.nii.gz')):
-            mask_path = os.path.join(mask_path_short,'001.nii.gz')
-        else : 
-            mask_path = os.path.join(id_path,'pred','pred_{}'.format(i),'pred_'+str(i)+'.nii.gz')
+        mask_path = os.path.join(mask_path_short,'pred.nii.gz')
 
         #load image and mask and compute the feature dict
         img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
@@ -296,8 +289,8 @@ class Feature_extractor():
             for id in os.listdir(path):
                 all_pred_path = os.path.join(path,id,'pred')
                 if os.path.exists(all_pred_path):
-                    for pred_nr in os.listdir(all_pred_path):
-                        pred_path = os.path.join(all_pred_path,pred_nr)
+                    for model in os.listdir(all_pred_path):
+                        pred_path = os.path.join(all_pred_path,model)
                         feature_path = os.path.join(pred_path,'features.json')
                         label_path = os.path.join(pred_path,'dice_score.json')
                         feature_vec = self.read_feature_vector(feature_path)
@@ -316,6 +309,15 @@ class Feature_extractor():
             print('This method is only for train time')
             RuntimeError
         return np.array(all_features),np.array(labels)
+
+    def collect_train_data_split(self,save_as_vector=True):
+        original_os_path = os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"]
+        os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"] = os.path.join(original_os_path,'train')
+        X_train,y_train =self.collect_train_data(save_as_vector)
+        os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"] = os.path.join(original_os_path,'test')
+        X_test,y_test =self.collect_train_data(save_as_vector)
+        os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"] = original_os_path
+        return X_train,X_test,y_train,y_test
 
     def read_feature_vector(self,feature_path):
         feature_vec = []

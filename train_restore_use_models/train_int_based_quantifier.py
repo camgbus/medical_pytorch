@@ -88,7 +88,7 @@ def train_density(model = '',
 
 
 def train_dice_predictor(model_name='standart',feature_extractor=None,data_describtion = 'all of train data',
-                            model_describtion = 'MLP',verbose=False,label=1,**kwargs):
+                            model_describtion = 'SVR',verbose=False,label=1,**kwargs):
     '''Trains a dice predictor model based on features extracted from image-seg pairs
 
     Args:
