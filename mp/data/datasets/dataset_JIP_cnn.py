@@ -22,7 +22,7 @@ from mp.data.datasets.dataset_utils import delete_images_and_labels
 class JIPDataset(CNNDataset):
     r"""Class for the dataset provided by the JIP tool/workflow.
     """
-    def __init__(self, subset=None, img_size=(1, 60, 299, 299), num_intensities=5, data_type='all', augmentation=False, gpu=True, cuda=0, msg_bot=False,
+    def __init__(self, subset=None, img_size=(1, 60, 299, 299), num_intensities=5, data_type='all', augmentation=False, sample_size=25, gpu=True, cuda=0, msg_bot=False,
                  nr_images=20, build_dataset=False, dtype='train', noise='blur', ds_name='Decathlon', seed=42):
         r"""Constructor"""
         assert subset is None, "No subsets for this dataset."
@@ -30,6 +30,7 @@ class JIPDataset(CNNDataset):
         self.img_size = img_size
         self.num_intensities = num_intensities
         self.augmentation = augmentation
+        self.sample_size = sample_size
         self.gpu = gpu
         self.cuda = cuda
         self.msg_bot = msg_bot
@@ -53,26 +54,26 @@ class JIPDataset(CNNDataset):
         try:
             if self.data_type == 'inference':
                 delete_images_and_labels(self.data_dataset_path)
-                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda, True)
+                _extract_images(self.data_path, self.data_dataset_path, self.img_size, False, 0, self.gpu, self.cuda, True)
                 return True, None
             if self.data_type == 'train':
                 delete_images_and_labels(self.train_dataset_path)
-                _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+                _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.sample_size, self.gpu, self.cuda)
                 generate_train_labels(self.num_intensities, self.train_dataset_path, self.train_dataset_path)
                 return True, None
             if self.data_type == 'test':
                 delete_images_and_labels(self.test_dataset_path)
-                _extract_images(self.test_path, self.test_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda, True)
+                _extract_images(self.test_path, self.test_dataset_path, self.img_size, False, 0, self.gpu, self.cuda, True)
                 generate_test_labels(self.num_intensities, self.test_dataset_path, self.test_dataset_path)
                 return True, None
             if self.data_type == 'all':
                 delete_images_and_labels(self.data_dataset_path)
-                _extract_images(self.data_path, self.data_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda, True)
+                _extract_images(self.data_path, self.data_dataset_path, self.img_size, False, 0, self.gpu, self.cuda, True)
                 delete_images_and_labels(self.train_dataset_path)
-                _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda)
+                _extract_images(self.train_path, self.train_dataset_path, self.img_size, self.augmentation, self.sample_size, self.gpu, self.cuda)
                 generate_train_labels(self.num_intensities, self.train_dataset_path, self.train_dataset_path)
                 delete_images_and_labels(self.test_dataset_path)
-                _extract_images(self.test_path, self.test_dataset_path, self.img_size, self.augmentation, self.gpu, self.cuda, True)
+                _extract_images(self.test_path, self.test_dataset_path, self.img_size, False, 0, self.gpu, self.cuda, True)
                 generate_test_labels(self.num_intensities, self.test_dataset_path, self.test_dataset_path)
                 return True, None
         except: # catch *all* exceptions
@@ -86,9 +87,6 @@ class JIPDataset(CNNDataset):
             (train -- inference). Noise specifies which data will be included in the dataset --> only used
             for training. ds_name specifies which dataset should be build, based on its name (in foldername).
             This can be 'Decathlon', 'GC' or 'FRA'. ds_name is only necessary for d_type == 'train'."""
-        # Set random seed
-        random.seed(seed)
-        
         # Extract all images, if not already done
         if d_type == 'train':
             if not os.path.isdir(self.train_dataset_path) or not os.listdir(self.train_dataset_path):
@@ -142,7 +140,7 @@ class JIPDataset(CNNDataset):
             print()
 
             if self.ds_name == 'Decathlon':
-                study_names = _get_equally_distributed_names(study_names, self.ds_name, noise, self.nr_images, self.num_intensities)
+                study_names = _get_equally_distributed_names(study_names, self.ds_name, noise, self.nr_images, self.num_intensities, seed)
                 # Build instances
                 for num, name in enumerate(study_names):
                     msg = 'Creating dataset from images: '
@@ -156,10 +154,12 @@ class JIPDataset(CNNDataset):
                         ))
 
             elif self.ds_name == 'GC':
+                study_names = _get_equally_distributed_names(study_names, self.ds_name, noise, self.nr_images, self.num_intensities, seed)
+                """
                 GC_names = [x for x in study_names if self.ds_name in x]
                 if len(GC_names) > 5 * self.nr_images:
                     GC_names = random.sample(GC_names, 5 * self.nr_images)
-                study_names = GC_names
+                study_names = GC_names"""
                 # Build instances
                 for num, name in enumerate(study_names):
                     msg = 'Creating dataset from images: '
@@ -174,10 +174,12 @@ class JIPDataset(CNNDataset):
                         ))
 
             elif self.ds_name == 'FRA':
+                study_names = _get_equally_distributed_names(study_names, self.ds_name, noise, self.nr_images, self.num_intensities, seed)
+                """
                 FRA_names = [x for x in study_names if self.ds_name in x]
                 if len(FRA_names) > 5 * self.nr_images:
                     FRA_names = random.sample(FRA_names, 5 * self.nr_images)
-                study_names = FRA_names
+                study_names = FRA_names"""
                 # Build instances
                 for num, name in enumerate(study_names):
                     msg = 'Creating dataset from images: '
@@ -192,14 +194,19 @@ class JIPDataset(CNNDataset):
                         ))
 
             elif self.ds_name == 'mixed':
+                # Decathlon + GC + FRA
+                Decathlon_names = _get_equally_distributed_names(study_names, 'Decathlon', noise, self.nr_images, self.num_intensities, seed)
+                GC_names = _get_equally_distributed_names(study_names, 'GC', noise, self.nr_images, self.num_intensities, seed)
+                FRA_names = _get_equally_distributed_names(study_names, 'FRA', noise, self.nr_images, self.num_intensities, seed)
+                """
                 # Decathlon + 2 x self.nr_images random GC and 2 x self.nr_images random FRA
-                Decathlon_names = _get_equally_distributed_names(study_names, 'Decathlon', noise, self.nr_images, self.num_intensities)
+                Decathlon_names = _get_equally_distributed_names(study_names, 'Decathlon', noise, self.nr_images, self.num_intensities, seed)
                 GC_names = [x for x in study_names if 'GC' in x]
                 FRA_names = [x for x in study_names if 'FRA' in x]
                 if len(GC_names) > 2 * self.nr_images:
                     GC_names = random.sample(GC_names, 2 * self.nr_images)
                 if len(FRA_names) > 2 * self.nr_images:
-                    FRA_names = random.sample(FRA_names, 2 * self.nr_images)
+                    FRA_names = random.sample(FRA_names, 2 * self.nr_images)"""
                 study_names = Decathlon_names + GC_names + FRA_names
                 # Build instances for Decathlon, GC and FRA
                 for num, name in enumerate(study_names):
@@ -262,26 +269,51 @@ class JIPDataset(CNNDataset):
         return instances
 
 
-def _get_equally_distributed_names(study_names, ds_name, noise, nr_images, num_intensities):
+def _get_equally_distributed_names(study_names, ds_name, noise, nr_images, num_intensities, seed):
     r"""Extracts a list of folder names representing ds_name Dataset, based on noise and nr_images.
         An equal distribution of images will be extracted, ie. nr_images from each intensity level resulting
         in a dataset of num_intensities x nr_images foldernames."""
+    # Set random seed
+    random.seed(seed)
+
+    # Extract filenames
     noise_names = [x for x in study_names if ds_name in x and noise in x] # Augmented scans
     ds_names = [x for x in study_names if ds_name in x and not 'blur' in x\
                     and not 'resolution' in x and not 'ghosting' in x and not 'motion' in x\
                     and not 'noise' in x and not 'spike' in x] # Original scans
-    ds_names = random.sample(ds_names, nr_images)
+    if len(ds_names) > nr_images:
+        ds_names = random.sample(ds_names, nr_images)
+
     # Select intensities equally
     for i in range(1, num_intensities):
         intensity_names = [x for x in noise_names if '_' + str(noise) + str(i) in x]
-        ds_names.extend(random.sample(intensity_names, nr_images))
+        if len(intensity_names) > nr_images:
+            ds_names.extend(random.sample(intensity_names, nr_images))
+        else:
+            ds_names.extend(intensity_names)
+    # Reset random seed
+    random.seed()
     return ds_names
 
 
-def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmentation=False, gpu=False, cuda=0, no_use_lfc=False):
-    r"""Extracts CT images and saves the modified images."""
+def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmentation=False, sample_size=25, gpu=False, cuda=0, no_use_lfc=False):
+    r"""Extracts CT images and saves the modified images. Augmentation will be performed on Decathlon, FRA and GC data if desired.
+        Only sample_size images will be augmented, not all of them!"""
     # Foldernames are patient_id
     filenames = [x for x in os.listdir(source_path) if 'DS_Store' not in x and '._' not in x]
+
+    # Random foldernames that will be augmented if desired
+    Decathlon = [x for x in filenames if 'Decathlon' in x]
+    FRA = [x for x in filenames if 'FRA' in x]
+    GC = [x for x in filenames if 'GC' in x]
+    # Extract samples
+    if len(Decathlon) > sample_size:
+        Decathlon = random.sample(Decathlon, sample_size)
+    if len(FRA) > sample_size:
+        FRA = random.sample(FRA, sample_size)
+    if len(GC) > sample_size:
+        GC = random.sample(GC, sample_size)
+    files_to_aug = Decathlon + FRA + GC
     
     # Define resample object (each image will be resampled to voxelsize (1, 1, 3))
     resample = tio.Resample((1, 1, 3))
@@ -310,7 +342,7 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 x = centre_crop_pad_3d(x, img_size)[0]
                 if not no_use_lfc:
                     y = centre_crop_pad_3d(y, img_size)[0]
-                if augmentation:# and 'Decathlon' in filename:
+                if augmentation and filename in files_to_aug: # Do augmentation
                     xs = list()
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='blur'))
                     xs.extend(_augment_image(sitk.GetImageFromArray(x), noise='resolution'))
@@ -331,7 +363,7 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), augmen
                 os.makedirs(os.path.join(target_path, filename, 'seg'))
                 sitk.WriteImage(sitk.GetImageFromArray(y), 
                     os.path.join(target_path, filename, 'seg', "001.nii.gz"))
-            if augmentation:# and 'Decathlon' in filename:
+            if augmentation and filename in files_to_aug:
                 augmented = ['blur', 'resolution', 'ghosting', 'motion', 'noise', 'spike']
                 for a_idx, a_type in enumerate(augmented):
                     for idx, i in enumerate(range(4, 0, -1)): # Loop backwards through [1, 2, 3, 4] since the high numbers are of better quality

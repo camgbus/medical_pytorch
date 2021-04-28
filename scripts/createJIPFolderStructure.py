@@ -38,7 +38,7 @@ def copyFilesTrStructure(datasetName, filenames, datasetDirectory, JIPDirectory,
     for num, fname in enumerate(filenames):
         msg = str(num + 1) + ' of ' + str(len(filenames)) + '.'
         print (msg, end = '\r')
-        foldername = datasetName + '_' + fname.split('.')[0]
+        foldername = datasetName + '_' + fname.split('.')[0].replace('_0000', '')
         currJIPDirectory = os.path.join(JIPDirectory, foldername, 'img')
         # Create directories if not existing
         if not os.path.isdir(currJIPDirectory):
@@ -52,7 +52,7 @@ def copyFilesTrStructure(datasetName, filenames, datasetDirectory, JIPDirectory,
             os.makedirs(currJIPDirectory)
         # Copy corresponding segmentation
         if take_prefix:
-            shutil.copy(os.path.join(datasetSegDirectory, fname.split('_')[0]+'.nii.gz'), os.path.join(currJIPDirectory, '001.nii.gz'))
+            shutil.copy(os.path.join(datasetSegDirectory, fname.replace('_0000', '')), os.path.join(currJIPDirectory, '001.nii.gz'))
         else:
             shutil.copy(os.path.join(datasetSegDirectory, fname), os.path.join(currJIPDirectory, '001.nii.gz'))
 
@@ -108,7 +108,6 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
     """
 
     # Grand Challenge Data
-    print('\n')
     if datasetName == 'GC_Corona':
         datasetDirectory = os.path.join(datasetDirectory, 'Train')
         # Filenames have the form 'volume-covid19-A-XXXX_ct.nii'
@@ -118,8 +117,7 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         # Copy files to JIP Directory
         copyFilesGC(datasetName, filenames, datasetDirectory, JIPDirectory)
 
-    # Decathlon Lung Data 
-    print('\n')         
+    # Decathlon Lung Data
     if datasetName == 'DecathlonLung':
         datasetDirectory = os.path.join(datasetDirectory, 'imagesTr')
         # Filenames have the form 'lung_XXX.nii.gz'
@@ -129,7 +127,6 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         copyFilesTrStructure(datasetName, filenames, datasetDirectory, JIPDirectory, False)
 
     # Frankfurt Uniklinik Data
-    print('\n')
     if datasetName == 'FRACorona':
         datasetDirectory = os.path.join(datasetDirectory)
         # Filenames are provided in foldernames: patient_id/images.nii.gz
@@ -139,19 +136,8 @@ def createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory):
         # Copy files to JIP Directory
         copyFilesFRA(datasetName, filenames, datasetDirectory, JIPDirectory)
 
-    # Radiopedia Data 
-    print('\n')         
-    if 'Radiopedia' in datasetName:
-        datasetDirectory = os.path.join(datasetDirectory, 'imagesTr')
-        # Filenames have the form 'XXX_0000.nii.gz'
-        filenames = [x for x in os.listdir(datasetDirectory) if 'DS_Store' not in x and '._' not in x]
-        filenames.sort()
-        # Copy files to JIP Directory
-        copyFilesTrStructure(datasetName, filenames, datasetDirectory, JIPDirectory, True)
-
-    # Mosmed Data 
-    print('\n')         
-    if 'Mosmed' in datasetName:
+    # Radiopedia, Mosmed, FRACoronaTrain, FRACoronaTest, GC_CoronaTrain, GC_CoronaTest data
+    if 'Radiopedia' in datasetName or 'Mosmed' in datasetName or 'Test' in datasetName or 'Train' in datasetName:
         datasetDirectory = os.path.join(datasetDirectory, 'imagesTr')
         # Filenames have the form 'XXX_0000.nii.gz'
         filenames = [x for x in os.listdir(datasetDirectory) if 'DS_Store' not in x and '._' not in x]
@@ -198,6 +184,24 @@ if __name__ == '__main__':
     JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
     createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
     datasetName = 'MosmedTest' # Test dataset
+    datasetDirectory = du.get_original_data_path(datasetName)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
+    createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
+
+    datasetName = 'FRACoronaTrain' # Train dataset
+    datasetDirectory = du.get_original_data_path(datasetName)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
+    createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
+    datasetName = 'FRACoronaTest' # Test dataset
+    datasetDirectory = du.get_original_data_path(datasetName)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
+    createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
+
+    datasetName = 'GC_CoronaTrain' # Train dataset
+    datasetDirectory = du.get_original_data_path(datasetName)
+    JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
+    createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
+    datasetName = 'GC_CoronaTest' # Test dataset
     datasetDirectory = du.get_original_data_path(datasetName)
     JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
     createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
