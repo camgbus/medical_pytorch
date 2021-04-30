@@ -4,7 +4,7 @@ import numpy as np
 import torchio
 import torch
 from skimage.measure import label,regionprops
-
+import matplotlib.pyplot as plt
 #set environmental variables
 #for data_dirs folder, nothing changed compared to Simons version 
 os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
@@ -92,8 +92,9 @@ def extract_features_train_id_od(filter):
                     feature_path = os.path.join(all_pred_path,model,'features.json')
                     label_path = os.path.join(all_pred_path,model,'dice_score.json')
                     feat_vec = feat_extr.read_feature_vector(feature_path)
+                    #feat_vec = [feat_vec[0]]
                     label = feat_extr.read_prediction_label(label_path)
-                    if np.isnan(np.sum(np.array(feat_vec))):
+                    if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                         pass 
                     else:
                         if filter(id,model)=='train':
@@ -115,7 +116,7 @@ def l1_loss(pred,truth):
     n=len(pred)
     return (1/n)*np.sum(np.absolute(pred-truth))
 
-def main(preprocessing=True,train_density=True,feature_extraction=True,model_train=True,label=1):
+def main(preprocessing=True,train_density=True,feature_extraction=True,extract_dice_scores=True,model_train=True,label=1):
     if preprocessing:
         basic_preprocessing(label)
     if train_density:
@@ -125,6 +126,7 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,model_tra
         density_model.plot_density()
     if feature_extraction:
         extract_features_all_data(label)
+    if extract_dice_scores:
         compute_all_prediction_dice_scores()
     if model_train:
         from sklearn.preprocessing import StandardScaler
@@ -149,6 +151,23 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,model_tra
         y_ridge_train = ridge.predict(X_train_scaled)
         y_svr_train = svr.predict(X_train_scaled)
         y_mlp_train = mlp.predict(X_train_scaled)
+
+        # #evaluation of density
+        # X = np.append(X_train,X_id)
+        # X = np.append(X,X_od)
+
+        # y = np.append(y_train,y_id)
+        # y = np.append(y,y_od)
+
+        # plt.scatter(X_train,y_train)
+        # plt.scatter(X_id,y_id, label='id') 
+        # plt.scatter(X_od,y_od, label='od')       
+        # plt.scatter(X_train,y_ridge_train, label='ridge')
+        # plt.scatter(X_train,y_svr_train, label='svr')
+        # plt.scatter(X_train,y_mlp_train, label='mlp')
+        # plt.legend(loc='lower left')
+        # plt.show()
+        # return 
 
         ridge_train_loss = l2_loss(y_ridge_train,y_train)
         svr_train_loss = l2_loss(y_svr_train,y_train)
@@ -204,7 +223,7 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,model_tra
 
 
 if __name__ == "__main__":
-    main(preprocessing=False,train_density=False,feature_extraction=False,model_train=True)
+    main(preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
 
 def test_models_accuracy(times=50, mode=1):
     from mp.utils.feature_extractor import Feature_extractor

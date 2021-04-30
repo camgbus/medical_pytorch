@@ -95,7 +95,7 @@ def get_int_dens(img, coords):
     hist = gaussian_filter(hist,sigma=10,mode='nearest',truncate=4)
     return hist
 
-def density_similarity(p,q,mode='kl'):
+def density_similarity(p,q,mode='l2'):
     '''Computes the distance of two densities p,q, that are given through values 
     
     Args:
@@ -121,7 +121,11 @@ def density_similarity(p,q,mode='kl'):
                 summand = pi * (np.log(pi/qi))
                 similarity += summand
     if mode == 'l2':
-        similarity = np.linalg.norm(p-q)
+        diff = np.absolute(p-q)
+        for i in range(len(diff)):
+            if diff[i]<4:
+                diff[i]=0
+        similarity = np.sum(diff**2)
     return similarity
 
 def get_similarities(img,seg,props,density_values):
