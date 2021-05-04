@@ -7,6 +7,7 @@ from train_restore_use_models.preprocess_data import preprocess_data
 from train_restore_use_models.CNN_train_restore_use import train_model
 from train_restore_use_models.CNN_train_restore_use import restore_train_model
 from train_restore_use_models.CNN_train_restore_use import retrain_model
+from train_restore_use_models.CNN_train_restore_use import test_model
 from train_restore_use_models.CNN_train_restore_use import do_inference
 
 # Structure of JIP_dir/data_dirs:
@@ -38,9 +39,7 @@ if __name__ == "__main__":
                                                 'motion', 'spike'], required=False,
                         help='Specify the CT artefact on which the model will be trained. '+
                              'Default model type: blur.')
-    #parser.add_argument('--model_type', choices=['cnn'], required=False,
-    #                    help='Specify the model type that will be trained.')
-    parser.add_argument('--mode', choices=['preprocess', 'train', 'retrain', 'test', 'inference'], required=True,
+    parser.add_argument('--mode', choices=['preprocess', 'train', 'retrain', 'testID', 'testOOD', 'testIOOD', 'inference'], required=True,
                         help='Specify in which mode to use the model. Either train a model or use'+
                              ' it for predictions. This can also be used to preprocess data (be)for(e) training.')
     parser.add_argument('--datatype', choices=['all', 'train', 'test', 'inference'], required=False,
@@ -57,6 +56,19 @@ if __name__ == "__main__":
                         help='Send message during training through a Telegram Bot'+
                             ' (Token and Chat-ID need to be provided, otherwise an error occurs!).'+
                             ' Default: No Telegram Bot will be used to send messages.')
+    parser.add_argument('--testID', action='store_const', const=True, default=False,
+                        help='Test the pre-trained model with an unseen In Distribution dataset.'+
+                            ' (Only considered if --mode test is used).'+
+                            ' Default: Used if not otherwise specified.')
+    parser.add_argument('--testOOD', action='store_const', const=True, default=False,
+                        help='Test the pre-trained model with an unseen Out Of Distribution dataset.'+
+                            ' (Only considered if --mode test is used).'+
+                            ' Default: If not set, --testID will be used.')
+    parser.add_argument('--testIOOD', action='store_const', const=True, default=False,
+                        help='Test the pre-trained model with an unseen In Distribution'+
+                            ' and an Out Of Distribution dataset.'+
+                            ' (Only considered if --mode test is used).'+
+                            ' Default: If not set, --testID will be used.')
     parser.add_argument('--try_catch_repeat', action='store', type=int, nargs=1, default=0,
                         help='Try to train the model with a restored state, if an error occurs.'+
                             ' Repeat only <TRY_CATCH_REPEAT> number of times.'+
@@ -70,7 +82,6 @@ if __name__ == "__main__":
     # Define configuration dict and train the model
     args = parser.parse_args()
     noise = args.noise_type
-    #model = args.model_type
     mode = args.mode
     data_type = args.datatype
     cuda = args.device
@@ -141,23 +152,11 @@ if __name__ == "__main__":
     #       Its important to note, that the labels should be also provided at preprocessed_dirs/output_train/labels.json
     #       and that the data in preprocessed_dirs/output_train needs to be preprocessed while considering the defined data structure.
     # NOTE: sample_size represents the number of samples that will be used for the EWC approach (combined with importance).
-    config = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True,
+    config = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True, 'mode': mode,
               'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 100,
               'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
               'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
-              'train_on': ['Decathlon', 'GC', 'FRA'], 'sample_size': 60}
-    
-    config_ewc = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True,
-                  'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 100,
-                  'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
-                  'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
-                  'train_on': ['Decathlon', 'GC', 'FRA'], 'sample_size': 60}
-
-    config_nml = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True,
-                  'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 300,
-                  'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
-                  'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
-                  'train_on': ['mixed'], 'sample_size': 60}
+              'train_on': ['Decathlon', 'GC', 'FRA'], 'sample_size': 60, 'aug_sample_size': 25}
     
     # -------------------------
     # Preprocess
@@ -262,8 +261,16 @@ if __name__ == "__main__":
     # -------------------------
     # Test
     # -------------------------
-    if mode == 'test':
-        pass
+    if 'test' in mode:
+        if msg_bot:
+            bot.send_msg('Start testing the pre-trained model..')
+        tested, error = test_model(config)
+        if tested and msg_bot:
+            bot.send_msg('Finished testing..')
+        if not tested:
+            print('Testing could not be performed. The following error occured: {}.'.format(error))
+            if msg_bot:
+                bot.send_msg('Testing could not be performed. The following error occured: {}.'.format(error))
 
     # -------------------------
     # Inference

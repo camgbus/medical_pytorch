@@ -87,10 +87,14 @@ def delete_images_and_labels(path):
     r"""This function deletes every nifti and json (labels) file in the path."""
     # Walk through path and delete all .nii files
     print('Walk trough directory \'{}\' and delete nifti files..'.format(path))
-    for dname, dirs, files in os.walk(path):
-        for num, fname in enumerate(files):
-            msg = str(num + 1) + '_ of ' + str(len(files)) + '_ file(s).'
-            print (msg, end = '\r')
+    try:
+        dirs_len = len(os.listdir(path))
+    except: # FileNotFoundError --> Directory does not exist, nothing to delete!
+        dirs_len = 0
+    for num, (dname, dirs, files) in enumerate(os.walk(path)):
+        msg = str(num + 1) + '_ of ' + str(dirs_len) + '_ dir(s).'
+        print (msg, end = '\r')
+        for fname in files:
             # Check if file is a nifti file and delete it
             if '.nii' in fname or '.json' in fname:
                 fpath = os.path.dirname(dname)
