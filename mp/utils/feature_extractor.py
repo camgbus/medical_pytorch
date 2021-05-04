@@ -1,6 +1,6 @@
 import numpy as np
 from mp.utils.Iterators import Component_Iterator, Dataset_Iterator
-from skimage.measure import label
+from skimage.measure import label, regionprops
 from scipy.ndimage import gaussian_filter
 import os 
 import json 
@@ -9,7 +9,8 @@ import torch
 import torchio
 from mp.models.densities.density import Density_model
 import datetime
-
+from mp.utils.intensities import sample_intensities
+from sklearn.mixture import GaussianMixture
 def get_array_of_dicescores(seg): 
     '''computes the array of dicescores for the given segmentation,
     it is assumed, that the label of interest is 1 and all other labels are 0.
@@ -148,6 +149,17 @@ def get_similarities(img,seg,props,density_values):
     similarity = density_similarity(density_values,comp_intenity_density)
     return similarity
 
+def mean_var_big_comp(img,seg):
+    labeled_image, _ = label(seg, return_num=True)
+    props = regionprops(labeled_image)
+    props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
+    ints = sample_intensities(img,seg,props[0],number=5000)
+    dens = GaussianMixture(n_components=1).fit(np.reshape(ints, newshape=(-1,1)))
+    mean = dens.means_[0,0]
+    var = dens.covariances_[0,0,0]
+    return mean, var
+
+
 class Feature_extractor():
     '''A class for extracting feature of img-seg pairs and get arrays of features
 
@@ -160,7 +172,7 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, density, features=['density_distance','dice_scores','connected_components']):
+    def __init__(self, density, features=['density_distance','dice_scores','connected_components','gauss_params']):
         self.features = features
         self.nr_features = len(features)
 
@@ -219,7 +231,7 @@ class Feature_extractor():
             if not similarity_scores:
                 print('Image has no usable components, no reliable computations can be made for density_dis')
                 similarity_scores = 0
-            average = np.mean(np.array(similarity_scores))
+            average = np.mean(np.array(similarity_scores[:3]))
             return average
         if feature == 'dice_scores':
             dice_metrices = component_iterator.iterate(get_dice_averages)
@@ -237,7 +249,10 @@ class Feature_extractor():
         if feature == 'connected_components':
             _,number_components = label(seg,return_num=True)
             return number_components
-        
+        if feature == 'gauss_params':
+            mean,var = mean_var_big_comp(img,seg)
+            return [mean,var]
+
     def compute_features_id(self,id):
         '''Computes all features for the img-seg and img-pred pairs (if existing)
         and saves them in the preprocessed_dir/.../id/...
@@ -258,6 +273,21 @@ class Feature_extractor():
                 mask_path_short = os.path.join(id_path,'pred',model)
                 self.save_feat_dict_from_paths(img_path,mask_path_short)
 
+        #get the features for the segmentations
+        seg_path_short = os.path.join(id_path,'seg')
+        seg_path = os.path.join(id_path,'seg','001.nii.gz')
+        img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+        seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
+
+        feat_dict = {}
+        for feat in self.features:
+            feat_dict[feat] = self.get_feature(feat,img,seg)
+
+        #save the features in a json file 
+        feature_save_path = os.path.join(seg_path_short,'features.json')
+        with open (feature_save_path,'w') as f:
+            json.dump(feat_dict,f)
+            
     def save_feat_dict_from_paths (self,img_path,mask_path_short):
         '''takes the paths to an img and a mask and a number for a prediction, 
         computes a dictionary of features and saves them in a dictionary 
