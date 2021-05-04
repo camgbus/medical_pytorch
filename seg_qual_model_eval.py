@@ -5,6 +5,10 @@ import torchio
 import torch
 from skimage.measure import label,regionprops
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import StandardScaler
+from sklearn.svm import SVR
+from sklearn.linear_model import Ridge
+from sklearn.neural_network import MLPRegressor
 #set environmental variables
 #for data_dirs folder, nothing changed compared to Simons version 
 os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
@@ -52,6 +56,7 @@ def sample_filtered_intensities(filter):
         if filter(id):
             seg_path = os.path.join(work_path,id,'seg','001.nii.gz')
             img_path = os.path.join(work_path,id,'img','img.nii.gz')
+            # pylint : disable = not-callable
             seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
             img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
             labeled_image, nr_components = label(seg, return_num=True)
@@ -59,7 +64,7 @@ def sample_filtered_intensities(filter):
             props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
             nr_components = len(props)
             comp = 0
-            while comp < nr_components and props[comp].area > 100:
+            while comp < min(nr_components,3) and props[comp].area > 100:
                 output.append(sample_intensities(img,seg,props[comp],number=750))
                 comp += 1 
     return output
@@ -73,13 +78,12 @@ def filter_feature_extr(id,model):
         return 'od'
     return 'other'
 
-def extract_features_train_id_od(filter):
-    X_train = []
-    X_id= []
-    X_od = []
-    y_train = []
-    y_id = []
-    y_od = []
+def extract_features_train_id_od(filter,splits):
+    X = []
+    y = []
+    for i in range(len(splits)):
+        X.append([])
+        y.append([])
     dens = Density_model()
     feat_extr = Feature_extractor(dens)
     work_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
@@ -88,35 +92,104 @@ def extract_features_train_id_od(filter):
         if os.path.exists(all_pred_path):
             for model in os.listdir(all_pred_path):
                 split = filter(id,model)
-                if split in ['train','id','od']:
-                    feature_path = os.path.join(all_pred_path,model,'features.json')
-                    label_path = os.path.join(all_pred_path,model,'dice_score.json')
-                    feat_vec = feat_extr.read_feature_vector(feature_path)
-                    #feat_vec = [feat_vec[0]]
-                    label = feat_extr.read_prediction_label(label_path)
-                    if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
-                        pass 
-                    else:
-                        if filter(id,model)=='train':
-                            X_train.append(feat_vec)
-                            y_train.append(label)
-                        if filter(id,model)=='id':
-                            X_id.append(feat_vec)
-                            y_id.append(label)
-                        if filter(id,model)=='od':
-                            X_od.append(feat_vec)
-                            y_od.append(label)
-    return X_train, X_id, X_od, y_train, y_id, y_od
+                for i,s in enumerate(splits):
+                    if split == s:
+                        feature_path = os.path.join(all_pred_path,model,'features.json')
+                        label_path = os.path.join(all_pred_path,model,'dice_score.json')
+                        feat_vec = feat_extr.read_feature_vector(feature_path)
+                        feat_vec = [feat_vec[1],feat_vec[3],feat_vec[4]]
+                        label = feat_extr.read_prediction_label(label_path)
+                        if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
+                            pass 
+                        else:
+                            X[i].append(feat_vec)
+                            y[i].append(label)
+                            
+    return X,y
 
 def l2_loss(pred,truth):
     n = len(pred)
     return (1/n)*(np.sum((pred - truth)**2))
 
-def l1_loss(pred,truth):
-    n=len(pred)
-    return (1/n)*np.sum(np.absolute(pred-truth))
+def l1_loss(pred,truth, std = False):
+    losses = np.absolute(pred-truth)
+    mean = np.mean(losses)
+    std = np.std(losses)
+    if std:
+        return mean,std
+    return mean
 
-def main(preprocessing=True,train_density=True,feature_extraction=True,extract_dice_scores=True,model_train=True,label=1):
+def l1_loss_bins(pred,truth, split):
+    loss_by_bin = [[] for _ in range(10)]
+    bins = np.array([])
+    bins_std = np.array([])
+    for i in range(10):
+        for pre,tru in zip(pred,truth):
+            if i*0.1 <= tru and (i+1)*0.1 > tru:
+                loss_by_bin[i].append(abs(pre-tru))
+        if loss_by_bin[i]:
+            print('for the bin [{:.1f},{:.1f}) the error is {:.3f} over {} data_points'.format(i*0.1,(i+1)*0.1,np.mean(loss_by_bin[i]),len(loss_by_bin[i])))
+            bins = np.append(bins,np.mean(loss_by_bin[i]))
+            bins_std = np.append(bins_std,np.std(loss_by_bin[i]))
+        else:
+            bins = np.append(bins,0)
+            bins_std = np.append(bins_std,0)
+    plt.bar(0.05+np.arange(10)*0.1,height = bins, width = 0.05,yerr = bins_std)
+    plt.plot(0.05+np.arange(10)*0.1,[0.1 for i in range(10)],'-r')
+    plt.title(split)
+    plt.show()
+
+def plot_variable_influence(X_train,X,y,splits):
+
+    #per variable 
+    for i in range(len(X[0][0])):
+        
+        save_path = os.path.join('storage','Results','Setup 5','Variable {}'.format(i))
+        plt.title('Variable {} vs dice'.format(i))
+
+        # Plot the models predictions based on single features 
+        X_train = [[X[0][k][i]] for k in range(len(X_train))]
+        y_train = y[0]
+
+        ridge = Ridge(normalize=False)
+        svr = SVR()
+        mlp = MLPRegressor((50,100,100,50))
+
+        scaler = StandardScaler()
+        X_train_s = scaler.fit_transform(X_train)
+
+        ridge.fit(X_train_s,y_train)
+        svr.fit(X_train_s,y_train)
+        mlp.fit(X_train_s,y_train)
+
+        x_min,x_max = np.min(X_train), np.max(X_train)
+        x_span = x_max - x_min
+        # take input range to plot model and scale it 
+        points = np.reshape(np.arange(x_min,x_max,step=x_span/100),(-1,1))
+        points_s = scaler.transform(points)
+
+        y_ridge = ridge.predict(points_s)
+        y_svr = svr.predict(points_s)
+        y_mlp = mlp.predict(points_s)
+               
+        plt.plot(points,y_ridge, label='ridge')
+        plt.plot(points,y_svr, label='svr')
+        plt.plot(points,y_mlp, label='mlp')
+
+        #plot the data points
+        for j,split in enumerate(splits):
+            filt_X = [[X[j][k][i]] for k in range(len(X[j])) ]
+            plt.scatter(filt_X,y[j],label=split)
+
+        plt.legend(loc='lower left')
+        plt.savefig(save_path)
+        plt.show()
+
+def get_l1_losses(truth,pred):    
+    return np.absolute(truth-pred)    
+    
+def main(preprocessing=True,train_density=True,feature_extraction=True,
+            extract_dice_scores=True,model_train=True,label=1):
     if preprocessing:
         basic_preprocessing(label)
     if train_density:
@@ -129,170 +202,18 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,extract_d
     if extract_dice_scores:
         compute_all_prediction_dice_scores()
     if model_train:
-        from sklearn.preprocessing import StandardScaler
-        from sklearn.svm import SVR
-        from sklearn.linear_model import Ridge
-        from sklearn.neural_network import MLPRegressor
+        
+        # per model a sublist ridge, svr, mlp
+        stds_of_splits = [[],[],[]]   
+        all_errors=[[],[],[]]
 
         scaler = StandardScaler()
-        X_train, X_id, X_od, y_train, y_id, y_od = extract_features_train_id_od(filter_feature_extr)
-        print(len(X_train), len(X_id), len(X_od),len(y_train), len(y_id), len(y_od))
+        splits = ['train','id','od']
+        X,y = extract_features_train_id_od(filter_feature_extr,splits)
 
-        X_train_scaled = scaler.fit_transform(X_train)
-
-        ridge = Ridge(normalize=False)
-        svr = SVR()
-        mlp = MLPRegressor((50,100,100,50))
-
-        ridge.fit(X_train_scaled,y_train)
-        svr.fit(X_train_scaled,y_train)
-        mlp.fit(X_train_scaled,y_train)
-
-        y_ridge_train = ridge.predict(X_train_scaled)
-        y_svr_train = svr.predict(X_train_scaled)
-        y_mlp_train = mlp.predict(X_train_scaled)
-
-        # #evaluation of density
-        # X = np.append(X_train,X_id)
-        # X = np.append(X,X_od)
-
-        # y = np.append(y_train,y_id)
-        # y = np.append(y,y_od)
-
-        # plt.scatter(X_train,y_train)
-        # plt.scatter(X_id,y_id, label='id') 
-        # plt.scatter(X_od,y_od, label='od')       
-        # plt.scatter(X_train,y_ridge_train, label='ridge')
-        # plt.scatter(X_train,y_svr_train, label='svr')
-        # plt.scatter(X_train,y_mlp_train, label='mlp')
-        # plt.legend(loc='lower left')
-        # plt.show()
-        # return 
-
-        ridge_train_loss = l2_loss(y_ridge_train,y_train)
-        svr_train_loss = l2_loss(y_svr_train,y_train)
-        mlp_train_loss = l2_loss(y_mlp_train,y_train)
-
-        ridge_train_err = l1_loss(y_ridge_train,y_train)
-        svr_train_err = l1_loss(y_svr_train,y_train)
-        mlp_train_err = l1_loss(y_mlp_train,y_train)
-
-        print('TRAINING: ridge   svr      mlp  ')
-        print('error   {:.3f},   {:.3f},  {:.3f}'.format(ridge_train_err,svr_train_err,mlp_train_err))
-        print('loss    {:.3f},   {:.3f},  {:.3f}'.format(ridge_train_loss,svr_train_loss,mlp_train_loss))
-        print()
-
-        if X_id: 
-            X_id_scaled = scaler.transform(X_id)
-
-            y_ridge_id = ridge.predict(X_id_scaled)
-            y_svr_id = svr.predict(X_id_scaled)
-            y_mlp_id = mlp.predict(X_id_scaled)
-
-            ridge_id_loss = l2_loss(y_ridge_id,y_id)
-            svr_id_loss = l2_loss(y_svr_id,y_id)
-            mlp_id_loss = l2_loss(y_mlp_id,y_id)
-
-            ridge_id_err = l1_loss(y_ridge_id,y_id)
-            svr_id_err = l1_loss(y_svr_id,y_id)
-            mlp_id_err = l1_loss(y_mlp_id,y_id)
-        
-            print('In Distr: ridge   svr      mlp  ')
-            print('error     {:.3f}, {:.3f}, {:.3f}'.format(ridge_id_err,svr_id_err,mlp_id_err))
-            print('loss     {:.3f},  {:.3f}, {:.3f}'.format(ridge_id_loss,svr_id_loss,mlp_id_loss))
-            print()
-
-        if X_od:
-            X_od_scaled = scaler.transform(X_od)
-
-            y_ridge_od = ridge.predict(X_od_scaled)
-            y_svr_od = svr.predict(X_od_scaled)
-            y_mlp_od = mlp.predict(X_od_scaled)
-        
-            ridge_od_loss = l2_loss(y_ridge_od,y_od)
-            svr_od_loss = l2_loss(y_svr_od,y_od)
-            mlp_od_loss = l2_loss(y_mlp_od,y_od)
-
-            ridge_od_err = l1_loss(y_ridge_od,y_od)
-            svr_od_err = l1_loss(y_svr_od,y_od)
-            mlp_od_err =  l1_loss(y_mlp_od,y_od)
-
-            print('Out Distr: ridge   svr       mlp  ')
-            print('error    {:.3f},   {:.3f},  {:.3f}'.format(ridge_od_err,svr_od_err,mlp_od_err))
-            print('loss     {:.3f},   {:.3f},  {:.3f}'.format(ridge_od_loss,svr_od_loss,mlp_od_loss))
-
-
-if __name__ == "__main__":
-    main(preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
-
-def test_models_accuracy(times=50, mode=1):
-    from mp.utils.feature_extractor import Feature_extractor
-    from sklearn.linear_model import Ridge
-    from sklearn.svm import SVR
-    from sklearn.neural_network import MLPRegressor
-    from sklearn.model_selection import train_test_split
-    from sklearn.preprocessing import StandardScaler
-    from mp.models.densities.density import Density_model
-    import matplotlib.pyplot as plt 
-
-    dens = Density_model(label=1)
-    feature_extractor = Feature_extractor(dens)
-
-    if mode == 0:
-        X,y = feature_extractor.collect_train_data()
-        # plt.hist(y,20,(0,1))
-        # plt.show()
-
-        losses_ridge = []
-        losses_svr = []
-        losses_mlp = []
-        for test_size in [0.3]:
-            for _ in range(times):
-
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size)
-
-                scaler = StandardScaler()
-                X_train = scaler.fit_transform(X_train)
-                X_test = scaler.transform(X_test)
-
-                ridge = Ridge(normalize=False)
-                svr = SVR()
-                mlp = MLPRegressor((50,100,100,50))
-
-                ridge.fit(X_train,y_train)
-                svr.fit(X_train,y_train)
-                mlp.fit(X_train,y_train)
-
-                y_ridge = ridge.predict(X_test)
-                y_svr = svr.predict(X_test)
-                y_mlp = mlp.predict(X_test)
-
-                losses_ridge.append(l2_loss(y_test,y_ridge))
-                losses_svr.append(l2_loss(y_test,y_svr))
-                losses_mlp.append(l2_loss(y_test,y_mlp))
-
-            print(test_size)
-            print(np.max(y_svr),np.min(y_svr))
-            print(np.max(y_test),np.min(y_test))
-            print((1/len(y_test))*np.sum(np.absolute(y_svr-y_test)))
-            print()
-            print(losses_svr[:10])
-            print('ridge',np.mean(losses_ridge),np.var(losses_ridge))
-            print()
-            print('svr',np.mean(losses_svr),np.var(losses_svr))
-            print()
-            print('mlp',np.mean(losses_mlp),np.var(losses_mlp))
-
-    if mode == 1:
-        X_train,X_test,y_train,y_test = feature_extractor.collect_train_data_split()
-        # plt.hist(y_train,10,(0,1))
-        # plt.show()
-        # plt.hist(y_test,10,(0,1))
-        # plt.show()
-
-        scaler = StandardScaler()
-        X_train = scaler.fit_transform(X_train)
-        X_test = scaler.transform(X_test)
+        X_train = scaler.fit_transform(X[0])
+        y_train = y[0]
+        #plot_variable_influence(X_train,X,y,splits)
 
         ridge = Ridge(normalize=False)
         svr = SVR()
@@ -302,10 +223,38 @@ def test_models_accuracy(times=50, mode=1):
         svr.fit(X_train,y_train)
         mlp.fit(X_train,y_train)
 
-        y_ridge = ridge.predict(X_test)
-        print(np.absolute(y_ridge-y_test))
-        y_svr = svr.predict(X_test)
-        y_mlp = mlp.predict(X_test)
+        for i,split in enumerate(splits):
+            
+            X_eval = scaler.transform(X[i])
+            y_eval = y[i]
 
-        print('ridge loss :{} , svr loss: {}, mlp loss: {}'.format(l2_loss(y_test,y_ridge),l2_loss(y_test,y_svr),l2_loss(y_test,y_mlp)))
-        print('ridge acc :{} , svr acc: {}, mlp acc: {}'.format(l1_loss(y_test,y_ridge),l1_loss(y_test,y_svr),l1_loss(y_test,y_mlp)))
+            y_ridge = ridge.predict(X_eval)
+            y_svr = svr.predict(X_eval)
+            y_mlp = mlp.predict(X_eval)
+
+            ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
+            svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
+            mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
+
+            l1_loss_bins(y_svr,y_eval,split)
+
+            for i,std in enumerate([ridge_std,svr_std,mlp_std]):
+                stds_of_splits[i].append(std)
+            for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
+                for err in errors:  
+                    all_errors[i].append(err)
+
+            #a vector that predicts the mean value of y_train, is a baseline
+            # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
+            print('{}    : ridge   svr      mlp  '.format(split))
+            print('error   {:.3f},   {:.3f},  {:.3f}'.format(ridge_err,svr_err,mlp_err))
+            print('std     {:.3f},   {:.3f},  {:.3f}'.format(ridge_std,svr_std,mlp_std))
+            # print('Using mean of train values, has error of {} and std of {}'.format(l1_loss(y_mean,y_train,std=True)[0],l1_loss(y_mean,y_train,std=True)[1]))
+            print()
+
+        print('TOTAL:                ridge   svr      mlp  ')
+        print('mean of split stds   {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
+        print('std of all errors    {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
+        
+if __name__ == "__main__":
+    main(preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
