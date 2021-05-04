@@ -37,51 +37,51 @@ def copy_data_into_preprocess_dir():
     if os.environ["INFERENCE_OR_TRAIN"] == 'train':
         #get the paths 
 
-        # # for NEW DATA FORMAT on JIP platform
-        # input_path = os.environ["TRAIN_WORKFLOW_DIR"]
-        # output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
-        # if not os.path.isdir(output_path):
-        #     os.makedirs(output_path)
-        # _delete_images_and_labels(output_path)
-
-        # #copy the images and segmentations into right format
-        # for id in os.listdir(input_path):
-        #     start_time = time.time()
-        #     id_path = os.path.join(input_path,id)
-        #     img_path = os.path.join(id_path,'img','img.nii.gz')
-        #     seg_path = os.path.join(id_path,'seg','001.nii.gz')
-        #     copy_img_seg(img_path,seg_path,id)
-        #     for pred in os.listdir(os.path.join(id_path,'pred')):
-        #         new_pred_path = os.path.join(output_path,id,'pred',pred)
-        #         if not os.path.isdir(new_pred_path):
-        #             os.makedirs(new_pred_path)
-        #         shutil.copyfile(os.path.join(id_path,'pred',pred,pred+'.nii.gz'),os.path.join(new_pred_path,pred+'.nii.gz'))
-        #     end_time = time.time()
-        #     dur = end_time-start_time
-        #     with open('logging_info_private.txt','a') as file: 
-        #         file.write('Copying on {} took {}'.format(id,dur))
-        #         file.write("\r")
-
-        # For OLD DATA format OLD TRAIN PROCEDURE 
+        # for NEW DATA FORMAT on JIP platform
+        input_path = os.environ["TRAIN_WORKFLOW_DIR"]
         output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
-        gt_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_GT"])
+        if not os.path.isdir(output_path):
+            os.makedirs(output_path)
         _delete_images_and_labels(output_path)
 
         #copy the images and segmentations into right format
-        for task in os.listdir(gt_data):
-            ids = [id.split('_')[0]  for id in os.listdir(os.path.join(gt_data,task,'imagesTr'))]
-            for id in ids:
-                start_time = time.time()
-                img_path = os.path.join(gt_data,task,'imagesTr',id+'_0000.'+os.environ["INPUT_FILE_ENDING"])
-                seg_path = os.path.join(gt_data,task,'labelsTr',id+'.'+os.environ["INPUT_FILE_ENDING"])
-                name = task + '_' + id
-                copy_img_seg(img_path,seg_path,name)
-                copy_predictions(task,id,name)
-                end_time = time.time()
-                dur = end_time-start_time
-                with open('logging_info_private.txt','a') as file: 
-                    file.write('Copying on {} {} took {}'.format(task,id,dur))
-                    file.write("\r")
+        for id in os.listdir(input_path):
+            start_time = time.time()
+            id_path = os.path.join(input_path,id)
+            img_path = os.path.join(id_path,'img','img.nii.gz')
+            seg_path = os.path.join(id_path,'seg','001.nii.gz')
+            copy_img_seg(img_path,seg_path,id)
+            for pred in os.listdir(os.path.join(id_path,'pred')):
+                new_pred_path = os.path.join(output_path,id,'pred',pred)
+                if not os.path.isdir(new_pred_path):
+                    os.makedirs(new_pred_path)
+                shutil.copyfile(os.path.join(id_path,'pred',pred,'pred.nii.gz'),os.path.join(new_pred_path,'pred.nii.gz'))
+            end_time = time.time()
+            dur = end_time-start_time
+            with open('logging_info_private.txt','a') as file: 
+                file.write('Copying on {} took {}'.format(id,dur))
+                file.write("\r")
+
+        # # For OLD DATA format OLD TRAIN PROCEDURE 
+        # output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
+        # gt_data = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"],os.environ["TRAIN_WORKFLOW_DIR_GT"])
+        # _delete_images_and_labels(output_path)
+
+        # #copy the images and segmentations into right format
+        # for task in os.listdir(gt_data):
+        #     ids = [id.split('_')[0]  for id in os.listdir(os.path.join(gt_data,task,'imagesTr'))]
+        #     for id in ids:
+        #         start_time = time.time()
+        #         img_path = os.path.join(gt_data,task,'imagesTr',id+'_0000.'+os.environ["INPUT_FILE_ENDING"])
+        #         seg_path = os.path.join(gt_data,task,'labelsTr',id+'.'+os.environ["INPUT_FILE_ENDING"])
+        #         name = task + '_' + id
+        #         copy_img_seg(img_path,seg_path,name)
+        #         copy_predictions(task,id,name)
+        #         end_time = time.time()
+        #         dur = end_time-start_time
+        #         with open('logging_info_private.txt','a') as file: 
+        #             file.write('Copying on {} {} took {}'.format(task,id,dur))
+        #             file.write("\r")
 
         # For OLD DATA format NEW TRAIN PROCEDURE 
         # output_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
