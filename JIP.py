@@ -51,7 +51,9 @@ if __name__ == "__main__":
                             ' Default: GPU device with ID 4 will be used.')
     parser.add_argument('--restore', action='store_const', const=True, default=False,
                         help='Restore last saved model state and continue training from there.'+
-                            ' Default: Initialize a new model and train from beginning.')
+                             ' Restore is also used in the augmentation step of the preprocessing of the train_ds only,'+
+                             ' if the augmentation fails at some point. --> This flag is ambigious!'
+                            ' Default value: False.')
     parser.add_argument('--use_telegram_bot', action='store_const', const=True, default=False,
                         help='Send message during training through a Telegram Bot'+
                             ' (Token and Chat-ID need to be provided, otherwise an error occurs!).'+
@@ -71,8 +73,10 @@ if __name__ == "__main__":
                             ' Default: If not set, --testID will be used.')
     parser.add_argument('--try_catch_repeat', action='store', type=int, nargs=1, default=0,
                         help='Try to train the model with a restored state, if an error occurs.'+
-                            ' Repeat only <TRY_CATCH_REPEAT> number of times.'+
-                            ' Default: Do not retry to train after an error occurs.')
+                            ' Repeat only <TRY_CATCH_REPEAT> number of times. It can also be used for'+
+                            ' preprocessing step, since the augmentation might fail at some point, for'+
+                            ' training on a model and retraining a model.'+
+                            ' Default value: 0.')
     parser.add_argument('--idle_time', action='store', type=int, nargs=1, default=0,
                         help='The number represents the idle time (waiting time) in seconds after an error'+
                             ' occurs before starting the process again. --> Works only in combination'+
@@ -151,26 +155,55 @@ if __name__ == "__main__":
     #       will be loaded and used. Thus, this variable will not be considered in this process.
     #       Its important to note, that the labels should be also provided at preprocessed_dirs/output_train/labels.json
     #       and that the data in preprocessed_dirs/output_train needs to be preprocessed while considering the defined data structure.
-    # NOTE: sample_size represents the number of samples that will be used for the EWC approach (combined with importance).
     config = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True, 'mode': mode,
-              'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 100,
-              'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot, 'importance': 1000,
+              'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 150,
+              'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot,
               'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
-              'train_on': ['Decathlon', 'GC', 'FRA'], 'sample_size': 60, 'aug_sample_size': 25}
+              'train_on': 'mixed', 'data_augmented': True, 'restore': restore}
     
     # -------------------------
     # Preprocess
     # -------------------------
     if mode == 'preprocess':
-        if msg_bot:
-            bot.send_msg('Start to preprocess data..')
-        preprocessed, error = preprocess_data(config)
-        if preprocessed and msg_bot:
-            bot.send_msg('Finished preprocessing..')
-        if not preprocessed:
-            print('Data could not be processed. The following error occured: {}.'.format(error))
-            if msg_bot:
-                bot.send_msg('Data could not be processed. The following error occured: {}.'.format(error))
+        dir_name = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"])
+        augmented_on = os.path.join(dir_name, 'augmented_on.pkl')
+        if try_catch == 0:
+            try_catch = 1
+        for i in range(try_catch):
+            if i != 0:
+                time.sleep(idle_time)   # Delays for idle_time seconds.
+            if not restore:
+                if msg_bot:
+                    bot.send_msg('Start to preprocess data..')
+                preprocessed, error = preprocess_data(config)
+                if preprocessed and msg_bot:
+                    bot.send_msg('Finished preprocessing..')
+                if not preprocessed:
+                    print('Data could not be preprocessed. The following error occured: {}.'.format(error))
+                    if msg_bot:
+                        bot.send_msg('Data could not be preprocessed. The following error occured: {}.'.format(error))
+                    # Check if the directory is empty and whether the augmented_on pickle file does not exist. If so, restore = False, otherwise True.
+                    if (os.path.exists(dir_name) and os.path.isdir(dir_name)):
+                        if len(os.listdir(dir_name)) <= 1 or not os.path.exists(augmented_on):
+                            # Directory contains nothing
+                            restore = False
+                            config['restore'] = False
+                        else:
+                            # Directory is not empty
+                            restore = True
+                            config['restore'] = True
+            else:
+                if msg_bot:
+                    bot.send_msg('Start to continue with preprocessing..')
+                preprocessed, error = preprocess_data(config)
+                if preprocessed and msg_bot:
+                    bot.send_msg('Finished preprocessing..')
+                    break
+                if not preprocessed:
+                    print('Data could not be preprocessed. The following error occured: {}.'.format(error))
+                    if msg_bot:
+                        bot.send_msg('Data could not be preprocessed. The following error occured: {}.'.format(error))
+    
 
     # -------------------------
     # Train
@@ -200,9 +233,11 @@ if __name__ == "__main__":
                         if len(os.listdir(dir_name)) <= 1:
                             # Directory only contains json splitting file but no model state!
                             restore = False
+                            config['restore'] = False
                         else:
                             # Directory is not empty
                             restore = True
+                            config['restore'] = True
             else:
                 if msg_bot:
                     bot.send_msg('Start to restore the model for noise type {} and continue training..'.format(noise))
@@ -243,9 +278,11 @@ if __name__ == "__main__":
                         if len(os.listdir(dir_name)) <= 1:
                             # Directory only contains json splitting file but no model state!
                             restore = False
+                            config['restore'] = False
                         else:
                             # Directory is not empty
                             restore = True
+                            config['restore'] = True
             else:
                 if msg_bot:
                     bot.send_msg('Start to restore the model for noise type {} and continue training..'.format(noise))

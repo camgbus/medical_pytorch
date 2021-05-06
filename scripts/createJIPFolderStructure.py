@@ -38,7 +38,7 @@ def copyFilesTrStructure(datasetName, filenames, datasetDirectory, JIPDirectory,
     for num, fname in enumerate(filenames):
         msg = str(num + 1) + ' of ' + str(len(filenames)) + '.'
         print (msg, end = '\r')
-        foldername = datasetName + '_' + fname.split('.')[0].replace('_0000', '')
+        foldername = datasetName.replace('Test', '').replace('Train', '') + '_' + fname.split('.')[0].replace('_0000', '')
         currJIPDirectory = os.path.join(JIPDirectory, foldername, 'img')
         # Create directories if not existing
         if not os.path.isdir(currJIPDirectory):
@@ -154,7 +154,7 @@ if __name__ == '__main__':
     os.environ["OPERATOR_TEMP_DIR"] = "temp"
     os.environ["OPERATOR_PERSISTENT_DIR"] = os.path.join(JIP_dir, 'data_dirs', 'persistent')
     input_dir = os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"])
-
+    
     datasetName = 'GC_Corona'
     datasetDirectory = du.get_original_data_path(datasetName)
     JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
