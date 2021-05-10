@@ -46,6 +46,7 @@ from train_restore_use_models.train_int_based_quantifier import train_dice_predi
 from mp.utils.intensities import sample_intensities
 from mp.models.densities.density import Density_model
 from mp.utils.feature_extractor import Feature_extractor
+
 def filter_segmentations_dens(id):
     return id.startswith('Task541') or id.startswith('Task740')
 
@@ -70,12 +71,22 @@ def sample_filtered_intensities(filter):
     return output
 
 def filter_feature_extr(id,model):
+    # train data 
     if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
         return 'train'
-    if model[:7] in ['Task740'] and id[:7] in ['Task542','Task741']:
-        return 'id'
-    if model[:7] in ['Task740'] and id[:7] not in ['Task740','Task541','Task741','Task542']:
-        return 'od'
+    if model[:7] in ['Task089'] and id[:7] in ['Task541']:
+        return 'train'
+    # id data
+    if model[:7] in ['Task740'] and id[:7] in ['Task741']:
+        return 'gc_gc'
+    if model[:7] in ['Task740'] and id[:7] in ['Task542']:
+        return 'gc_frankfurt'
+    # od data 
+    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
+        return 'gc_mosmed'
+    if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
+        return 'gc_radiopedia'
+    
     return 'other'
 
 def extract_features_train_id_od(filter,splits):
@@ -97,7 +108,7 @@ def extract_features_train_id_od(filter,splits):
                         feature_path = os.path.join(all_pred_path,model,'features.json')
                         label_path = os.path.join(all_pred_path,model,'dice_score.json')
                         feat_vec = feat_extr.read_feature_vector(feature_path)
-                        feat_vec = [feat_vec[1],feat_vec[3],feat_vec[4]]
+                        # feat_vec = [feat_vec[1],feat_vec[3],feat_vec[4]]
                         label = feat_extr.read_prediction_label(label_path)
                         if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                             pass 
@@ -119,24 +130,67 @@ def l1_loss(pred,truth, std = False):
         return mean,std
     return mean
 
-def l1_loss_bins(pred,truth, split):
-    loss_by_bin = [[] for _ in range(10)]
-    bins = np.array([])
-    bins_std = np.array([])
-    for i in range(10):
-        for pre,tru in zip(pred,truth):
-            if i*0.1 <= tru and (i+1)*0.1 > tru:
-                loss_by_bin[i].append(abs(pre-tru))
-        if loss_by_bin[i]:
-            print('for the bin [{:.1f},{:.1f}) the error is {:.3f} over {} data_points'.format(i*0.1,(i+1)*0.1,np.mean(loss_by_bin[i]),len(loss_by_bin[i])))
-            bins = np.append(bins,np.mean(loss_by_bin[i]))
-            bins_std = np.append(bins_std,np.std(loss_by_bin[i]))
-        else:
-            bins = np.append(bins,0)
-            bins_std = np.append(bins_std,0)
-    plt.bar(0.05+np.arange(10)*0.1,height = bins, width = 0.05,yerr = bins_std)
-    plt.plot(0.05+np.arange(10)*0.1,[0.1 for i in range(10)],'-r')
-    plt.title(split)
+def l1_loss_bins(pred,truth,split,by_sign=True):
+    save_path = os.path.join('storage','Results','Setup 5','Bins_{}'.format(split))
+    if not by_sign:
+        loss_by_bin = [[] for _ in range(10)]
+        bins = np.array([])
+        bins_std = np.array([])
+        for i in range(10):
+            for pre,tru in zip(pred,truth):
+                if i*0.1 <= tru and (i+1)*0.1 > tru:
+                    loss_by_bin[i].append(abs(pre-tru))
+            if loss_by_bin[i]:
+                print('for the bin [{:.1f},{:.1f}) the error is {:.3f} over {} data_points'.format(i*0.1,(i+1)*0.1,np.mean(loss_by_bin[i]),len(loss_by_bin[i])))
+                bins = np.append(bins,np.mean(loss_by_bin[i]))
+                bins_std = np.append(bins_std,np.std(loss_by_bin[i]))
+            else:
+                bins = np.append(bins,0)
+                bins_std = np.append(bins_std,0)
+        plt.bar(0.05+np.arange(10)*0.1,height = bins, width = 0.05,yerr = bins_std)
+        plt.plot(0.05+np.arange(10)*0.1,[0.1 for i in range(10)],'-r')
+        plt.title(split)
+    else : 
+        widths = [[] for _ in range(10)]
+        loss_by_bin = [[[],[]] for _ in range(10)]
+        bins = [[] for _ in range(10)]
+        bins_std = [[] for _ in range(10)]
+        for i in range(10):
+            for pre,tru in zip(pred,truth):
+                if i*0.1 <= tru and (i+1)*0.1 > tru:
+                    err = pre-tru
+                    if err >= 0:
+                        loss_by_bin[i][1].append(err)
+                    else:
+                        loss_by_bin[i][0].append(err)
+            for j in range(2):
+                if loss_by_bin[i][j]:
+                    bins[i].append(np.mean(loss_by_bin[i][j]))
+                    bins_std[i].append(np.std(loss_by_bin[i][j]))
+                else:
+                    bins[i].append(0)
+                    bins_std[i].append(0)
+            unders = len(loss_by_bin[i][0])
+            overs = len(loss_by_bin[i][1])
+            total = unders+overs
+            if total > 0:
+                if unders/total > 0.66:
+                    widths[i]=[0.05,0.03]
+                elif overs/total >0.66:
+                    widths[i]=[0.03,0.05]
+                else: 
+                    widths[i]=[0.05,0.05]
+            else:
+                widths[i]=[0.05,0.05]
+        bins = np.array(bins)
+        bins_std = np.array(bins_std)
+        widths = np.array(widths)
+        plt.bar(0.05+np.arange(10)*0.1,height = bins[:,0], width = widths[:,0],yerr = bins_std[:,0])
+        plt.bar(0.05+np.arange(10)*0.1,height = bins[:,1], width = widths[:,1],yerr = bins_std[:,1])
+        plt.plot(0.05+np.arange(10)*0.1,[0.1 for i in range(10)],'-r')
+        plt.plot(0.05+np.arange(10)*0.1,[-0.1 for i in range(10)],'-r')
+        plt.title(split)
+    plt.savefig(save_path)
     plt.show()
 
 def plot_variable_influence(X_train,X,y,splits):
@@ -178,10 +232,10 @@ def plot_variable_influence(X_train,X,y,splits):
 
         #plot the data points
         for j,split in enumerate(splits):
-            filt_X = [[X[j][k][i]] for k in range(len(X[j])) ]
+            filt_X = [[X[j][k][i]] for k in range(len(X[j]))]
             plt.scatter(filt_X,y[j],label=split)
 
-        plt.legend(loc='lower left')
+        plt.legend(loc='lower right')
         plt.savefig(save_path)
         plt.show()
 
@@ -208,7 +262,7 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,
         all_errors=[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['train','id','od']
+        splits = ['train','gc_gc','gc_frankfurt','gc_mosmed','gc_radiopedia']
         X,y = extract_features_train_id_od(filter_feature_extr,splits)
 
         X_train = scaler.fit_transform(X[0])
