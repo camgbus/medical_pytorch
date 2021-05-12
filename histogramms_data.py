@@ -1,8 +1,6 @@
-import os 
+import os
 from mp.paths import JIP_dir
 import numpy as np
-import torchio
-import torch
 from skimage.measure import label,regionprops
 import matplotlib.pyplot as plt
 import math 
@@ -44,6 +42,7 @@ from mp.utils.intensities import sample_intensities
 from mp.models.densities.density import Density_model
 from mp.utils.feature_extractor import Feature_extractor
 
+## work on variable 3, connected components
 def poisson(lam,b):
     return ((lam**b) * np.exp(-lam)) /np.math.factorial(b)
 
@@ -60,15 +59,15 @@ def load_seg_features():
         seg_path_short = os.path.join(id_path,'seg')
         seg_features_path = os.path.join(seg_path_short,'features.json')
         feat_vec = feat_extr.read_feature_vector(seg_features_path)
-        features.append(feat_vec)
+        if not np.isnan(np.sum(np.array(feat_vec))):
+            features.append(feat_vec)
     return np.array(features)
 
 def plot_conn_comp(data,save=True,fit=True):
-
     save_path = os.path.join('storage','Results','histogramms','connected components poisson')
     mu = np.mean(data)
     std = np.std(data)
-    _ , bins, _ = plt.hist(data,50,(0,150),density=True)
+    _ , bins, _ = plt.hist(data,75,(0,np.max(data)),density=True)
 
     if fit:
         y = [poisson(mu,b) for b in bins]
@@ -81,18 +80,42 @@ def plot_conn_comp(data,save=True,fit=True):
 
 def conn_comp_n_percent(data,percent):
     hist, bin_edges = np.histogram(data,bins=np.arange(0,np.max(data),step=1),density=True)
-    print(hist)
     cum_hist = np.cumsum(hist)
-    print(cum_hist)
     for i in range(len(cum_hist)):
         if cum_hist[i]>percent:
             return math.ceil(bin_edges[i])
 
-def main():
+## work for avg slice dice
+def plot_slice_dice_hist(data,save=False):
+    _ , _, _ = plt.hist(data,50,(np.min(data),1),density=True)
+    plt.show()
+
+def slice_dice_n_percent(data,percent):
+    bins = np.arange(np.min(data),1,step=0.001)
+    hist, bin_edges = np.histogram(data,bins=bins)
+    total_points = np.sum(hist)
+    dens = np.array(hist)/total_points
+    dens_flipped = np.flip(dens)
+    dens_flipped_cumsum = np.cumsum(dens_flipped)
+    for i in range(len(dens_flipped_cumsum)):
+        if dens_flipped_cumsum[i]>percent:
+            return bin_edges[total_points-1-i]
+            
+
+def main(conn_comp=True,slice_dice=True):
     features = load_seg_features()
-    plot_conn_comp(features[:,3])
-    thresh = conn_comp_n_percent(features[:,3],0.9)
-    print(thresh)
+    if conn_comp:
+        ## variable 3, connected comp
+        plot_conn_comp(features[:,3],False,False)
+        thresh = conn_comp_n_percent(features[:,3],0.99)
+        print('The recommended threshold for connected components is {}'.format(thresh))
+    if slice_dice:
+        data = features[:,1]
+        plot_slice_dice_hist(data)
+        thresh = slice_dice_n_percent(data,0.99)
+        print('The recommended threshold for slice dices is {}'.format(thresh))
+
+
 
 if __name__ == "__main__":
-    main()
+    main(True,True)
