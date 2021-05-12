@@ -74,22 +74,20 @@ def filter_feature_extr(id,model):
     # train data 
     if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
         return 'train'
-    if model[:7] in ['Task089'] and id[:7] in ['Task541']:
-        return 'train'
     # id data
     if model[:7] in ['Task740'] and id[:7] in ['Task741']:
         return 'gc_gc'
     if model[:7] in ['Task740'] and id[:7] in ['Task542']:
-        return 'gc_frankfurt'
+        return 'gc_frank'
     # od data 
     if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
         return 'gc_mosmed'
     if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
-        return 'gc_radiopedia'
+        return 'gc_radio'
     
     return 'other'
 
-def extract_features_train_id_od(filter,splits):
+def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
     X = []
     y = []
     for i in range(len(splits)):
@@ -108,7 +106,7 @@ def extract_features_train_id_od(filter,splits):
                         feature_path = os.path.join(all_pred_path,model,'features.json')
                         label_path = os.path.join(all_pred_path,model,'dice_score.json')
                         feat_vec = feat_extr.read_feature_vector(feature_path)
-                        # feat_vec = [feat_vec[1],feat_vec[3],feat_vec[4]]
+                        feat_vec = [feat_vec[index] for index in used_feat]
                         label = feat_extr.read_prediction_label(label_path)
                         if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                             pass 
@@ -126,6 +124,15 @@ def l1_loss(pred,truth, std = False):
     losses = np.absolute(pred-truth)
     mean = np.mean(losses)
     std = np.std(losses)
+    if std:
+        return mean,std
+    return mean
+
+def l1_loss_overestimation(pred,truth,std=False):
+    losses = pred-truth
+    losses_pos = np.array([ max(loss,0) for loss in losses])
+    mean = np.mean(losses_pos)
+    std = np.std(losses_pos)
     if std:
         return mean,std
     return mean
@@ -242,8 +249,8 @@ def plot_variable_influence(X_train,X,y,splits):
 def get_l1_losses(truth,pred):    
     return np.absolute(truth-pred)    
     
-def main(preprocessing=True,train_density=True,feature_extraction=True,
-            extract_dice_scores=True,model_train=True,label=1):
+def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_extraction=True,
+            extract_dice_scores=True,model_train=True,label=1,):
     if preprocessing:
         basic_preprocessing(label)
     if train_density:
@@ -259,11 +266,13 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,
         
         # per model a sublist ridge, svr, mlp
         stds_of_splits = [[],[],[]]   
-        all_errors=[[],[],[]]
+        stds_of_splits_over = [[],[],[]] 
+        all_errors= [[],[],[]]
+        all_errors_over =[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['train','gc_gc','gc_frankfurt','gc_mosmed','gc_radiopedia']
-        X,y = extract_features_train_id_od(filter_feature_extr,splits)
+        splits = ['train','gc_gc','gc_frank','gc_mosmed','gc_radio']
+        X,y = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
@@ -290,25 +299,37 @@ def main(preprocessing=True,train_density=True,feature_extraction=True,
             svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
             mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
 
+            ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
+            svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
+            mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
+
             l1_loss_bins(y_svr,y_eval,split)
 
             for i,std in enumerate([ridge_std,svr_std,mlp_std]):
                 stds_of_splits[i].append(std)
+            for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
+                stds_of_splits_over[i].append(std)
             for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
                 for err in errors:  
                     all_errors[i].append(err)
+            for i in range(3):
+                all_errors_over[i] = [max(err,0) for err in all_errors[i]]
 
             #a vector that predicts the mean value of y_train, is a baseline
             # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
-            print('{}    : ridge   svr      mlp  '.format(split))
-            print('error   {:.3f},   {:.3f},  {:.3f}'.format(ridge_err,svr_err,mlp_err))
-            print('std     {:.3f},   {:.3f},  {:.3f}'.format(ridge_std,svr_std,mlp_std))
+            print('{}    :    ridge  svr   mlp  '.format(split))
+            print('error          {:.3f},   {:.3f},  {:.3f}'.format(ridge_err,svr_err,mlp_err))
+            print('std            {:.3f},   {:.3f},  {:.3f}'.format(ridge_std,svr_std,mlp_std))
+            print('error overest. {:.3f},   {:.3f},  {:.3f}'.format(ridge_err_over,svr_err_over,mlp_err_over))
+            print('std overest.   {:.3f},   {:.3f},  {:.3f}'.format(ridge_std_over,svr_std_over,mlp_std_over))
             # print('Using mean of train values, has error of {} and std of {}'.format(l1_loss(y_mean,y_train,std=True)[0],l1_loss(y_mean,y_train,std=True)[1]))
             print()
 
-        print('TOTAL:                ridge   svr      mlp  ')
-        print('mean of split stds   {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
-        print('std of all errors    {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
+        print('TOTAL:                       ridge     svr      mlp  ')
+        print('mean of split stds          {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
+        print('std of all errors           {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
+        print('mean of split stds overest. {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits_over[0]),np.mean(stds_of_splits_over[1]),np.mean(stds_of_splits_over[2])))
+        print('std of all errors overest.  {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors_over[0]),np.std(all_errors_over[1]),np.std(all_errors_over[2])))
         
 if __name__ == "__main__":
     main(preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
