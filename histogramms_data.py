@@ -4,6 +4,7 @@ import numpy as np
 from skimage.measure import label,regionprops
 import matplotlib.pyplot as plt
 import math 
+from sklearn.mixture import GaussianMixture
 #set environmental variables
 #for data_dirs folder, nothing changed compared to Simons version 
 os.environ["WORKFLOW_DIR"] = os.path.join(JIP_dir, 'data_dirs')
@@ -101,8 +102,96 @@ def slice_dice_n_percent(data,percent):
         if dens_flipped_cumsum[i]>percent:
             return bin_edges[total_points-1-i]
             
+## work for int mode 
+def plot_int_mode_hist(data,threshholds=[],save=False):
+    #get histogram
+    _ , bins, _ = plt.hist(data,100,(0,1),density=True)
+    #get gaussian fit 
+    gm = GaussianMixture(n_components=2).fit(np.reshape(data,(-1,1)))
+    means = [gm.means_[0][0],gm.means_[1][0]]
+    vars = [gm.covariances_[0][0][0],gm.covariances_[1][0][0]]
+    weights = [gm.weights_[0],gm.weights_[1]]
+    y0 = weights[0]*np.array([gaussian(means[0],vars[0]**(1/2),b) for b in bins])
+    y1 = weights[1]*np.array([gaussian(means[1],vars[1]**(1/2),b) for b in bins])
+    y = y0 + y1 
+    plt.plot(bins,y)
+    plt.vlines(threshholds,0,5,colors="r")
+    plt.show()
 
-def main(conn_comp=True,slice_dice=True):
+def int_mode_n_percent(data,percent):
+    data = np.reshape(data,(-1,1))
+
+    #first fit a mixture with 2 components to find 2 modes
+    gm = GaussianMixture(n_components=2).fit(data)
+    if gm.means_[0][0] < gm.means_[1][0]:
+        means = [gm.means_[0][0],gm.means_[1][0]]
+        vars = [gm.covariances_[0][0][0],gm.covariances_[1][0][0]]
+        weights = [gm.weights_[0],gm.weights_[1]]
+        # try to balance the steplengths, according to weights and cov
+        step_0 = vars[0]*weights[0]
+        step_1 = vars[1]*weights[1]
+    else:
+        means = [gm.means_[1][0],gm.means_[0][0]]
+        vars = [gm.covariances_[1][0][0],gm.covariances_[0][0][0]]
+        weights = [gm.weights_[1],gm.weights_[0]]
+        # try to balance the steplengths, according to weights and std
+        step_0 = (vars[0]**(1/2))*(1/20)*weights[0]
+        step_1 = (vars[1]**(1/2))*(1/20)*weights[1]
+        
+    #find the threshholds
+    hist_0, bins_0 = np.histogram(data,np.arange(0,1,step_0))
+    hist_1, bins_1 = np.histogram(data,np.arange(0,1,step_1))
+    number_points = np.sum(hist_0)
+    hist_0 = np.array(hist_0)/number_points
+    hist_1 = np.array(hist_1)/number_points
+    hist = [hist_0,hist_1]
+    bins = [bins_0,bins_1]
+    mode_0_bin = np.argmax(bins[0]>means[0])
+    mode_1_bin = np.argmax(bins[1]>means[1])
+    mode_bins = [mode_0_bin,mode_1_bin]
+
+    # if the intervalls are overlapping, inner intervalls are not increased in this case
+    overlapping = False
+    complete_0 = False
+    complete_1 = False 
+    i = 0
+    mass = 0
+    while mass<percent:
+        # check whether intervalls are overlapping 
+        if bins[1][mode_bins[1]-i] < bins[0][mode_bins[0]+i+1] and not overlapping:
+            #add the bigger bin to the mass
+            overlapping = True
+            if weights[0]>weights[1]:
+                mass = mass + hist[0][mode_bins[0]+i]
+            else:
+                mass = mass + hist[1][mode_bins[1]-i]
+
+        if mode_bins[0]-i < 0 or mode_bins[0]+i > len(hist[0]): 
+            complete_0 = True 
+        if mode_bins[1]-i < 0 or mode_bins[1]+i > len(hist[1]):
+            complete_1 = True
+        #if both ditributions have reached their end break the loop
+        if complete_1 or complete_0 :
+            break
+        #add masses
+        if i == 0:
+            mass = hist[0][mode_bins[0]]+hist[1][mode_bins[1]]
+        if overlapping:
+            mass = mass + hist[0][mode_bins[0]-i]+hist[1][mode_bins[1]+1]
+        else:
+            mass0 = hist[0][mode_bins[0]-i]+hist[0][mode_bins[0]+i]
+            mass1 = hist[1][mode_bins[1]+i]+hist[1][mode_bins[1]-i]
+            mass = mass + mass0 + mass1
+        i = i + 1
+    if overlapping:
+        return [bins[0][mode_bins[0]-i+1],bins[1][mode_bins[1]+i]]
+    else:
+        return [bins[0][mode_bins[0]-i+1],bins[0][mode_bins[0]+i],bins[1][mode_bins[1]-i+1],bins[1][mode_bins[1]+i]]
+        
+
+
+
+def main(conn_comp=True,slice_dice=True,int_mode=True):
     features = load_seg_features()
     if conn_comp:
         ## variable 3, connected comp
@@ -114,8 +203,12 @@ def main(conn_comp=True,slice_dice=True):
         plot_slice_dice_hist(data)
         thresh = slice_dice_n_percent(data,0.99)
         print('The recommended threshold for slice dices is {}'.format(thresh))
-
+    if int_mode:
+        data = features[:,4]
+        threshholds = int_mode_n_percent(data,0.95)
+        print(threshholds)
+        plot_int_mode_hist(data,threshholds)
 
 
 if __name__ == "__main__":
-    main(True,True)
+    main(False,False,True)

@@ -66,9 +66,8 @@ def sample_filtered_intensities(filter):
         if filter(id):
             seg_path = os.path.join(work_path,id,'seg','001.nii.gz')
             img_path = os.path.join(work_path,id,'img','img.nii.gz')
-            # pylint : disable = not-callable
-            seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
-            img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
+            seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0] # pylint: disable=not-callable
+            img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0] # pylint: disable=not-callable
             labeled_image, nr_components = label(seg, return_num=True)
             props = regionprops(labeled_image)
             props = sorted(props ,reverse=True, key =lambda dict:dict['area'])
