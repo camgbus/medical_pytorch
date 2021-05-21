@@ -119,7 +119,7 @@ class PytorchCNN3DDataset(PytorchCNNDataset):
     are resized to the specified size, otherwise they are center-cropped and 
     padded if needed."""
     def __init__(self, dataset, ix_lst=None, size=(1, 56, 56, 10), 
-        norm_key='rescaling', aug_key='standard', resize=False):
+        norm_key='rescaling', aug_key='standard', resize=False, samples_per_volume=None):
         if isinstance(size, int):
             size = (1, size, size, size)
         super().__init__(dataset=dataset, ix_lst=ix_lst, size=size, 

@@ -24,21 +24,21 @@ def save_state(self, states_path, state_name, optimizer=None, overwrite=False,
         pkl_dump(self.agent_state_dict, 'agent_state_dict', state_full_path)
         if optimizer is not None:
             save_optimizer_state(optimizer, 'optimizer', state_full_path)
-        if losses_train is not None:
+        if losses_train is not None and len(losses_train) != 0:
             np.save(os.path.join(state_full_path, 'losses_train.npy'), np.array(losses_train))
-        if losses_cum_train is not None:
+        if losses_cum_train is not None and len(losses_cum_train) != 0:
             np.save(os.path.join(state_full_path, 'losses_cum_train.npy'), np.array(losses_cum_train))
-        if losses_val is not None:
+        if losses_val is not None and len(losses_val) != 0:
             np.save(os.path.join(state_full_path, 'losses_validation.npy'), np.array(losses_val))
-        if losses_cum_val is not None:
+        if losses_cum_val is not None and len(losses_cum_val) != 0:
             np.save(os.path.join(state_full_path, 'losses_cum_validation.npy'), np.array(losses_cum_val))
-        if accuracy_train is not None:
+        if accuracy_train is not None and len(accuracy_train) != 0:
             np.save(os.path.join(state_full_path, 'accuracy_train.npy'), np.array(accuracy_train))
-        if accuracy_det_train is not None:
+        if accuracy_det_train is not None and len(accuracy_det_train) != 0:
             np.save(os.path.join(state_full_path, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
-        if accuracy_val is not None:
+        if accuracy_val is not None and len(accuracy_val) != 0:
             np.save(os.path.join(state_full_path, 'accuracy_validation.npy'), np.array(accuracy_val))
-        if accuracy_det_val is not None:
+        if accuracy_det_val is not None and len(accuracy_det_val) != 0:
             np.save(os.path.join(state_full_path, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
 
 def restore_state(self, states_path, state_name, optimizer=None):
@@ -59,16 +59,19 @@ def restore_state(self, states_path, state_name, optimizer=None):
         if self.verbose:
             print('State {} was restored'.format(state_name))
         print("Loading model state dict was successful.")
-        losses_train = np.load(os.path.join(state_full_path, 'losses_train.npy'), allow_pickle=True)
-        losses_cum_train = np.load(os.path.join(state_full_path, 'losses_cum_train.npy'), allow_pickle=True)
-        losses_val = np.load(os.path.join(state_full_path, 'losses_validation.npy'), allow_pickle=True)
-        losses_cum_val = np.load(os.path.join(state_full_path, 'losses_cum_validation.npy'), allow_pickle=True)
-        accuracy_train = np.load(os.path.join(state_full_path, 'accuracy_train.npy'), allow_pickle=True)
-        accuracy_det_train = np.load(os.path.join(state_full_path, 'accuracy_detailed_train.npy'), allow_pickle=True)
-        accuracy_val = np.load(os.path.join(state_full_path, 'accuracy_validation.npy'), allow_pickle=True)
-        accuracy_det_val = np.load(os.path.join(state_full_path, 'accuracy_detailed_validation.npy'), allow_pickle=True)
+        files = ['losses_train.npy', 'losses_cum_train.npy', 'losses_validation.npy', 'losses_cum_validation.npy',\
+                 'accuracy_train.npy', 'accuracy_detailed_train.npy', 'accuracy_validation.npy', 'accuracy_detailed_validation.npy']
+        results = list()
+        for i in files:
+            try:
+                # Load the file
+                obj = np.load(os.path.join(state_full_path, i), allow_pickle=True)
+            except FileNotFoundError:
+                # If it does not exist, the user has decided not to store unnecessary results
+                obj = None
+            results.append(obj)
         print("Loading losses and accuracies was succesful.")
-        return True, (losses_train, losses_cum_train, losses_val, losses_cum_val, accuracy_train, accuracy_det_train, accuracy_val, accuracy_det_val)
+        return True, results
     except:
         print('State {} could not be restored'.format(state_name))
         return False, None

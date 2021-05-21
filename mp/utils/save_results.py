@@ -21,17 +21,22 @@ def save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_
         os.makedirs(model_path)
     #torch.save(model, os.path.join(model_path, 'model.zip'))
     torch.save(model.state_dict(), os.path.join(model_path, 'model_state_dict.zip'))
-    np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
+    if losses_train is not None:
+        np.save(os.path.join(pathr, 'losses_train.npy'), np.array(losses_train))
     np.save(os.path.join(pathr, 'losses_cum_train.npy'), np.array(losses_cum_train))
-    np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_val))
+    if losses_val is not None:
+        np.save(os.path.join(pathr, 'losses_validation.npy'), np.array(losses_val))
     np.save(os.path.join(pathr, 'losses_cum_validation.npy'), np.array(losses_cum_val))
     np.save(os.path.join(pathr, 'accuracy_train.npy'), np.array(accuracy_train))
-    np.save(os.path.join(pathr, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
+    if accuracy_det_train is not None:
+        np.save(os.path.join(pathr, 'accuracy_detailed_train.npy'), np.array(accuracy_det_train))
     np.save(os.path.join(pathr, 'accuracy_validation.npy'), np.array(accuracy_val))
-    np.save(os.path.join(pathr, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
+    if accuracy_det_val is not None:
+        np.save(os.path.join(pathr, 'accuracy_detailed_validation.npy'), np.array(accuracy_det_val))
     np.save(os.path.join(pathr, 'losses_test.npy'), np.array(losses_test))
     np.save(os.path.join(pathr, 'accuracy_test.npy'), np.array(accuracy_test))
-    np.save(os.path.join(pathr, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
+    if accuracy_det_test is not None:
+        np.save(os.path.join(pathr, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
     plot_dataframe(pd.DataFrame(losses_cum_train, columns = ['Epoch', 'Loss']),
         save_path = pathr, save_name = 'losses_train', title = 'Losses [train dataset]',
         x_name = 'Epoch', y_name = 'Loss', ending = '.png', ylog = False, figsize = (10,5),
@@ -57,12 +62,13 @@ def save_results(model, noise, paths, pathr, losses_train, losses_val, accuracy_
         x_name = 'Batch', y_name = 'Accuracy', ending = '.png', ylog = False, figsize = (10,5),
         xints = int, yints = int)
 
-def save_only_test_results(noise, path, losses_test, accuracy_test, accuracy_det_test):
+def save_only_test_results(path, losses_test, accuracy_test, accuracy_det_test):
     r"""This function saves the test results from a pretrained model, i.e. losses and accuracies."""
     print('Save pre-trained model losses and accuracies on test dataset..')
     np.save(os.path.join(path, 'losses_test.npy'), np.array(losses_test))
     np.save(os.path.join(path, 'accuracy_test.npy'), np.array(accuracy_test))
-    np.save(os.path.join(path, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
+    if accuracy_det_test is not None:
+        np.save(os.path.join(path, 'accuracy_detailed_test.npy'), np.array(accuracy_det_test))
     plot_dataframe(pd.DataFrame(losses_test, columns = ['Batch', 'Loss']),
         save_path = path, save_name = 'losses_test', title = 'Losses [test dataset]',
         x_name = 'Batch', y_name = 'Loss', ending = '.png', ylog = False, figsize = (10,5),

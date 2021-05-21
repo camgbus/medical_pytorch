@@ -92,43 +92,44 @@ class JIPDataset(CNNDataset):
             e = traceback.format_exc()
             return False, e
 
-    def buildDataset(self, d_type, noise, seed):
-        r"""This function builds a dataset from the preprocessed (and augmented) data based on the d_type,
-            either for training or inference. The d_type is the same as self.data_type, however it can not be
+    def buildDataset(self, dtype, noise, seed):
+        r"""This function builds a dataset from the preprocessed (and augmented) data based on the dtype,
+            either for training or inference. The dtype is the same as self.data_type, however it can not be
             'all' in this case, since it is important to be able to distinguish to which type a scan belongs
             (train -- inference). Noise specifies which data will be included in the dataset --> only used
             for training. ds_name specifies which dataset should be build, based on its name (in foldername).
-            This can be 'Decathlon', 'GC' or 'FRA'. ds_name is only necessary for d_type == 'train'.
+            This can be 'Decathlon', 'GC' or 'FRA'. ds_name is only necessary for dtype == 'train'.
             NOTE: The function checks, if data is in the preprocessed folder, this does not mean, that it ensures
                   that the data is also augmented! If there is only preprocessed data (i.e. resampled and centre cropped),
                   then the preprocessing step should be performed again since this process includes the augmentation
                   (only for train data needed). In such a case, data_augmented in the config file should be set to False,
                   i.e. data is not augmentated and needs to be done."""
         # Extract all images, if not already done
-        if d_type == 'train':
+        if dtype == 'train':
             if not os.path.isdir(self.train_dataset_path) or not os.listdir(self.train_dataset_path):
                 print("Train data needs to be preprocessed..")
-                self.data_type = d_type
+                self.data_type = dtype
                 self.preprocess()
             if not self.data_augmented:
                 _augment_extracted_images(self.train_dataset_path, self.img_size, False)    # Augmentation step without label consideration
 
-        elif d_type == 'test':
+        elif 'test' in dtype:
             if not os.path.isdir(self.test_dataset_path) or not os.listdir(self.test_dataset_path):
                 print("Test data needs to be preprocessed..")
-                self.data_type = d_type
+                self.data_type = 'test'
                 self.preprocess()
+
         else:
             if not os.path.isdir(self.data_dataset_path) or not os.listdir(self.data_dataset_path):
                 print("Inference data needs to be preprocessed..")
-                self.data_type = d_type
+                self.data_type = dtype
                 self.preprocess()
 
-        # Assert if d_type is 'all'
-        assert d_type != 'all', "The dataset type can not be all, it needs to be either 'train' or 'inference'!"
+        # Assert if dtype is 'all'
+        assert dtype != 'all', "The dataset type can not be all, it needs to be either 'train' or 'inference'!"
 
-        # Build dataset based on d_type
-        if d_type == 'inference':
+        # Build dataset based on dtype
+        if dtype == 'inference':
             # Foldernames are patient_id
             study_names = [x for x in os.listdir(self.data_dataset_path) if 'DS_Store' not in x and '._' not in x]
 
@@ -146,7 +147,7 @@ class JIPDataset(CNNDataset):
                     group_id = None
                     ))
 
-        if d_type == 'train':            
+        if dtype == 'train':            
             # Foldernames are patient_id
             study_names = [x for x in os.listdir(self.train_dataset_path) if 'DS_Store' not in x and '._' not in x]
 
@@ -219,14 +220,14 @@ class JIPDataset(CNNDataset):
                         group_id = None
                         ))
 
-        if 'test' in d_type:
-            # Foldernames are patient_id based on d_type
-            if d_type == 'testID':
+        if 'test' in dtype:
+            # Foldernames are patient_id based on dtype
+            if dtype == 'testID':
                 study_names = [x for x in os.listdir(self.test_dataset_path) if 'DS_Store' not in x and '._' not in x\
-                               and 'FRA' in x and 'GC' in x and 'Decathlon' in x]   # Use same data classes as trained on
-            if d_type == 'testOOD':
+                               and ('FRA' in x or 'GC' in x or 'Decathlon' in x)]   # Use same data classes as trained on
+            if dtype == 'testOOD':
                 study_names = [x for x in os.listdir(self.test_dataset_path) if 'DS_Store' not in x and '._' not in x\
-                               and 'FRA' not in x and 'GC' not in x and 'Decathlon' not in x]   # Use all other data classes as trained on
+                               and 'FRA' not in x and 'GC' not in x and 'Decathlon' not in x and '.json' not in x]   # Use all other data classes as trained on
             
             # Load labels and build one hot vector
             labels = lr.load_json(self.test_dataset_path, 'labels.json')
@@ -241,9 +242,10 @@ class JIPDataset(CNNDataset):
                 msg = 'Creating test dataset from images: '
                 msg += str(num + 1) + ' of ' + str(len(study_names)) + '.'
                 print (msg, end = '\r')
+                a_name = name+'_'+noise
                 instances.append(CNNInstance(
                     x_path = os.path.join(self.test_dataset_path, name, 'img', 'img.nii.gz'),
-                    y_label = one_hot[int(labels[name] * self.num_intensities) - 1],
+                    y_label = one_hot[int(labels[a_name] * self.num_intensities) - 1],
                     name = name,
                     group_id = None
                     ))
@@ -315,14 +317,14 @@ def _extract_images(source_path, target_path, img_size=(1, 60, 299, 299), gpu=Fa
         if not discard:
             # Extract all images (3D)
             try:
+                x = resample(sitk.ReadImage(os.path.join(source_path, filename, 'img', 'img.nii.gz'))[:,:,start_slc:end_slc])
+                x = torch.from_numpy(sitk.GetArrayFromImage(x)).unsqueeze_(0)
                 if no_crop_image:
                     # Update img_size, for instance the number of slices
                     img_size = list(img_size)
                     if img_size[1] < x.size()[1]:
                         img_size[1] = x.size()[1]
                     img_size = tuple(img_size)
-                x = resample(sitk.ReadImage(os.path.join(source_path, filename, 'img', 'img.nii.gz'))[:,:,start_slc:end_slc])
-                x = torch.from_numpy(sitk.GetArrayFromImage(x)).unsqueeze_(0)
                 if not discard_labels:
                     y = resample(sitk.ReadImage(os.path.join(source_path, filename, 'seg', '001.nii.gz'))[:,:,start_slc:end_slc])
                     y = torch.from_numpy(sitk.GetArrayFromImage(y).astype(np.int16)).unsqueeze_(0)
@@ -376,7 +378,7 @@ def _augment_extracted_images(source_path, img_size=(1, 60, 299, 299), consider_
 
     for num, filename in enumerate(files_to_aug):
         msg = "Loading SimpleITK images/labels and performing augmentation: "
-        msg += str(num + 1) + " of " + str(len(filenames)) + "."
+        msg += str(num + 1) + " of " + str(len(files_to_aug)) + "."
         print (msg, end = "\r")
         
         # Extract all images (3D) --> Labels will not be cinsidered!

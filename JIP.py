@@ -71,6 +71,10 @@ if __name__ == "__main__":
                             ' and an Out Of Distribution dataset.'+
                             ' (Only considered if --mode test is used).'+
                             ' Default: If not set, --testID will be used.')
+    parser.add_argument('--store_data', action='store_const', const=True, default=False,
+                        help='Store the actual datapoints and save them as .npy after training.'+
+                            ' Takes a lot of time and CPU power (when using GPU).'+
+                            ' Default: Only necessary data will be stored --> False.')
     parser.add_argument('--try_catch_repeat', action='store', type=int, nargs=1, default=0,
                         help='Try to train the model with a restored state, if an error occurs.'+
                             ' Repeat only <TRY_CATCH_REPEAT> number of times. It can also be used for'+
@@ -90,6 +94,7 @@ if __name__ == "__main__":
     data_type = args.datatype
     cuda = args.device
     restore = args.restore
+    store_data = args.store_data
     msg_bot = args.use_telegram_bot
     try_catch = args.try_catch_repeat
     idle_time = args.idle_time
@@ -139,28 +144,48 @@ if __name__ == "__main__":
     # test_dirs (for test data)
     os.environ["TEST_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'test_dirs')
 
+    # Make directories to avoid any errors
+    paths = [os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]),
+             os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"]),
+             os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_TEMP_DIR"]),
+             os.path.join(os.environ["WORKFLOW_DIR"], os.environ["OPERATOR_PERSISTENT_DIR"]),
+             os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_TRAIN_DIR"]),
+             os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_TEST_DIR"]),
+             os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"], os.environ["PREPROCESSED_OPERATOR_OUT_DATA_DIR"]),
+             os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]),
+             os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"]),
+             os.path.join(os.environ["TEST_WORKFLOW_DIR"], os.environ["OPERATOR_IN_DIR"]),
+             os.path.join(os.environ["TEST_WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"])]
+    for path in paths:
+        if not os.path.exists(path):
+            os.makedirs(path)
+
+
     # ------------------------
     # Build config dictionary
     # ------------------------
     # NOTE: Decathlon Dataset will be nr_images x 5 scans big.
     #       Grand Challenge Dataset will be nr_images x 5 scans big (or less if less scans are available).
     #       UK Frankfurt Dataset will be nr_images x 5 scans big (or less if less scans are available).
-    # NOTE: num_intensities embodies the number of quality values 1 to 5), where 1 is a bad quality
+    #       Mixed Dataset will be nr_images x 15 scans big (or less if less scans are available).
+    # NOTE: num_intensities embodies the number of quality values 1 to 5, where 1 is a bad quality
     #       and 5 is a the best quality. This will be transformed into values between 0 and 1 in
     #       the inference step, whereas 0s is bad quality and 1 is the best quality.
-    # NOTE: train_on is includes all datasets, on which the model needs to be trained. The list will be used for EWC
-    #       approach. For the conventional approach, only the first entry of the list will be considered.
-    #       {'Decathlon', 'GC', 'FRA', 'mixed'}. For institutes that use this method to retrain a pre-trained model
-    #       with their own dataset can write every name they want, since the whole data from preprocessed_dirs/output_train
+    # NOTE: train_on indicates on which dataset to train: {'Decathlon', 'GC', 'FRA', 'mixed'}.
+    #       For institutes that use this method to retrain a pre-trained model with their own dataset can write
+    #       every name they want, since the whole data from preprocessed_dirs/output_train
     #       will be loaded and used. Thus, this variable will not be considered in this process.
     #       Its important to note, that the labels should be also provided at preprocessed_dirs/output_train/labels.json
     #       and that the data in preprocessed_dirs/output_train needs to be preprocessed while considering the defined data structure.
+    # NOTE: For learning rate decay, set the variables 'lr_decay', 'decay_type' and 'decay_rate'. decay_type can be 
+    #       {'exp_decay', 'step_decay', 'mstep_decay', 'plat_decay'}, whereas decay_rate represents gamma in all of these decays except
+    #       plat_decay. --> lr will normally always updated with lr = lr * decay_rate, so consider this when setting decay_rate.
     config = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True, 'mode': mode,
-              'data_type': data_type, 'lr': 0.001, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 150,
-              'noise': noise, 'weight_decay': 0.01, 'save_interval': 20, 'msg_bot': msg_bot,
-              'bot_msg_interval': 10, 'nr_images': 20, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
-              'train_on': 'mixed', 'data_augmented': True, 'restore': restore}
-    
+              'data_type': data_type, 'lr': 1e-3, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 150, 'decay_type': 'plat_decay',
+              'noise': noise, 'weight_decay': 7e-3, 'save_interval': 100, 'msg_bot': msg_bot, 'lr_decay': True, 'decay_rate': 0.9,
+              'bot_msg_interval': 10, 'nr_images': 25, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
+              'train_on': 'mixed', 'data_augmented': True, 'restore': restore, 'store_data': store_data}
+
     # -------------------------
     # Preprocess
     # -------------------------

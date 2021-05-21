@@ -4,6 +4,7 @@ import os
 import shutil
 import traceback
 import random
+import numpy as np
 from torch.utils.data import DataLoader
 import torch.optim as optim
 from mp.data.data import Data
@@ -11,13 +12,11 @@ from mp.data.datasets.dataset_JIP_cnn import JIPDataset
 from mp.experiments.data_splitting import split_dataset
 import mp.utils.load_restore as lr
 from mp.data.pytorch.pytorch_cnn_dataset import Pytorch3DQueue
-from mp.models.cnn.cnn import CNNModel
+from mp.models.cnn.cnn import CNN_Net3D
 from mp.eval.losses.losses_cnn import LossCEL
 from mp.agents.cnn_agents import NetAgent
 from mp.utils.save_results import save_results, save_only_test_results
 from mp.quantifiers.NoiseQualityQuantifier import NoiseQualityQuantifier
-from mp.data.DataConnectorJIP import DataConnector
-
 
 def train_model(config):
     r"""This function tries to intializes and trains a model.
@@ -56,7 +55,7 @@ def test_model(config):
     r"""This function tries to load a pre-trained model and tests it on the test dataset (ID or OOD).
         It returns True if the model was sucessfully tested and if not an error will be returned as well."""
     try:
-        if config['mode'] = 'testIOOD':
+        if config['mode'] == 'testIOOD':
             config['mode'] = 'testID'
             _CNN_test(config)   # Perform ID test
             config['mode'] = 'testOOD'
@@ -141,8 +140,8 @@ def _CNN_initialize_and_train(config):
             if len(data_ixs) > 0: # Sometimes val indices may be an empty list
                 aug = config['augment_strat'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = Pytorch3DQueue(ds, 
-                    ix_lst = data_ixs, size = (1, 64, 64, 60), aug_key = aug, 
-                    samples_per_volume = 32)
+                    ix_lst = data_ixs, size = (1, 100, 100, 60), aug_key = aug, 
+                    samples_per_volume = 16)
 
     # 6. Build train dataloader
     dl = DataLoader(datasets[(train_ds)], 
@@ -151,7 +150,7 @@ def _CNN_initialize_and_train(config):
         batch_size = config['batch_size'], shuffle = True)
 
     # 7. Initialize model
-    model = CNNModel(output_features)
+    model = CNN_Net3D(output_features)
     model.to(device)
 
     # 8. Define loss and optimizer
@@ -162,18 +161,19 @@ def _CNN_initialize_and_train(config):
     # 9. Train model
     print('Training model in batches of {}..'.format(config['batch_size']))
 
-    agent = NetAgent(model = model, device = device)
+    agent = NetAgent(model = model, device = device, lr_decay = config['lr_decay'])
     losses_train, losses_cum_train, losses_val, losses_cum_val,\
     accuracy_train, accuracy_det_train, accuracy_val,\
     accuracy_det_val = agent.train(optimizer, loss_f, dl,
-                 dl_val, nr_epochs = config['nr_epochs'],
-                                       save_path = paths,
+      dl_val, config['decay_rate'], config['decay_type'],
+      nr_epochs = config['nr_epochs'], save_path = paths,
                  save_interval = config['save_interval'],
                              msg_bot = config['msg_bot'],
-           bot_msg_interval = config['bot_msg_interval'])
+           bot_msg_interval = config['bot_msg_interval'],
+                       store_data = config['store_data'])
                         
     # 10. Build test dataloader
-    dl = DataLoader(datasets[(test_ds)], 
+    dl = DataLoader(datasets[(test_ds)],
             batch_size = config['batch_size'], shuffle = True)
     
     # 11. Test model
@@ -225,17 +225,17 @@ def _CNN_restore_and_train(config):
             if len(data_ixs) > 0: # Sometimes val indicess may be an empty list
                 aug = config['augment_strat'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = Pytorch3DQueue(ds, 
-                    ix_lst = data_ixs, size = (1, 64, 64, 60), aug_key = aug, 
-                    samples_per_volume = 32)
-
+                    ix_lst = data_ixs, size = (1, 100, 100, 60), aug_key = aug, 
+                    samples_per_volume = 16)
+    
     # 6. Build train dataloader
     dl = DataLoader(datasets[(train_ds)], 
         batch_size = config['batch_size'], shuffle = True)
     dl_val = DataLoader(datasets[(val_ds)], 
         batch_size = config['batch_size'], shuffle = True)
-
+    
     # 7. Initialize model
-    model = CNNModel(output_features) 
+    model = CNN_Net3D(output_features) 
     model.to(device)
 
     # 8. Define loss and optimizer
@@ -252,20 +252,26 @@ def _CNN_restore_and_train(config):
     state_name += '_' + str(state_names[-1])
 
     print('Restore last saved model from epoch {}..'.format(state_name.split('_')[-1]))
-    agent = NetAgent(model = model, device = device)
+    agent = NetAgent(model = model, device = device, lr_decay = config['lr_decay'])
     restored, restored_results = agent.restore_state(paths, state_name, optimizer = optimizer)
     if not restored:
         print("Desired state could not be recovered. --> Error!")
         raise FileNotFoundError
 
+    if not config['store_data']:
+        for idx, i in enumerate(restored_results):
+            if i is None:
+                restored_results[idx] = np.array([])
+
     losses_train_r, losses_cum_train_r, losses_val_r, losses_cum_val_r, accuracy_train_r,\
     accuracy_det_train_r, accuracy_val_r, accuracy_det_val_r = restored_results
-
+    
     print('Training model in batches of {}..'.format(config['batch_size']))
     losses_train, losses_cum_train, losses_val, losses_cum_val,\
     accuracy_train, accuracy_det_train, accuracy_val,\
     accuracy_det_val = agent.train(optimizer, loss_f, dl,
-                    dl_val, nr_epochs=config['nr_epochs'],
+       dl_val, config['decay_rate'], config['decay_type'],
+                            nr_epochs=config['nr_epochs'],
              start_epoch = int(state_name.split('_')[-1]),
       save_path = paths, losses = losses_train_r.tolist(),
                  losses_cum = losses_cum_train_r.tolist(),
@@ -277,15 +283,16 @@ def _CNN_restore_and_train(config):
       accuracy_val_detailed = accuracy_det_val_r.tolist(),
                   save_interval = config['save_interval'],
                               msg_bot = config['msg_bot'],
-            bot_msg_interval = config['bot_msg_interval'])
-
+            bot_msg_interval = config['bot_msg_interval'],
+                        store_data = config['store_data'])
+    
     # 10. Build test dataloader
-    dl = DataLoader(datasets[(test_ds)], 
+    dl = DataLoader(datasets[(test_ds)],
             batch_size = config['batch_size'], shuffle = True)
     
     # 11. Test model
     print('Testing model in batches of {}..'.format(config['batch_size']))
-    losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'])
+    losses_test, _, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'], store_data = config['store_data'])
 
     # 12. Save results
     save_results(model, config['noise'], paths, pathr, losses_train, losses_val, accuracy_train,
@@ -350,8 +357,8 @@ def _CNN_retrain(config):
             if len(data_ixs) > 0: # Sometimes val indices may be an empty list
                 aug = config['augment_strat'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = Pytorch3DQueue(ds, 
-                    ix_lst = data_ixs, size = (1, 64, 64, 60), aug_key = aug, 
-                    samples_per_volume = 32)
+                    ix_lst = data_ixs, size = (1, 100, 100, 60), aug_key = aug, 
+                    samples_per_volume = 16)
 
     # 6. Build train dataloader
     dl = DataLoader(datasets[(train_ds)], 
@@ -360,7 +367,7 @@ def _CNN_retrain(config):
         batch_size = config['batch_size'], shuffle = True)
 
     # 7. Load pre-trained model
-    model = CNNModel(output_features)
+    model = CNN_Net3D(output_features)
     state_dict = torch.load(os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], config['noise'], 'model_state_dict.zip'))
     model.load_state_dict(state_dict)
     model.eval()
@@ -374,23 +381,24 @@ def _CNN_retrain(config):
     # 9. Train model
     print('Training model in batches of {}..'.format(config['batch_size']))
 
-    agent = NetAgent(model = model, device = device)
+    agent = NetAgent(model = model, device = device, lr_decay = config['lr_decay'])
     losses_train, losses_cum_train, losses_val, losses_cum_val,\
     accuracy_train, accuracy_det_train, accuracy_val,\
     accuracy_det_val = agent.train(optimizer, loss_f, dl,
-                 dl_val, nr_epochs = config['nr_epochs'],
-                                       save_path = paths,
+      dl_val, config['decay_rate'], config['decay_type'],
+      nr_epochs = config['nr_epochs'], save_path = paths,
                  save_interval = config['save_interval'],
                              msg_bot = config['msg_bot'],
-           bot_msg_interval = config['bot_msg_interval'])
+           bot_msg_interval = config['bot_msg_interval'],
+                       store_data = config['store_data'])
                         
     # 10. Build test dataloader
-    dl = DataLoader(datasets[(test_ds)], 
+    dl = DataLoader(datasets[(test_ds)],
             batch_size = config['batch_size'], shuffle = True)
     
     # 11. Test model
     print('Testing model in batches of {}..'.format(config['batch_size']))
-    losses_test, losses_cum_test, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'])
+    losses_test, _, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'], store_data = config['store_data'])
 
     # 12. Save results
     save_results(model, config['noise'], paths, pathr, losses_train, losses_val, accuracy_train,
@@ -404,7 +412,7 @@ def _CNN_retrain(config):
 def _CNN_test(config):
     r"""This function loads an existing (pre-trained) model and makes predictions based on the test dataset.
         Based on the mode it performs the test either on data from the same distrubution as trained (ID -- In Distribution)
-        or from another distribution (OOD -- Out Of Distribution)."""
+        or from another distribution (OOD -- Out Of Distribution). The tes will always be performed with a batch_size of 1."""
 
     # 1. Retrieve information from config dict
     device = config['device']
@@ -412,7 +420,6 @@ def _CNN_test(config):
     print('Device name: {}'.format(device_name))
     output_features = config['num_intensities']
     dataset_name = 'JIP_test'
-    test_mode = condig['mode']  # Either test with ID (In Distribution), OOD (Out Of Distribution), or IOOD (In and Out Of Distribution) dataset
 
     # 2. Define data --> Extra in JIP_dataset that loads everything from preprocessed for train!
     data = Data()
@@ -428,7 +435,7 @@ def _CNN_test(config):
     for ds_name, ds in data.datasets.items():
         splits[ds_name] = split_dataset(ds, test_ratio = config['test_ratio'], 
                           val_ratio = config['val_ratio'], nr_repetitions = 1, cross_validation = False)
-    pathr = os.path.join(os.environ["TRAIN_WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"], config['noise'], config['mode']+'_results')
+    pathr = os.path.join(os.environ["TEST_WORKFLOW_DIR"], os.environ["OPERATOR_OUT_DIR"], config['noise'], config['mode']+'_results')
     if not os.path.exists(pathr):
         os.makedirs(pathr)
     else:
@@ -445,29 +452,27 @@ def _CNN_test(config):
             if len(data_ixs) > 0: # Sometimes val indices may be an empty list
                 aug = config['augment_strat'] if not('test' in split) else 'none'
                 datasets[(ds_name, split)] = Pytorch3DQueue(ds, 
-                    ix_lst = data_ixs, size = (1, 64, 64, 64), aug_key = aug, 
-                    samples_per_volume = 64)
+                    ix_lst = data_ixs, size = (1, 100, 100, 60), aug_key = aug, 
+                    samples_per_volume = 16)
 
     # 5. Build test dataloader
-    dl = DataLoader(datasets[(test_ds)], 
-            batch_size = config['batch_size'], shuffle = True)
+    dl = DataLoader(datasets[(test_ds)], batch_size = 1, shuffle = True)
 
     # 6. Load pre-trained model
     path_m = os.path.join(os.environ["OPERATOR_PERSISTENT_DIR"], config['noise'], 'model_state_dict.zip')
-    model = lr.load_model('CNNModel', output_features, path_m, True)
+    model = lr.load_model('CNN_Net3D', output_features, path_m, True)
     model.to(device)
 
     # 7. Define Loss and Agent
     loss_f = LossCEL(device = device)
-    agent = NetAgent(model = model, device = device)
+    agent = NetAgent(model = model, device = device, lr_decay = config['lr_decay'])
 
     # 8. Test model
-    print('Testing model in batches of {}..'.format(config['batch_size']))
-    agent = NetAgent(model = model, device = device)
-    losses_test, _, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'])
+    print('Testing model in batches of 1..')
+    losses_test, _, accuracy_test, accuracy_det_test = agent.test(loss_f, dl, msg_bot = config['msg_bot'], store_data = config['store_data'])
     
     # 9. Save results
-    save_only_test_results(config['noise'], pathr, losses_test, accuracy_test, accuracy_det_test)
+    save_only_test_results(pathr, losses_test, accuracy_test, accuracy_det_test)
 
 
 def _CNN_predict(config):
@@ -478,7 +483,7 @@ def _CNN_predict(config):
     JIP = JIPDataset(img_size=config['input_shape'], num_intensities=config['num_intensities'], data_type=config['data_type'],\
                      augmentation=config['augmentation'], data_augmented=config['data_augmented'], gpu=True, cuda=config['device'],\
                      msg_bot = config['msg_bot'], nr_images=config['nr_images'], build_dataset=True, dtype='inference', noise=config['noise'],\
-                     ds_name=dataset_name, restore=config['restore'])
+                     ds_name='JIP_inference', restore=config['restore'])
     data.add_dataset(JIP)
 
     # 2. Load pre-trained models
