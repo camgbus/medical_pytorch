@@ -40,15 +40,17 @@ All the provided methods that will be introduced later on, use more or less the 
 For the following sections, it is expected that everything is installed as described in [here](../README.md/#medical_pytorch) and that the commands are executed in the right folder *-- inside medical_pytorch where [JIP.py](../JIP.py) is located --* using the corresponding Anaconda environment, if one is used. The steps before executing any of the introduced commands in the upcoming sections should look *-- more or less --* like the following:
 ```bash
                   ~ $ cd medical_pytorch
-		          ~ $ source ~/.bashrc
-		          ~ $ source activate <your_anaconda_env>
+		  ~ $ source ~/.bashrc
+		  ~ $ source activate <your_anaconda_env>
 <your_anaconda_env> $ python JIP.py ...
 ```
 
 ## Preprocessing data
 In order to be able to do inference or training/testing the provided artefact classifiers, the data needs to be preprocessed first. For this, the `--mode` command needs to be set to *preprocess*, whereas the `--datatype` needs to be specified as well. The tags `--device`, `--try_catch_repeat`, `--idle_time` and `--use_telegram_bot` can be set as well *-- if desired --*. The tag `--restore` needs to be used if the preprocessing failed/stopped during the process, so it can be continued where the program stopped, without preprocessing everything from the beginning. So in general the command for preprocessing looks like the following:
 ```bash
-<your_anaconda_env> $ python JIP.py --mode preprocess --datatype <type> --device <GPU_ID> [--restore --try_catch_repeat <nr> --idle_time <time_in_sec> --use_telegram_bot]
+<your_anaconda_env> $ python JIP.py --mode preprocess --datatype <type> --device <GPU_ID>
+				   [--restore --try_catch_repeat <nr> --idle_time <time_in_sec>
+				    --use_telegram_bot]
 ```
 Let's look at some use cases:
 1. Preprocess everything *-- train, test and inference data --* from scratch on GPU device 0:
