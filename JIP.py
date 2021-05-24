@@ -58,19 +58,6 @@ if __name__ == "__main__":
                         help='Send message during training through a Telegram Bot'+
                             ' (Token and Chat-ID need to be provided, otherwise an error occurs!).'+
                             ' Default: No Telegram Bot will be used to send messages.')
-    parser.add_argument('--testID', action='store_const', const=True, default=False,
-                        help='Test the pre-trained model with an unseen In Distribution dataset.'+
-                            ' (Only considered if --mode test is used).'+
-                            ' Default: Used if not otherwise specified.')
-    parser.add_argument('--testOOD', action='store_const', const=True, default=False,
-                        help='Test the pre-trained model with an unseen Out Of Distribution dataset.'+
-                            ' (Only considered if --mode test is used).'+
-                            ' Default: If not set, --testID will be used.')
-    parser.add_argument('--testIOOD', action='store_const', const=True, default=False,
-                        help='Test the pre-trained model with an unseen In Distribution'+
-                            ' and an Out Of Distribution dataset.'+
-                            ' (Only considered if --mode test is used).'+
-                            ' Default: If not set, --testID will be used.')
     parser.add_argument('--store_data', action='store_const', const=True, default=False,
                         help='Store the actual datapoints and save them as .npy after training.'+
                             ' Takes a lot of time and CPU power (when using GPU).'+
