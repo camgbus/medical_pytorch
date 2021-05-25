@@ -4,8 +4,8 @@ import math
 import numpy as np 
 from collections import OrderedDict
 from sklearn.mixture import GaussianMixture
-from mp.models.densities.density import Density_model
-from mp.utils.feature_extractor import Feature_extractor
+from mp.models.densities.density import Density_model # pylint: disable=import-error
+from mp.utils.feature_extractor import Feature_extractor # pylint: disable=import-error
 
 class histogramm_based_warning():
 
