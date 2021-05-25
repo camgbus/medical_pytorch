@@ -42,9 +42,9 @@ def inference(label=1):
 inference()
 
 # Train Workflow
-def train_workflow(preprocess=True,train_density=True,train_dice_pred=True,verbose=True, label=1):
+def train_workflow(preprocess=True,train_dice_pred=True,verbose=True, label=1):
     os.environ["INFERENCE_OR_TRAIN"] = 'train'
     from train_restore_use_models.train_int_based_quantifier import train_int_based_quantifier
-    train_int_based_quantifier(preprocess,train_density,train_dice_pred,verbose,label)
+    train_int_based_quantifier(preprocess,train_dice_pred,verbose,label)
 #!!!!!commented smth in train !!!!!
 #train_workflow()

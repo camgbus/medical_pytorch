@@ -5,7 +5,6 @@ import SimpleITK as sitk
 import numpy as np 
 import torch
 import json 
-from mp.models.densities.density import Density_model
 from mp.utils.feature_extractor import Feature_extractor
 from mp.utils.Iterators import Dataset_Iterator
 from mp.eval.metrics.simple_scores import dice_score
@@ -174,8 +173,7 @@ def bring_all_data_into_right_size():
 #extract the features for the img-seg and img-pred pairs 
 def extract_features_all_data(label):
     work_path = get_workflow_dir()
-    dens = Density_model(label=label)
-    feat_extr = Feature_extractor(density=dens)
+    feat_extr = Feature_extractor()
     for id in os.listdir(work_path):
         start_time = time.time()
         feat_extr.compute_features_id(id)
