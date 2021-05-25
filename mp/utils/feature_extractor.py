@@ -172,7 +172,7 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, density, features=['density_distance','dice_scores','connected_components','gauss_params']):
+    def __init__(self, density, features=['dice_scores','connected_components','gauss_params']):
         self.features = features
         self.nr_features = len(features)
 
@@ -242,16 +242,16 @@ class Feature_extractor():
                 component_iterator.threshold = original_threshhold
             if not dice_metrices:
                 print('Image has no usable components, no reliable computations can be made for dice')
-                return [1,0]
+                return 1
             dice_metrices = np.array(dice_metrices)
             dice_metrices = np.mean(dice_metrices,0)
-            return list(dice_metrices)
+            return dice_metrices[0]
         if feature == 'connected_components':
             _,number_components = label(seg,return_num=True)
             return number_components
         if feature == 'gauss_params':
             mean,var = mean_var_big_comp(img,seg)
-            return [mean,var]
+            return mean
 
     def compute_features_id(self,id):
         '''Computes all features for the img-seg and img-pred pairs (if existing)
