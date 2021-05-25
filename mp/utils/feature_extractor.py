@@ -172,13 +172,9 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, density, features=['dice_scores','connected_components','gauss_params']):
+    def __init__(self, features=['dice_scores','connected_components','gauss_params']):
         self.features = features
         self.nr_features = len(features)
-
-        self.density = density
-        self.density.load_density_values()
-        self.density_values = self.density.density_values
         self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features') #deprecated
         
         if not os.path.isdir(self.path_to_features):
@@ -218,21 +214,22 @@ class Feature_extractor():
         '''
         component_iterator = Component_Iterator(img,seg)
         original_threshhold = component_iterator.threshold
-        if feature == 'density_distance':
-            density_values = self.density_values
-            similarity_scores= component_iterator.iterate(get_similarities,
-                    density_values=density_values)
-            if not similarity_scores:
-                print('Image only has very small components')
-                component_iterator.threshold = 0
-                similarity_scores= component_iterator.iterate(get_similarities,
-                    density_values=density_values)
-                component_iterator.threshold = original_threshhold
-            if not similarity_scores:
-                print('Image has no usable components, no reliable computations can be made for density_dis')
-                similarity_scores = 0
-            average = np.mean(np.array(similarity_scores[:3]))
-            return average
+        # not used anymore, deprecated
+        # if feature == 'density_distance':
+        #     density_values = self.density_values
+        #     similarity_scores= component_iterator.iterate(get_similarities,
+        #             density_values=density_values)
+        #     if not similarity_scores:
+        #         print('Image only has very small components')
+        #         component_iterator.threshold = 0
+        #         similarity_scores= component_iterator.iterate(get_similarities,
+        #             density_values=density_values)
+        #         component_iterator.threshold = original_threshhold
+        #     if not similarity_scores:
+        #         print('Image has no usable components, no reliable computations can be made for density_dis')
+        #         similarity_scores = 0
+        #     average = np.mean(np.array(similarity_scores[:3]))
+        #     return average
         if feature == 'dice_scores':
             dice_metrices = component_iterator.iterate(get_dice_averages)
             if not dice_metrices:
@@ -250,7 +247,7 @@ class Feature_extractor():
             _,number_components = label(seg,return_num=True)
             return number_components
         if feature == 'gauss_params':
-            mean,var = mean_var_big_comp(img,seg)
+            mean,_ = mean_var_big_comp(img,seg)
             return mean
 
     def compute_features_id(self,id):
@@ -403,14 +400,6 @@ class Feature_extractor():
                 file.write(describtion)
                 file.write("\n")
                 file.write("With features: {}".format(self.features))
-    
-    # def bring_features_into_intervall(self,features_vec):
-    #     scores = []
-    #     precom_features = self.load_feature_vector('extracted_features_last_training')
-    #     for i,feature in enumerate(features_vec):
-    #         #sort feature vector
-    #         #find place 
-    #         #return place
             
 
 
