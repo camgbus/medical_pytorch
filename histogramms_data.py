@@ -205,7 +205,7 @@ def main(conn_comp=True,slice_dice=True,int_mode=True):
         print('The recommended threshold for slice dices is {}'.format(thresh))
     if int_mode:
         data = features[:,4]
-        threshholds = int_mode_n_percent(data,0.95)
+        threshholds = int_mode_n_percent(data,0.80)
         print(threshholds)
         plot_int_mode_hist(data,threshholds)
 
