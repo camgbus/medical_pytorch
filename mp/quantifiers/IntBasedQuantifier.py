@@ -16,8 +16,7 @@ class IntBasedQuantifier(SegImgQualityQuantifier):
 
         self.label = label
 
-        self.density = Density_model(label=label)
-        self.feat_extr = Feature_extractor(density=self.density)
+        self.feat_extr = Feature_extractor()
         self.dice_pred = Dice_predictor(label=label,version='standart')
         self.dice_pred.load()
 
