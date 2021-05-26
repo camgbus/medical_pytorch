@@ -37,7 +37,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train, reterain or use a specified model to predict the quality of CT scans.')
     parser.add_argument('--noise_type', choices=['blur', 'resolution', 'ghosting', 'noise',
                                                 'motion', 'spike'], required=False,
-                        help='Specify the CT artefact on which the model will be trained. '+
+                        help='Specify the CT artifact on which the model will be trained. '+
                              'Default model type: blur.')
     parser.add_argument('--mode', choices=['preprocess', 'train', 'retrain', 'testID', 'testOOD', 'testIOOD', 'inference'], required=True,
                         help='Specify in which mode to use the model. Either train a model or use'+
