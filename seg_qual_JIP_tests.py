@@ -17,12 +17,13 @@ os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"] = "output_scaled_train"
 
 #dir where train data for intensites is stored (this only needs to be trains_dirs, but since i have more 
 # datasets, another subfolder is here)
-os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs','proper_train_dirs')
+os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs')
+# os.environ["TRAIN_WORKFLOW_DIR"] = os.path.join(JIP_dir, 'train_dirs','proper_train_dirs')
 
 #ignore
 ##below is for christian only, used for older data structures where models are trained on
-# os.environ["TRAIN_WORKFLOW_DIR_GT"] = os.path.join('Covid-RACOON','All images and labels')
-# os.environ["TRAIN_WORKFLOW_DIR_PRED"] = os.path.join('Covid-RACOON','All predictions')
+os.environ["TRAIN_WORKFLOW_DIR_GT"] = os.path.join('Covid-RACOON','All images and labels')
+os.environ["TRAIN_WORKFLOW_DIR_PRED"] = os.path.join('Covid-RACOON','All predictions')
 # os.environ["TRAIN_WORKFLOW_DIR_GT"] = os.path.join('gt_small')
 # os.environ["TRAIN_WORKFLOW_DIR_PRED"] = os.path.join('pred_small')
 
@@ -39,12 +40,11 @@ def inference(label=1):
     from mp.quantifiers.IntBasedQuantifier import IntBasedQuantifier
     quantifier = IntBasedQuantifier(label=label)
     quantifier.get_quality()    
-inference()
+#inference()
 
 # Train Workflow
 def train_workflow(preprocess=True,train_dice_pred=True,verbose=True, label=1):
     os.environ["INFERENCE_OR_TRAIN"] = 'train'
     from train_restore_use_models.train_int_based_quantifier import train_int_based_quantifier
     train_int_based_quantifier(preprocess,train_dice_pred,verbose,label)
-#!!!!!commented smth in train !!!!!
-#train_workflow()
+train_workflow()
