@@ -172,7 +172,7 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, features=['dice_scores','connected_components','gauss_params']):
+    def __init__(self, features=['dice_scores','connected_components','gauss_params','single_components']):
         self.features = features
         self.nr_features = len(features)
         self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features') #deprecated
@@ -244,11 +244,14 @@ class Feature_extractor():
             dice_metrices = np.mean(dice_metrices,0)
             return dice_metrices[0]
         if feature == 'connected_components':
-            _,number_components = label(seg,return_num=True)
+            _,number_components = label(seg,return_num=True,connectivity=3)
             return number_components
         if feature == 'gauss_params':
             mean,_ = mean_var_big_comp(img,seg)
             return mean
+        if feature == 'single_components':
+            _,number_components = label(seg,return_num=True,connectivity=1)
+            return number_components
 
     def compute_features_id(self,id):
         '''Computes all features for the img-seg and img-pred pairs (if existing)

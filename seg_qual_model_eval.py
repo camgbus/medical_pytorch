@@ -121,8 +121,7 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
     for i in range(len(splits)):
         X.append([])
         y.append([])
-    dens = Density_model()
-    feat_extr = Feature_extractor(dens)
+    feat_extr = Feature_extractor()
     work_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
     for id in os.listdir(work_path):
         all_pred_path = os.path.join(work_path,id,'pred')
@@ -361,7 +360,7 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
-        #plot_variable_influence(X_train,X,y,splits)
+        plot_variable_influence(X_train,X,y,splits)
 
         ridge = Ridge(normalize=False)
         svr = SVR()
@@ -417,4 +416,4 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
     
 if __name__ == "__main__":
     #(SET all params, depending on desired train procedurey)
-    main([0,1,2,3,4,5],preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
+    main([0,1,2],preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
