@@ -263,7 +263,6 @@ def check_needs_downsize(img):
     '''
     shape = np.shape(img)
     if shape[0] > 50 or shape[1] > 512 or shape[2] > 512:
-        print(shape)
         return True 
     else:
         return False 
