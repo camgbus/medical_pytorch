@@ -35,7 +35,8 @@ class hist_based_warning_slice_dice(histogramm_based_warning):
             os.makedirs(self.path)
         self.path_to_threshholds = os.path.join(self.path,'threshholds.json')
         if os.path.exists(self.path_to_threshholds):
-            self.thresh_dict = json.load(self.path_to_threshholds)
+            with open(self.path_to_threshholds,'r') as file:
+                self.thresh_dict = json.load(file)
 
     def compute_threshholds(self,percentiles):
         data = self.load_seg_feature('dice_scores')
@@ -50,11 +51,11 @@ class hist_based_warning_slice_dice(histogramm_based_warning):
         hist, bin_edges = np.histogram(data,bins=bins)
         total_points = np.sum(hist)
         dens = np.array(hist)/total_points
-        dens_flipped = np.flip(dens)
-        dens_flipped_cumsum = np.cumsum(dens_flipped)
-        for i in range(len(dens_flipped_cumsum)):
-            if dens_flipped_cumsum[i]>percent:
-                return bin_edges[total_points-1-i]
+        len_hist = len(hist)
+        for i in range(len(hist)):
+            weight = np.sum(dens[len_hist-i:len_hist])
+            if weight >= percent:
+                return bin_edges[len_hist-i]
 
     def save_threshholds(self,thresh_dict):
         with open(self.path_to_threshholds) as save_file:
@@ -62,7 +63,7 @@ class hist_based_warning_slice_dice(histogramm_based_warning):
 
     def label_seg(self,seg_feature):
         num_threshholds = len(self.thresh_dict.items()) + 1
-        for i,threshhold in enumerate(self.thresh_dict.items()):
+        for i,(_,threshhold) in enumerate(self.thresh_dict.items()):
             if seg_feature > threshhold:
                 return (num_threshholds-i)/num_threshholds
         return 0
@@ -76,7 +77,8 @@ class hist_based_warning_conn_comp(histogramm_based_warning):
             os.makedirs(self.path)
         self.path_to_threshholds = os.path.join(self.path,'threshholds.json')
         if os.path.exists(self.path_to_threshholds):
-            self.thresh_dict = json.load(self.path_to_threshholds)
+            with open(self.path_to_threshholds,'r') as file:
+                self.thresh_dict = json.load(file)
 
     def compute_threshholds(self,percentiles):
         data = self.load_seg_feature('conn_comp')
@@ -99,7 +101,7 @@ class hist_based_warning_conn_comp(histogramm_based_warning):
 
     def label_seg(self,seg_feature):
         num_threshholds = len(self.thresh_dict.items()) + 1
-        for i,threshhold in enumerate(self.thresh_dict.items()):
+        for i,(_,threshhold) in enumerate(self.thresh_dict.items()):
             if seg_feature < threshhold:
                 return (num_threshholds-i)/num_threshholds
         return 0
@@ -113,7 +115,8 @@ class hist_based_warning_int_mode(histogramm_based_warning):
             os.makedirs(self.path)
         self.path_to_threshholds = os.path.join(self.path,'threshholds.json')
         if os.path.exists(self.path_to_threshholds):
-            self.thresh_dict = json.load(self.path_to_threshholds)
+            with open(self.path_to_threshholds,'r') as file:
+                self.thresh_dict = json.load(file)
 
     def compute_threshholds(self,percentiles):
         data = self.load_seg_feature('gauss_params')
