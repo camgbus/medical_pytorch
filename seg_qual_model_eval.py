@@ -250,8 +250,8 @@ def l1_loss_bins(pred,truth,split,by_sign=True):
                 plt.text(x,bins[i,1],str(len(loss_by_bin[i][1])))
         plt.plot(0.05+np.arange(10)*0.1,[0.1 for i in range(10)],'-r')
         plt.plot(0.05+np.arange(10)*0.1,[-0.1 for i in range(10)],'-r')
-        plt.xlabel('bin (e.g. 0.1 to 0.2)')
-        plt.ylabel('l1_error (pos -> overestimation')
+        plt.xlabel('y_true bin ')
+        plt.ylabel('approximation error')
     plt.title(split)
     plt.savefig(save_path)
     plt.show()
@@ -360,7 +360,7 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
-        plot_variable_influence(X_train,X,y,splits)
+        # plot_variable_influence(X_train,X,y,splits)
 
         ridge = Ridge(normalize=False)
         svr = SVR()
