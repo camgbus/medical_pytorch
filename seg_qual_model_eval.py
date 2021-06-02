@@ -1,4 +1,5 @@
-import os 
+import os
+from sys import path 
 from mp.paths import JIP_dir
 import numpy as np
 import torchio
@@ -90,19 +91,19 @@ def filter_feature_extr(id,model):
 
     Returns(str):the split for the pair of id and model, can be other, which can be 
         category of unused data'''
-    # train data 
-    if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
-        return 'train'
-    # id data
-    if model[:7] in ['Task740'] and id[:7] in ['Task741']:
-        return 'gc_gc'
-    if model[:7] in ['Task740'] and id[:7] in ['Task542']:
-        return 'gc_frank'
-    # od data 
-    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
-        return 'gc_mosmed'
-    if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
-        return 'gc_radio'
+    # # train data 
+    # if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
+    #     return 'train'
+    # # id data
+    # if model[:7] in ['Task740'] and id[:7] in ['Task741']:
+    #     return 'gc_gc'
+    # if model[:7] in ['Task740'] and id[:7] in ['Task542']:
+    #     return 'gc_frank'
+    # # od data 
+    # if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
+    #     return 'gc_mosmed'
+    # if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
+    #     return 'gc_radio'
     
     return 'other'
 
@@ -118,9 +119,12 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
     Returns(list): list, in which each entry corresponds to the features/labels of one split'''
     X = []
     y = []
+    paths_to_pred = []
     for i in range(len(splits)):
         X.append([])
         y.append([])
+        paths_to_pred.append([])
+
     feat_extr = Feature_extractor()
     work_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR_TRAIN"])
     for id in os.listdir(work_path):
@@ -140,8 +144,9 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
                         else:
                             X[i].append(feat_vec)
                             y[i].append(label)
+                            paths_to_pred[i].append(os.path.join(all_pred_path,model))
                             
-    return X,y
+    return X,y,paths_to_pred
 
 # 3. loss functions 
 def l2_loss(pred,truth):
@@ -315,7 +320,74 @@ def plot_variable_influence(X_train,X,y,splits):
         plt.savefig(save_path)
         plt.show()
 
-    
+def paper_figures_by_split(X_train,X,y,splits):
+    #per variable 
+    for i in range(len(X[0][0])):
+        
+        save_path = os.path.join('storage','Results','for_paper','Variable {}'.format(i))
+        plt.title('Feature {} vs dice'.format(i))
+
+        for j,split in enumerate(splits):
+            filt_X = [[X[j][k][i]] for k in range(len(X[j]))]
+            plt.scatter(filt_X,y[j],label=split)
+
+        plt.legend(loc='lower right')
+        plt.xlabel('feature_value')
+        plt.ylabel('dice score of segmentation')
+        plt.savefig(save_path)
+        plt.show()
+
+def find_ex_pred(X,y,paths):
+    paths_ex = []
+    seen_paths = ['storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task100_RadiopediaTrain_0007\\pred\\Task740_ChallengeTrainF4',
+                    'storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task200_MosmedTrain_0027\\pred\\Task740_ChallengeTrainF4',
+                    'storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task200_MosmedTrain_0013\\pred\\Task740_ChallengeTrainF4',
+                    'storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task100_RadiopediaTrain_0008\\pred\\Task541_FrankfurtTrainF4']
+    for i in range(len(X[0][0])):
+        thresh = 0.2
+        if i == 0:
+            smallest_val = 1
+            smallest_ind = [0,0]
+            for j in range(len(X)):
+                filt_X = np.array([[X[j][k][i]] for k in range(len(X[j]))])
+                for k in range(len(filt_X)):
+                    if filt_X[k] < smallest_val and y[j][k] <= thresh and paths[j][k] not in seen_paths: 
+                        smallest_val = filt_X[k]
+                        smallest_ind = [j,k]
+            paths_ex.append(paths[smallest_ind[0]][smallest_ind[1]])
+            print(smallest_val)
+            print(y[smallest_ind[0]][smallest_ind[1]])
+        if i == 1:
+            smallest_val = 1
+            smallest_ind = [0,0]
+            for j in range(len(X)):
+                filt_X = np.array([[X[j][k][i]] for k in range(len(X[j]))])
+                for k in range(len(filt_X)):
+                    if filt_X[k] > smallest_val and y[j][k] <= thresh and paths[j][k] not in paths_ex and paths[j][k] not in seen_paths:
+                        smallest_val = filt_X[k]
+                        smallest_ind = [j,k]
+            paths_ex.append(paths[smallest_ind[0]][smallest_ind[1]])
+            print(smallest_val)
+            print(y[smallest_ind[0]][smallest_ind[1]])
+        if i == 2:
+            smallest_val = 0
+            smallest_ind = [0,0]
+            for j in range(len(X)):
+                filt_X = np.array([[X[j][k][i]] for k in range(len(X[j]))])
+                for k in range(len(filt_X)):
+                    if filt_X[k] > smallest_val and y[j][k] <= thresh and paths[j][k] not in paths_ex and paths[j][k] not in seen_paths:
+                        smallest_val = filt_X[k]
+                        smallest_ind = [j,k]
+            paths_ex.append(paths[smallest_ind[0]][smallest_ind[1]])
+            print(smallest_val)
+            print(y[smallest_ind[0]][smallest_ind[1]])
+    print(paths_ex)
+    return paths_ex
+        
+                
+
+
+
 def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_extraction=True,
             extract_dice_scores=True,model_train=True,label=1):
     '''
@@ -355,12 +427,14 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         all_errors_over =[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['train','gc_gc','gc_frank','gc_mosmed','gc_radio']
-        X,y = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
+        splits = ['other']# ['train','gc_gc','gc_frank','gc_mosmed','gc_radio']
+        X,y,paths_pred = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
         # plot_variable_influence(X_train,X,y,splits)
+        # paper_figures_by_split(X_train,X,y,splits)
+        find_ex_pred(X,y,paths_pred)
 
         ridge = Ridge(normalize=False)
         svr = SVR()
@@ -387,7 +461,7 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
             svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
             mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
 
-            l1_loss_bins(y_svr,y_eval,split)
+            # l1_loss_bins(y_svr,y_eval,split)
 
             for i,std in enumerate([ridge_std,svr_std,mlp_std]):
                 stds_of_splits[i].append(std)
@@ -417,3 +491,8 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
 if __name__ == "__main__":
     #(SET all params, depending on desired train procedurey)
     main([0,1,2],preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
+
+# for dices : copies: img:  Task100_RadiopediaTrain_0009 pred:  Task740_ChallengeTrainF4'
+# for int mode : not lung tissue: img : Task200_MosmedTrain_0033 pred : Task740_ChallengeTrainF4'
+# for conn comp : too muh and many: img : Task100_RadiopediaTrain_0008 pred : Task541_FrankfurtTrainF4'
+#                                or img : Task100_RadiopediaTrain_0007 pred : Task541_FrankfurtTrainF4'
