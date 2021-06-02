@@ -279,13 +279,37 @@ def plot_hist_metric_per_split(X,y,splits,warn_s,warn_c,warn_m):
     for j,split in enumerate(splits):
         X[j] = [get_cum_metric(X[j][k],warn_s,warn_c,warn_m) for k in range(len(X[j]))]
 
+    cutoff_loss_per_intervall(X[0],y[0],0.4)
+
     for j,split in enumerate(splits):
         plt.scatter(X[j],y[j],label=split)
-    plt.xlabel('cumulated metric')
-    plt.ylabel('dice score of prediction')
-    plt.legend(loc='upper left')
-    plt.show()
+        plt.xlabel('cumulated metric')
+        plt.ylabel('dice score of prediction')
+        plt.legend(loc='upper left')
+        plt.xlim([0,3])
+        plt.ylim([0,1])
+        plt.show()
 
+def cutoff_loss_per_intervall(cum_metric,truth,tresh):
+    # zum einen möglichst viele fangen, zum anderen besser als random 
+    # -> höchste grenze, wo deutlich besser als random 
+    # deutlich besser = ? 
+    percent = []
+    lengths = []
+    for cut in np.arange(0,3.2,0.2):
+        relevant_m = [cum_metric[j] for j in range(len(cum_metric)) if cum_metric[j]<=cut]
+        relevant_truth = [truth[j] for j in range(len(cum_metric)) if cum_metric[j]<=cut]
+        flagged = [relevant_truth[j] for j in range(len(relevant_truth)) if relevant_truth[j]<=tresh]
+        if len(relevant_truth) > 3:
+            per = len(flagged)/len(relevant_truth)
+        else:
+             per = 0
+        percent.append(per)
+        lengths.append(len(flagged))
+    print(np.arange(0,3.2,0.2))
+    print(percent)
+    print(lengths)
+        
 
 
 def main(used_feat=[0,1,2]):
