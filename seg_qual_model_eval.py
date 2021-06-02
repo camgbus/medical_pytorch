@@ -104,7 +104,17 @@ def filter_feature_extr(id,model):
     #     return 'gc_mosmed'
     # if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
     #     return 'gc_radio'
-    
+
+    # train data 
+    if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
+        return 'id_train'
+    # id data
+    if model[:7] in ['Task740'] and id[:7] in ['Task741','Task542']:
+        return 'id_test'
+    # od data 
+    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201','Task100','Task101']:
+        return 'ood_test'
+
     return 'other'
 
 # 2.2 extract the 
@@ -324,19 +334,38 @@ def paper_figures_by_split(X_train,X,y,splits):
     #per variable 
     for i in range(len(X[0][0])):
         
-        save_path = os.path.join('storage','Results','for_paper','Variable {}'.format(i))
-        plt.title('Feature {} vs dice'.format(i))
+        title,leg_loc,xlabel,legend_prop = figure_namesand_settings(i)
+        save_path = os.path.join('storage','Results','for_paper','Variable {} _lesslabels'.format(i))
+        plt.title(title)
 
         for j,split in enumerate(splits):
             filt_X = [[X[j][k][i]] for k in range(len(X[j]))]
             plt.scatter(filt_X,y[j],label=split)
 
-        plt.legend(loc='lower right')
-        plt.xlabel('feature_value')
-        plt.ylabel('dice score of segmentation')
+        plt.legend(loc=leg_loc,prop = legend_prop)
+        plt.xlabel(xlabel)
+        plt.ylabel('Dice Score of segmentation')
         plt.savefig(save_path)
         plt.show()
 
+def figure_namesand_settings(feat_nr):
+    if feat_nr == 0:
+        title = 'Segmentation smoothness vs Dice Scoore prediction'
+        leg_loc = 'upper left'
+        xlabel = 'Segmentation smoothness'
+        legend_prop = {'size':8}
+    if feat_nr == 1:
+        title = 'Number Connected Components vs Dice Scoore prediction'
+        leg_loc = 'upper right'
+        xlabel = 'Number Connected Components'
+        legend_prop = {'size':8}
+    if feat_nr == 2:
+        title = 'Intensity Mode vs Dice Scoore prediction'
+        leg_loc = 'upper right'
+        xlabel = 'Intensity Mode'
+        legend_prop = {'size':8}
+    return title,leg_loc,xlabel,legend_prop
+        
 def find_ex_pred(X,y,paths):
     paths_ex = []
     seen_paths = ['storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task100_RadiopediaTrain_0007\\pred\\Task740_ChallengeTrainF4',
@@ -427,14 +456,14 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         all_errors_over =[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['other']# ['train','gc_gc','gc_frank','gc_mosmed','gc_radio']
+        splits = ['id_train','id_test','ood_test'] #['train','gc_gc','gc_frank','gc_mosmed','gc_radio'] ['other'] 
         X,y,paths_pred = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
         # plot_variable_influence(X_train,X,y,splits)
-        # paper_figures_by_split(X_train,X,y,splits)
-        find_ex_pred(X,y,paths_pred)
+        paper_figures_by_split(X_train,X,y,splits)
+        # find_ex_pred(X,y,paths_pred)
 
         ridge = Ridge(normalize=False)
         svr = SVR()
