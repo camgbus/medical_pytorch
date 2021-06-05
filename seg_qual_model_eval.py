@@ -91,31 +91,31 @@ def filter_feature_extr(id,model):
 
     Returns(str):the split for the pair of id and model, can be other, which can be 
         category of unused data'''
-    # # train data 
-    # if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
-    #     return 'train'
-    # # id data
-    # if model[:7] in ['Task740'] and id[:7] in ['Task741']:
-    #     return 'gc_gc'
-    # if model[:7] in ['Task740'] and id[:7] in ['Task542']:
-    #     return 'gc_frank'
-    # # od data 
-    # if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
-    #     return 'gc_mosmed'
-    # if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
-    #     return 'gc_radio'
-
     # train data 
     if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
-        return 'id_train'
+        return 'train'
     # id data
-    if model[:7] in ['Task740'] and id[:7] in ['Task741','Task542']:
-        return 'id_test'
+    if model[:7] in ['Task740'] and id[:7] in ['Task741']:
+        return 'gc_gc'
+    if model[:7] in ['Task740'] and id[:7] in ['Task542']:
+        return 'gc_frank'
     # od data 
-    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201','Task100','Task101']:
-        return 'ood_test'
+    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
+        return 'gc_mosmed'
+    if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
+        return 'gc_radio'
 
-    return 'other'
+    # # train data 
+    # if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
+    #     return 'id_train'
+    # # id data
+    # if model[:7] in ['Task740'] and id[:7] in ['Task741','Task542']:
+    #     return 'id_test'
+    # # od data 
+    # if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201','Task100','Task101']:
+    #     return 'ood_test'
+
+    # return 'other'
 
 # 2.2 extract the 
 def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
@@ -149,6 +149,7 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
                         feat_vec = feat_extr.read_feature_vector(feature_path)
                         feat_vec = [feat_vec[index] for index in used_feat]
                         label = feat_extr.read_prediction_label(label_path)
+                        label = get_class(label)
                         if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                             pass 
                         else:
@@ -158,6 +159,17 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
                             
     return X,y,paths_to_pred
 
+def get_class(label):
+    if label < 0.2:
+        return 1
+    elif label < 0.4:
+        return 2 
+    elif label < 0.6:
+        return 3
+    elif label < 0.8:
+        return 4
+    else:
+        return 5
 # 3. loss functions 
 def l2_loss(pred,truth):
     n = len(pred)
@@ -184,6 +196,11 @@ def l1_loss_overestimation(pred,truth,std=False):
 
 def get_l1_losses(truth,pred):    
     return np.absolute(truth-pred)    
+
+def accuracy(pred,truth): 
+    from sklearn.metrics import confusion_matrix
+    return confusion_matrix(np.array(pred),np.array(truth),labels=[1,2,3,4,5])
+
 
 # 4. plots for further analysis.
 # (OPTIONAL SET the saving path for the bar plots)
@@ -456,66 +473,84 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         all_errors_over =[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['id_train','id_test','ood_test'] #['train','gc_gc','gc_frank','gc_mosmed','gc_radio'] ['other'] 
+        splits = ['train','gc_gc','gc_frank','gc_mosmed','gc_radio']#['id_train','id_test','ood_test'] # ['other'] 
         X,y,paths_pred = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
-        # plot_variable_influence(X_train,X,y,splits)
-        paper_figures_by_split(X_train,X,y,splits)
-        # find_ex_pred(X,y,paths_pred)
-
-        ridge = Ridge(normalize=False)
-        svr = SVR()
-        mlp = MLPRegressor((50,100,100,50))
-
-        ridge.fit(X_train,y_train)
-        svr.fit(X_train,y_train)
-        mlp.fit(X_train,y_train)
-
+        import collections
+        # print(collections.Counter(y_train))
+        from sklearn.svm import SVC 
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.metrics import f1_score
+        from sklearn.metrics import confusion_matrix
+        svm = SVC(class_weight={1:10,2:8,3:2,4:1,5:1})
+        lr = LogisticRegression(class_weight={1:10,2:8,3:2,4:1,5:1})
+        svm.fit(X_train,y_train) 
+        lr.fit(X_train,y_train)
         for i,split in enumerate(splits):
-            
+        
             X_eval = scaler.transform(X[i])
             y_eval = y[i]
 
-            y_ridge = ridge.predict(X_eval)
-            y_svr = svr.predict(X_eval)
-            y_mlp = mlp.predict(X_eval)
 
-            ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
-            svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
-            mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
+            y_svm = lr.predict(X_eval)
+            print(accuracy(y_eval,y_svm))
+        # plot_variable_influence(X_train,X,y,splits)
+        # paper_figures_by_split(X_train,X,y,splits)
+        # find_ex_pred(X,y,paths_pred)
 
-            ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
-            svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
-            mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
+        # ridge = Ridge(normalize=False)
+        # svr = SVR()
+        # mlp = MLPRegressor((50,100,100,50))
 
-            # l1_loss_bins(y_svr,y_eval,split)
+        # ridge.fit(X_train,y_train)
+        # svr.fit(X_train,y_train)
+        # mlp.fit(X_train,y_train)
 
-            for i,std in enumerate([ridge_std,svr_std,mlp_std]):
-                stds_of_splits[i].append(std)
-            for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
-                stds_of_splits_over[i].append(std)
-            for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
-                for err in errors:  
-                    all_errors[i].append(err)
-            for i in range(3):
-                all_errors_over[i] = [max(err,0) for err in all_errors[i]]
+        # for i,split in enumerate(splits):
+            
+        #     X_eval = scaler.transform(X[i])
+        #     y_eval = y[i]
 
-            #a vector that predicts the mean value of y_train, is a baseline
-            # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
-            print('{}    :        ridge               svr             mlp  '.format(split))
-            print(u"error          {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err,ridge_std,svr_err,svr_std,mlp_err,mlp_std))
-            print(u"error overest. {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err_over,ridge_std_over,svr_err_over,svr_std_over,mlp_err_over,mlp_std_over))
+        #     y_ridge = ridge.predict(X_eval)
+        #     y_svr = svr.predict(X_eval)
+        #     y_mlp = mlp.predict(X_eval)
 
-            # print('Using mean of train values, has error of {} and std of {}'.format(l1_loss(y_mean,y_train,std=True)[0],l1_loss(y_mean,y_train,std=True)[1]))
-            print()
+        #     ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
+        #     svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
+        #     mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
 
-        print('TOTAL:                       ridge     svr      mlp  ')
-        print('mean of split stds          {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
-        print('std of all errors           {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
-        print('mean of split stds overest. {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits_over[0]),np.mean(stds_of_splits_over[1]),np.mean(stds_of_splits_over[2])))
-        print('std of all errors overest.  {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors_over[0]),np.std(all_errors_over[1]),np.std(all_errors_over[2])))
+        #     ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
+        #     svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
+        #     mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
+
+        #     # l1_loss_bins(y_svr,y_eval,split)
+
+        #     for i,std in enumerate([ridge_std,svr_std,mlp_std]):
+        #         stds_of_splits[i].append(std)
+        #     for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
+        #         stds_of_splits_over[i].append(std)
+        #     for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
+        #         for err in errors:  
+        #             all_errors[i].append(err)
+        #     for i in range(3):
+        #         all_errors_over[i] = [max(err,0) for err in all_errors[i]]
+
+        #     #a vector that predicts the mean value of y_train, is a baseline
+        #     # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
+        #     print('{}    :        ridge               svr             mlp  '.format(split))
+        #     print(u"error          {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err,ridge_std,svr_err,svr_std,mlp_err,mlp_std))
+        #     print(u"error overest. {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err_over,ridge_std_over,svr_err_over,svr_std_over,mlp_err_over,mlp_std_over))
+
+        #     # print('Using mean of train values, has error of {} and std of {}'.format(l1_loss(y_mean,y_train,std=True)[0],l1_loss(y_mean,y_train,std=True)[1]))
+        #     print()
+
+        # print('TOTAL:                       ridge     svr      mlp  ')
+        # print('mean of split stds          {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
+        # print('std of all errors           {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
+        # print('mean of split stds overest. {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits_over[0]),np.mean(stds_of_splits_over[1]),np.mean(stds_of_splits_over[2])))
+        # print('std of all errors overest.  {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors_over[0]),np.std(all_errors_over[1]),np.std(all_errors_over[2])))
     
 if __name__ == "__main__":
     #(SET all params, depending on desired train procedurey)
