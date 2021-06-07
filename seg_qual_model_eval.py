@@ -482,10 +482,11 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         # print(collections.Counter(y_train))
         from sklearn.svm import SVC 
         from sklearn.linear_model import LogisticRegression
+        from sklearn.neural_network import MLPClassifier
         from sklearn.metrics import f1_score
         from sklearn.metrics import confusion_matrix
-        svm = SVC(class_weight={1:10,2:8,3:2,4:1,5:1})
-        lr = LogisticRegression(class_weight={1:10,2:8,3:2,4:1,5:1})
+        svm = SVC(class_weight={1:15,2:9,3:3,4:1,5:1})
+        lr = LogisticRegression(class_weight={1:15,2:9,3:3,4:1,5:1})
         svm.fit(X_train,y_train) 
         lr.fit(X_train,y_train)
         for i,split in enumerate(splits):
@@ -494,7 +495,18 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
             y_eval = y[i]
 
 
+            y_svm = svm.predict(X_eval)
+            print(split)
+            print(accuracy(y_eval,y_svm))
+        print('lr')
+        for i,split in enumerate(splits):
+        
+            X_eval = scaler.transform(X[i])
+            y_eval = y[i]
+
+
             y_svm = lr.predict(X_eval)
+            print(split)
             print(accuracy(y_eval,y_svm))
         # plot_variable_influence(X_train,X,y,splits)
         # paper_figures_by_split(X_train,X,y,splits)
