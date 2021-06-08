@@ -149,7 +149,7 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
                         feat_vec = feat_extr.read_feature_vector(feature_path)
                         feat_vec = [feat_vec[index] for index in used_feat]
                         label = feat_extr.read_prediction_label(label_path)
-                        label = get_class(label)
+                        # label = get_class(label)
                         if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                             pass 
                         else:
@@ -390,7 +390,7 @@ def find_ex_pred(X,y,paths):
                     'storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task200_MosmedTrain_0013\\pred\\Task740_ChallengeTrainF4',
                     'storage\\JIP\\preprocessed_dirs\\output_scaled_train\\Task100_RadiopediaTrain_0008\\pred\\Task541_FrankfurtTrainF4']
     for i in range(len(X[0][0])):
-        thresh = 0.2
+        thresh = 0.4
         if i == 0:
             smallest_val = 1
             smallest_ind = [0,0]
@@ -478,76 +478,81 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
 
         X_train = scaler.fit_transform(X[0])
         y_train = y[0]
-        import collections
+        
+        ## START of experiments with classification task
+        # import collections
         # print(collections.Counter(y_train))
-        from sklearn.svm import SVC 
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.neural_network import MLPClassifier
-        from sklearn.metrics import f1_score
-        from sklearn.metrics import confusion_matrix
-        svm = SVC(class_weight={1:15,2:9,3:3,4:1,5:1})
-        lr = LogisticRegression(class_weight={1:15,2:9,3:3,4:1,5:1})
-        svm.fit(X_train,y_train) 
-        lr.fit(X_train,y_train)
-        for i,split in enumerate(splits):
-        
-            X_eval = scaler.transform(X[i])
-            y_eval = y[i]
-
-
-            y_svm = svm.predict(X_eval)
-            print(split)
-            print(accuracy(y_eval,y_svm))
-        print('lr')
-        for i,split in enumerate(splits):
-        
-            X_eval = scaler.transform(X[i])
-            y_eval = y[i]
-
-
-            y_svm = lr.predict(X_eval)
-            print(split)
-            print(accuracy(y_eval,y_svm))
-        # plot_variable_influence(X_train,X,y,splits)
-        # paper_figures_by_split(X_train,X,y,splits)
-        # find_ex_pred(X,y,paths_pred)
-
-        # ridge = Ridge(normalize=False)
-        # svr = SVR()
-        # mlp = MLPRegressor((50,100,100,50))
-
-        # ridge.fit(X_train,y_train)
-        # svr.fit(X_train,y_train)
-        # mlp.fit(X_train,y_train)
-
+        # from sklearn.svm import SVC 
+        # from sklearn.linear_model import LogisticRegression
+        # from sklearn.neural_network import MLPClassifier
+        # from sklearn.metrics import f1_score
+        # from sklearn.metrics import confusion_matrix
+        # svm = SVC(class_weight={1:15,2:9,3:3,4:1,5:1})
+        # lr = LogisticRegression(class_weight={1:15,2:9,3:3,4:1,5:1})
+        # svm.fit(X_train,y_train) 
+        # lr.fit(X_train,y_train)
         # for i,split in enumerate(splits):
-            
+        
         #     X_eval = scaler.transform(X[i])
         #     y_eval = y[i]
 
-        #     y_ridge = ridge.predict(X_eval)
-        #     y_svr = svr.predict(X_eval)
-        #     y_mlp = mlp.predict(X_eval)
 
-        #     ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
-        #     svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
-        #     mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
+        #     y_svm = svm.predict(X_eval)
+        #     print(split)
+        #     print(accuracy(y_eval,y_svm))
+        # print('lr')
+        # for i,split in enumerate(splits):
+        
+        #     X_eval = scaler.transform(X[i])
+        #     y_eval = y[i]
 
-        #     ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
-        #     svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
-        #     mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
 
-        #     # l1_loss_bins(y_svr,y_eval,split)
+        #     y_svm = lr.predict(X_eval)
+        #     print(split)
+        #     print(accuracy(y_eval,y_svm))
+        ## END of classification tests 
 
-        #     for i,std in enumerate([ridge_std,svr_std,mlp_std]):
-        #         stds_of_splits[i].append(std)
-        #     for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
-        #         stds_of_splits_over[i].append(std)
-        #     for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
-        #         for err in errors:  
-        #             all_errors[i].append(err)
-        #     for i in range(3):
-        #         all_errors_over[i] = [max(err,0) for err in all_errors[i]]
+        # START of part for regression task
+        # plot_variable_influence(X_train,X,y,splits)
+        # paper_figures_by_split(X_train,X,y,splits)
+        find_ex_pred(X,y,paths_pred)
+
+        ridge = Ridge(normalize=False)
+        svr = SVR()
+        mlp = MLPRegressor((50,100,100,50))
+
+        ridge.fit(X_train,y_train)
+        svr.fit(X_train,y_train)
+        mlp.fit(X_train,y_train)
+        for i,split in enumerate(splits):
+            
+            X_eval = scaler.transform(X[i])
+            y_eval = y[i]
+            # print(split[:5],'{:.3f} {:.3f} {:.3f}'.format(np.std(y_eval),np.min(y_eval),np.max(y_eval)))
+
+            y_ridge = ridge.predict(X_eval)
+            y_svr = svr.predict(X_eval)
+            y_mlp = mlp.predict(X_eval)
+
+            ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
+            svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
+            mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
+
+            ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
+            svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
+            mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
+
+            # l1_loss_bins(y_svr,y_eval,split)
+
+            for i,std in enumerate([ridge_std,svr_std,mlp_std]):
+                stds_of_splits[i].append(std)
+            for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
+                stds_of_splits_over[i].append(std)
+            for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
+                for err in errors:  
+                    all_errors[i].append(err)
+            for i in range(3):
+                all_errors_over[i] = [max(err,0) for err in all_errors[i]]
 
         #     #a vector that predicts the mean value of y_train, is a baseline
         #     # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
@@ -563,7 +568,8 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         # print('std of all errors           {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
         # print('mean of split stds overest. {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits_over[0]),np.mean(stds_of_splits_over[1]),np.mean(stds_of_splits_over[2])))
         # print('std of all errors overest.  {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors_over[0]),np.std(all_errors_over[1]),np.std(all_errors_over[2])))
-    
+        # # END regression task
+
 if __name__ == "__main__":
     #(SET all params, depending on desired train procedurey)
     main([0,1,2],preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
