@@ -11,6 +11,8 @@ from mp.models.densities.density import Density_model
 import datetime
 from mp.utils.intensities import sample_intensities
 from sklearn.mixture import GaussianMixture
+from mp.utils.lung_captured import _extract_lung_segmentation
+
 def get_array_of_dicescores(seg): 
     '''computes the array of dicescores for the given segmentation,
     it is assumed, that the label of interest is 1 and all other labels are 0.
@@ -159,6 +161,8 @@ def mean_var_big_comp(img,seg):
     var = dens.covariances_[0,0,0]
     return mean, var
 
+def segmentation_in_lung(img,seg):
+    seg_mask = _extract_lung_segmentation(input_path, gpu, cuda)    
 
 class Feature_extractor():
     '''A class for extracting feature of img-seg pairs and get arrays of features
