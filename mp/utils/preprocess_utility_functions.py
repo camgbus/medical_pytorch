@@ -17,7 +17,7 @@ def basic_preprocessing(label=1):
     copy_data_into_preprocess_dir()
     bring_all_data_into_right_size()
     mask_out_labels_all_seg(label=label)
-    scale_all_images()
+    # scale_all_images()
     
 #first make functions to copy the data into the right storage format
 def copy_data_into_preprocess_dir():
