@@ -9,6 +9,8 @@ from mp.utils.feature_extractor import Feature_extractor
 from mp.utils.Iterators import Dataset_Iterator
 from mp.eval.metrics.simple_scores import dice_score
 from mp.data.pytorch.transformation import resize_3d
+from mp.utils.lung_captured import _extract_lung_segmentation
+import multiprocessing as mup
 
 def basic_preprocessing(label=1):
     '''does the 3 basic preprocessing steps of copying the data in the right format 
@@ -17,6 +19,7 @@ def basic_preprocessing(label=1):
     copy_data_into_preprocess_dir()
     bring_all_data_into_right_size()
     mask_out_labels_all_seg(label=label)
+    compute_lung_segmentations()
     # scale_all_images()
     
 #first make functions to copy the data into the right storage format
@@ -361,6 +364,32 @@ def compute_prediction_dice_scores_for_id(id_path):
             with open(dice_score_save_path,'w') as file:
                 json.dump(dice,file)
 
+def compute_lung_segmentations():
+    if not torch.cuda.is_available():
+        mup.freeze_support()
+    work_path = get_workflow_dir()
+    for id in os.listdir(work_path):
+        start_time = time.time()
+        compute_lung_segmentation(work_path,id)
+        end_time = time.time()
+        dur = end_time-start_time
+        with open('logging_info_private.txt','a') as file: 
+            file.write('lung segmentation on {} took {}'.format(id,dur))
+            file.write("\r")
+
+def compute_lung_segmentation(work_path,id):
+    img_path = os.path.join(work_path,id,'img','img.nii.gz')
+    lung_seg_path = os.path.join(work_path,id,'lung_seg')
+    lung_seg_save_path = os.path.join(lung_seg_path,'lung_seg.nii.gz')
+    if not os.path.exists(lung_seg_path):
+        os.makedirs(lung_seg_path)
+    if torch.cuda.is_available():
+        segmentation = _extract_lung_segmentation(img_path, gpu=True)
+    else:
+        segmentation = _extract_lung_segmentation(img_path, gpu=False, cuda='cpu')
+    segmentation[segmentation==2] = 1
+    segmentation = sitk.GetImageFromArray(segmentation)
+    sitk.WriteImage(segmentation,lung_seg_save_path)
 
 # Below unused functions in normal case 
 
