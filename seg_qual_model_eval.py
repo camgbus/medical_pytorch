@@ -151,7 +151,7 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
                         feat_vec = feat_extr.read_feature_vector(feature_path)
                         feat_vec = [feat_vec[index] for index in used_feat]
                         label = feat_extr.read_prediction_label(label_path)
-                        label = get_class(label)
+                        # label = get_class(label)
                         if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                             pass 
                         else:
@@ -351,7 +351,8 @@ def plot_variable_influence(X_train,X,y,splits):
 
 def paper_figures_by_split(X_train,X,y,splits):
     #per variable 
-    plt.rcParams.update({'font.size': 20})
+    #plt.rcParams.update({'font.size': 20})
+    
     for i in range(len(X[0][0])):
         
         title,leg_loc,xlabel,legend_prop = figure_namesand_settings(i)
@@ -363,8 +364,10 @@ def paper_figures_by_split(X_train,X,y,splits):
             plt.scatter(filt_X,y[j],label=split)
         if i == 0:
             pass #plt.legend(loc=leg_loc,prop = legend_prop)
-        plt.xlabel(xlabel)
-        plt.ylabel('Dice Score of segmentation')
+        #plt.xlabel(xlabel)
+        #plt.ylabel('Dice Score of segmentation')
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
         plt.savefig(save_path)
         plt.show()
 
@@ -495,84 +498,84 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         all_errors_over =[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['id_train','id_test','ood_test','other']#['train','gc_gc','gc_frank','gc_mosmed','gc_radio']['id_train','id_test','ood_test'] # ['other'] 
+        splits = ['id_train','id_test','ood_test']#['train','gc_gc','gc_frank','gc_mosmed','gc_radio']['id_train','id_test','ood_test'] # ['other'] 
         X,y,paths_pred = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
 
         X_train = scaler.fit_transform(X[0])
         y_train = np.array(y[0])
-        # START of experiments with classification task
-        import collections
-        print(collections.Counter(y[3]))
-        from sklearn.svm import SVC 
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.neural_network import MLPClassifier
-        from sklearn.metrics import f1_score
-        from sklearn.metrics import confusion_matrix
-        svm = SVC(class_weight={1:15,2:9,3:3,4:1,5:1})
-        lr = LogisticRegression(class_weight={1:15,2:9,3:3,4:1,5:1})
-        # bootstrapping 
-        from numpy.random import rand
-        from numpy.random import randint
-        from numpy import mean
-        from numpy import median
-        from numpy import percentile
-        scores = [[] for _ in range(len(splits))]
-        scores_lr = [[] for _ in range(len(splits))]
-        for _ in range(1000):
-            indices = randint(0,len(X_train),1000)
+        # # START of experiments with classification task
+        # import collections
+        # print(collections.Counter(y[3]))
+        # from sklearn.svm import SVC 
+        # from sklearn.linear_model import LogisticRegression
+        # from sklearn.neural_network import MLPClassifier
+        # from sklearn.metrics import f1_score
+        # from sklearn.metrics import confusion_matrix
+        # svm = SVC(class_weight={1:15,2:9,3:3,4:1,5:1})
+        # lr = LogisticRegression(class_weight={1:15,2:9,3:3,4:1,5:1})
+        # # bootstrapping 
+        # from numpy.random import rand
+        # from numpy.random import randint
+        # from numpy import mean
+        # from numpy import median
+        # from numpy import percentile
+        # scores = [[] for _ in range(len(splits))]
+        # scores_lr = [[] for _ in range(len(splits))]
+        # for _ in range(1000):
+        #     indices = randint(0,len(X_train),1000)
 
-            X_train_b = X_train[indices]
-            y_train_b = y_train[indices]
-            svm.fit(X_train_b,y_train_b) 
-            lr.fit(X_train_b,y_train_b) 
+        #     X_train_b = X_train[indices]
+        #     y_train_b = y_train[indices]
+        #     svm.fit(X_train_b,y_train_b) 
+        #     lr.fit(X_train_b,y_train_b) 
             
                 
 
-            for i,split in enumerate(splits):
+        #     for i,split in enumerate(splits):
             
-                X_eval = scaler.transform(X[i])
-                y_eval = y[i]
+        #         X_eval = scaler.transform(X[i])
+        #         y_eval = y[i]
 
-                y_svm = svm.predict(X_eval)
-                y_lr = lr.predict(X_eval)
+        #         y_svm = svm.predict(X_eval)
+        #         y_lr = lr.predict(X_eval)
 
-                conf_ma = accuracy(y_eval,y_svm)
-                conf_ma_lr = accuracy(y_eval,y_lr)
+        #         conf_ma = accuracy(y_eval,y_svm)
+        #         conf_ma_lr = accuracy(y_eval,y_lr)
 
-                scores[i].append(my_prec(conf_ma))
-                scores_lr[i].append(my_prec(conf_ma_lr))
-        lower_p = 2.5
-        upper_p = 97.5
-        for i in range(len(splits)):
-            print(splits[i])
-            lower = max(0.0, percentile(scores[i], lower_p))
-            print('%.1fth percentile = %.3f' % (lower_p, lower))
-            upper = min(1.0, percentile(scores[i], upper_p))
-            print('%.1fth percentile = %.3f' % (upper_p, upper))
-        print()
-        print('LR')
-        for i in range(len(splits)):
-            print(splits[i])
-            lower = max(0.0, percentile(scores_lr[i], lower_p))
-            print('%.1fth percentile = %.3f' % (lower_p, lower))
-            upper = min(1.0, percentile(scores_lr[i], upper_p))
-            print('%.1fth percentile = %.3f' % (upper_p, upper))
-        # print('lr')
-        # for i,split in enumerate(splits):
+        #         scores[i].append(my_prec(conf_ma))
+        #         scores_lr[i].append(my_prec(conf_ma_lr))
+        # lower_p = 2.5
+        # upper_p = 97.5
+        # for i in range(len(splits)):
+        #     print(splits[i])
+        #     lower = max(0.0, percentile(scores[i], lower_p))
+        #     print('%.1fth percentile = %.3f' % (lower_p, lower))
+        #     upper = min(1.0, percentile(scores[i], upper_p))
+        #     print('%.1fth percentile = %.3f' % (upper_p, upper))
+        # print()
+        # print('LR')
+        # for i in range(len(splits)):
+        #     print(splits[i])
+        #     lower = max(0.0, percentile(scores_lr[i], lower_p))
+        #     print('%.1fth percentile = %.3f' % (lower_p, lower))
+        #     upper = min(1.0, percentile(scores_lr[i], upper_p))
+        #     print('%.1fth percentile = %.3f' % (upper_p, upper))
+        # # print('lr')
+        # # for i,split in enumerate(splits):
         
-        #     X_eval = scaler.transform(X[i])
-        #     y_eval = y[i]
+        # #     X_eval = scaler.transform(X[i])
+        # #     y_eval = y[i]
 
 
-        #     y_svm = lr.predict(X_eval)
-        #     print(split)
-        #     print(accuracy(y_eval,y_svm))
-        # END of classification tests 
+        # #     y_svm = lr.predict(X_eval)
+        # #     print(split)
+        # #     print(accuracy(y_eval,y_svm))
+        # # END of classification tests 
 
-        # ##START of part for regression task
-        # #plot_variable_influence(X_train,X,y,splits)
-        # # paper_figures_by_split(X_train,X,y,splits)
-        # #find_ex_pred(X,y,paths_pred)
+        #START of part for regression task
+        # plot_variable_influence(X_train,X,y,splits)
+        # paper_figures_by_split(X_train,X,y,splits)
+        # find_ex_pred(X,y,paths_pred)
 
         # ridge = Ridge(normalize=False)
         # svr = SVR()
@@ -629,7 +632,7 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
 
 if __name__ == "__main__":
     #(SET all params, depending on desired train procedurey)
-    main([0,1,2],preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
+    main([0,1,2],preprocessing=True,train_density=False,feature_extraction=True,extract_dice_scores=True,model_train=True)
 
 # for dices : copies: img:  Task100_RadiopediaTrain_0009 pred:  Task740_ChallengeTrainF4'
 # for int mode : not lung tissue: img : Task200_MosmedTrain_0033 pred : Task740_ChallengeTrainF4'
