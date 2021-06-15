@@ -161,7 +161,7 @@ def mean_var_big_comp(img,seg):
     return mean, var
 
 def segmentation_in_lung(seg,lung_seg):
-    return np.dot(torch.flatten(seg),torch.flatten(lung_seg))/np.sum(seg)
+    return np.dot(torch.flatten(seg),torch.flatten(lung_seg))/torch.sum(seg)
 
 class Feature_extractor():
     '''A class for extracting feature of img-seg pairs and get arrays of features
@@ -175,7 +175,7 @@ class Feature_extractor():
                 difference of dice scores 
             -connected components : the number of connected components in the seg
     '''
-    def __init__(self, features=['dice_scores','connected_components','gauss_params','single_components']):
+    def __init__(self, features=['dice_scores','connected_components','gauss_params','seg_in_lung','single_components']):
         self.features = features
         self.nr_features = len(features)
         self.path_to_features = os.path.join(os.environ['OPERATOR_PERSISTENT_DIR'],'extracted_features') #deprecated
@@ -257,13 +257,18 @@ class Feature_extractor():
             return number_components
         if feature == 'seg_in_lung':
             dice_seg_lung = segmentation_in_lung(seg,lung_seg)
-            return dice_seg_lung
-    def compute_features_id(self,id):
+            return float(dice_seg_lung)
+
+    def compute_features_id(self,id,features='all'):
         '''Computes all features for the img-seg and img-pred pairs (if existing)
         and saves them in the preprocessed_dir/.../id/...
         Args:
             id (str): the id of the patient to compute the features for
         '''
+        #get the features to extract
+        if features == 'all':
+            features = self.features
+
         #get id path depending on global mode 
         if not os.environ["INFERENCE_OR_TRAIN"] == 'train':
             id_path = os.path.join(os.environ["PREPROCESSED_WORKFLOW_DIR"],os.environ["PREPROCESSED_OPERATOR_OUT_SCALED_DIR"],id)
@@ -277,7 +282,7 @@ class Feature_extractor():
         if  os.path.exists(all_pred_path):
             for model in os.listdir(all_pred_path):
                 mask_path_short = os.path.join(id_path,'pred',model)
-                self.save_feat_dict_from_paths(img_path,mask_path_short,lung_seg_path)
+                self.save_feat_dict_from_paths(img_path,mask_path_short,lung_seg_path,features)
 
         #get the features for the segmentations
         seg_path_short = os.path.join(id_path,'seg')
@@ -286,16 +291,20 @@ class Feature_extractor():
         seg = torch.tensor(torchio.Image(seg_path, type=torchio.LABEL).numpy())[0]
         lung_seg = torch.tensor(torchio.Image(lung_seg_path, type=torchio.LABEL).numpy())[0]
 
-        feat_dict = {}
-        for feat in self.features:
+        feature_save_path = os.path.join(seg_path_short,'features.json')
+        if os.path.exists(feature_save_path):
+            with open(feature_save_path) as file:
+                feat_dict = json.load(file)
+        else:
+            feat_dict = {}
+        for feat in features:
             feat_dict[feat] = self.get_feature(feat,img,seg,lung_seg)
 
         #save the features in a json file 
-        feature_save_path = os.path.join(seg_path_short,'features.json')
         with open (feature_save_path,'w') as f:
             json.dump(feat_dict,f)
             
-    def save_feat_dict_from_paths (self,img_path,mask_path_short,lung_seg_path):
+    def save_feat_dict_from_paths (self,img_path,mask_path_short,lung_seg_path,features):
         '''takes the paths to an img and a mask and a number for a prediction, 
         computes a dictionary of features and saves them in a dictionary 
         in the path of the prediction
@@ -314,12 +323,17 @@ class Feature_extractor():
         img = torch.tensor(torchio.Image(img_path, type=torchio.INTENSITY).numpy())[0]
         mask = torch.tensor(torchio.Image(mask_path, type=torchio.LABEL).numpy())[0]
         lung_seg = torch.tensor(torchio.Image(lung_seg_path, type=torchio.LABEL).numpy())[0]
-        feat_dict = {}
-        for feat in self.features:
-            feat_dict[feat] = self.get_feature(feat,img,mask,lung_seg)
-        
-        #save the features in a json file 
+
         feature_save_path = os.path.join(mask_path_short,'features.json')
+        if os.path.exists(feature_save_path):
+            with open(feature_save_path) as file:
+                feat_dict = json.load(file)
+        else:
+            feat_dict = {}
+        for feat in features:
+            feat_dict[feat] = self.get_feature(feat,img,mask,lung_seg)
+
+        #save the features in a json file 
         with open (feature_save_path,'w') as f:
             json.dump(feat_dict,f)
 
