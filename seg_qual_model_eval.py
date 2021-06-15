@@ -93,33 +93,34 @@ def filter_feature_extr(id,model):
 
     Returns(str):the split for the pair of id and model, can be other, which can be 
         category of unused data'''
-    # # train data 
-    # if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
-    #     return 'train'
-    # # id data
-    # if model[:7] in ['Task740'] and id[:7] in ['Task741']:
-    #     return 'gc_gc'
-    # if model[:7] in ['Task740'] and id[:7] in ['Task542']:
-    #     return 'gc_frank'
-    # # od data 
-    # if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
-    #     return 'gc_mosmed'
-    # if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
-    #     return 'gc_radio'
-
     # train data 
     if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
-        return 'id_train'
+        return 'train'
     # id data
-    if model[:7] in ['Task740'] and id[:7] in ['Task741','Task542']:
-        return 'id_test'
+    if model[:7] in ['Task740'] and id[:7] in ['Task741']:
+        return 'gc_gc'
+    if model[:7] in ['Task740'] and id[:7] in ['Task542']:
+        return 'gc_frank'
     # od data 
-    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201','Task100','Task101']:
-        return 'ood_test'
+    if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201']:
+        return 'gc_mosmed'
+    if model[:7] in ['Task740'] and id[:7] in ['Task100','Task101']:
+        return 'gc_radio'
+
+    # # train data 
+    # if model[:7] in ['Task740'] and id[:7] in ['Task740','Task541']:
+    #     return 'id_train'
+    # # id data
+    # if model[:7] in ['Task740'] and id[:7] in ['Task741','Task542']:
+    #     return 'id_test'
+    # # od data 
+    # if model[:7] in ['Task740'] and id[:7] in ['Task200','Task201','Task100','Task101']:
+    #     return 'ood_test'
 
     return 'other'
 
 # 2.2 extract the 
+CLASS = False
 def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
     '''extracts the features from the preprocess dictionary, and returns a  list,
     in which each entry corresponds to the features/labels of one split
@@ -151,7 +152,8 @@ def extract_features_train_id_od(filter,splits,used_feat=[0,1,2,3,4,5]):
                         feat_vec = feat_extr.read_feature_vector(feature_path)
                         feat_vec = [feat_vec[index] for index in used_feat]
                         label = feat_extr.read_prediction_label(label_path)
-                        # label = get_class(label)
+                        if CLASS:
+                            label = get_class(label)
                         if np.isnan(np.sum(np.array(feat_vec))) or feat_vec[0]>100000:
                             pass 
                         else:
@@ -172,6 +174,7 @@ def get_class(label):
         return 4
     else:
         return 5
+
 # 3. loss functions 
 def l2_loss(pred,truth):
     n = len(pred)
@@ -202,6 +205,62 @@ def get_l1_losses(truth,pred):
 def accuracy(truth,pred): 
     from sklearn.metrics import confusion_matrix
     return confusion_matrix(np.array(truth),np.array(pred),labels=[1,2,3,4,5])
+
+def my_recall(conf_matrix,thresh=3):
+
+    ma = np.array(conf_matrix)
+    TP = np.sum(ma[:thresh,:thresh])
+    FN = np.sum(ma[:thresh,thresh:5])
+    if TP == 0:
+        return 0
+    else :
+        return TP/(TP+FN)
+
+def confidence_bootstrap(X_train,y_train,X,y,svm,lr,scaler,splits):
+    from numpy.random import randint
+    from numpy import percentile
+    scores = [[] for _ in range(len(splits))]
+    scores_lr = [[] for _ in range(len(splits))]
+    for _ in range(1000):
+        indices = randint(0,len(X_train),1000)
+
+        X_train_b = X_train[indices]
+        y_train_b = y_train[indices]
+        svm.fit(X_train_b,y_train_b) 
+        lr.fit(X_train_b,y_train_b) 
+        
+            
+
+        for i,split in enumerate(splits):
+        
+            X_eval = scaler.transform(X[i])
+            y_eval = y[i]
+
+            y_svm = svm.predict(X_eval)
+            y_lr = lr.predict(X_eval)
+
+            conf_ma = accuracy(y_eval,y_svm)
+            conf_ma_lr = accuracy(y_eval,y_lr)
+
+            scores[i].append(my_recall(conf_ma))
+            scores_lr[i].append(my_recall(conf_ma_lr))
+    lower_p = 2.5
+    upper_p = 97.5
+    for i in range(len(splits)):
+        print(splits[i])
+        lower = max(0.0, percentile(scores[i], lower_p))
+        print('%.1fth percentile = %.3f' % (lower_p, lower))
+        upper = min(1.0, percentile(scores[i], upper_p))
+        print('%.1fth percentile = %.3f' % (upper_p, upper))
+    print()
+    print('LR')
+    for i in range(len(splits)):
+        print(splits[i])
+        lower = max(0.0, percentile(scores_lr[i], lower_p))
+        print('%.1fth percentile = %.3f' % (lower_p, lower))
+        upper = min(1.0, percentile(scores_lr[i], upper_p))
+        print('%.1fth percentile = %.3f' % (upper_p, upper))
+
 
 
 # 4. plots for further analysis.
@@ -343,10 +402,10 @@ def plot_variable_influence(X_train,X,y,splits):
             filt_X = [[X[j][k][i]] for k in range(len(X[j]))]
             plt.scatter(filt_X,y[j],label=split)
 
-        plt.legend(loc='lower right')
+        plt.legend(loc='upper left')
         plt.xlabel('feature')
         plt.ylabel('dice score of prediction')
-        plt.savefig(save_path)
+        #plt.savefig(save_path)
         plt.show()
 
 def paper_figures_by_split(X_train,X,y,splits):
@@ -368,7 +427,7 @@ def paper_figures_by_split(X_train,X,y,splits):
         #plt.ylabel('Dice Score of segmentation')
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
-        plt.savefig(save_path)
+        #plt.savefig(save_path)
         plt.show()
 
 def figure_namesand_settings(feat_nr):
@@ -435,29 +494,6 @@ def find_ex_pred(X,y,paths):
             print(y[smallest_ind[0]][smallest_ind[1]])
     print(paths_ex)
     return paths_ex
-        
-                
-# def bootstrap_statistics(data,times,sample_size):
-#     from numpy.random import rand
-#     from numpy.random import randint
-#     from numpy import mean
-#     from numpy import median
-#     from numpy import percentile
-#     scores = []
-#     for _ in range(times):
-#         indices = randint(0,len(data),1000)
-#         sample = data[indices]
-#         statistic = mean(sample)
-
-def my_prec(conf_matrix):
-    ma = np.array(conf_matrix)
-    TP = np.sum(ma[:2,:2])
-    FN = np.sum(ma[:2,2:5])
-    if TP == 0:
-        return 0
-    else :
-        return TP/(TP+FN)
-
 
 def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_extraction=True,
             extract_dice_scores=True,model_train=True,label=1):
@@ -498,141 +534,96 @@ def main(used_feat=[0,1,2,3,4,5],preprocessing=True,train_density=True,feature_e
         all_errors_over =[[],[],[]]
 
         scaler = StandardScaler()
-        splits = ['id_train','id_test','ood_test']#['train','gc_gc','gc_frank','gc_mosmed','gc_radio']['id_train','id_test','ood_test'] # ['other'] 
+        splits = ['train','gc_gc','gc_frank','gc_mosmed','gc_radio'] #['id_train','id_test','ood_test']['train','gc_gc','gc_frank','gc_mosmed','gc_radio']['id_train','id_test','ood_test']['other'] 
         X,y,paths_pred = extract_features_train_id_od(filter_feature_extr,splits,used_feat)
 
         X_train = scaler.fit_transform(X[0])
         y_train = np.array(y[0])
+
         # # START of experiments with classification task
-        # import collections
-        # print(collections.Counter(y[3]))
+        # # import collections
+        # # print(collections.Counter(y[3]))
         # from sklearn.svm import SVC 
         # from sklearn.linear_model import LogisticRegression
         # from sklearn.neural_network import MLPClassifier
-        # from sklearn.metrics import f1_score
-        # from sklearn.metrics import confusion_matrix
         # svm = SVC(class_weight={1:15,2:9,3:3,4:1,5:1})
         # lr = LogisticRegression(class_weight={1:15,2:9,3:3,4:1,5:1})
-        # # bootstrapping 
-        # from numpy.random import rand
-        # from numpy.random import randint
-        # from numpy import mean
-        # from numpy import median
-        # from numpy import percentile
-        # scores = [[] for _ in range(len(splits))]
-        # scores_lr = [[] for _ in range(len(splits))]
-        # for _ in range(1000):
-        #     indices = randint(0,len(X_train),1000)
-
-        #     X_train_b = X_train[indices]
-        #     y_train_b = y_train[indices]
-        #     svm.fit(X_train_b,y_train_b) 
-        #     lr.fit(X_train_b,y_train_b) 
-            
-                
-
-        #     for i,split in enumerate(splits):
-            
-        #         X_eval = scaler.transform(X[i])
-        #         y_eval = y[i]
-
-        #         y_svm = svm.predict(X_eval)
-        #         y_lr = lr.predict(X_eval)
-
-        #         conf_ma = accuracy(y_eval,y_svm)
-        #         conf_ma_lr = accuracy(y_eval,y_lr)
-
-        #         scores[i].append(my_prec(conf_ma))
-        #         scores_lr[i].append(my_prec(conf_ma_lr))
-        # lower_p = 2.5
-        # upper_p = 97.5
-        # for i in range(len(splits)):
-        #     print(splits[i])
-        #     lower = max(0.0, percentile(scores[i], lower_p))
-        #     print('%.1fth percentile = %.3f' % (lower_p, lower))
-        #     upper = min(1.0, percentile(scores[i], upper_p))
-        #     print('%.1fth percentile = %.3f' % (upper_p, upper))
-        # print()
-        # print('LR')
-        # for i in range(len(splits)):
-        #     print(splits[i])
-        #     lower = max(0.0, percentile(scores_lr[i], lower_p))
-        #     print('%.1fth percentile = %.3f' % (lower_p, lower))
-        #     upper = min(1.0, percentile(scores_lr[i], upper_p))
-        #     print('%.1fth percentile = %.3f' % (upper_p, upper))
-        # # print('lr')
-        # # for i,split in enumerate(splits):
+        # # confidence_bootstrap(X_train,y_train,X,y,svm,lr,scaler,splits)
         
-        # #     X_eval = scaler.transform(X[i])
-        # #     y_eval = y[i]
-
-
-        # #     y_svm = lr.predict(X_eval)
-        # #     print(split)
-        # #     print(accuracy(y_eval,y_svm))
-        # # END of classification tests 
-
-        #START of part for regression task
-        # plot_variable_influence(X_train,X,y,splits)
-        # paper_figures_by_split(X_train,X,y,splits)
-        # find_ex_pred(X,y,paths_pred)
-
-        # ridge = Ridge(normalize=False)
-        # svr = SVR()
-        # mlp = MLPRegressor((50,100,100,50))
-
-        # ridge.fit(X_train,y_train)
-        # svr.fit(X_train,y_train)
-        # mlp.fit(X_train,y_train)
+        # svm.fit(X_train,y_train)
         # for i,split in enumerate(splits):
-            
+        
         #     X_eval = scaler.transform(X[i])
         #     y_eval = y[i]
-        #     print(split[:5],'{:.3f} {:.3f} '.format(np.mean(y_eval),np.std(y_eval)))
 
-        #     y_ridge = ridge.predict(X_eval)
-        #     y_svr = svr.predict(X_eval)
-        #     y_mlp = mlp.predict(X_eval)
 
-        #     ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
-        #     svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
-        #     mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
+        #     y_svm =svm.predict(X_eval)
+        #     print(split)
+        #     print(accuracy(y_eval,y_svm))
 
-        #     ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
-        #     svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
-        #     mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
+        # # END of classification tests 
 
-        #     # l1_loss_bins(y_svr,y_eval,split)
+        ###START of part for regression task
+        plot_variable_influence(X_train,X,y,splits)
+        #paper_figures_by_split(X_train,X,y,splits)
+        # find_ex_pred(X,y,paths_pred)
 
-        #     for i,std in enumerate([ridge_std,svr_std,mlp_std]):
-        #         stds_of_splits[i].append(std)
-        #     for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
-        #         stds_of_splits_over[i].append(std)
-        #     for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
-        #         for err in errors:  
-        #             all_errors[i].append(err)
-        #     for i in range(3):
-        #         all_errors_over[i] = [max(err,0) for err in all_errors[i]]
+        ridge = Ridge(normalize=False)
+        svr = SVR()
+        mlp = MLPRegressor((50,100,100,50))
 
-        #     #a vector that predicts the mean value of y_train, is a baseline
-        #     # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
-        #     print('{}    :        ridge               svr             mlp  '.format(split))
-        #     print(u"error          {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err,ridge_std,svr_err,svr_std,mlp_err,mlp_std))
-        #     print(u"error overest. {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err_over,ridge_std_over,svr_err_over,svr_std_over,mlp_err_over,mlp_std_over))
+        ridge.fit(X_train,y_train)
+        svr.fit(X_train,y_train)
+        mlp.fit(X_train,y_train)
+        for i,split in enumerate(splits):
+            
+            X_eval = scaler.transform(X[i])
+            y_eval = y[i]
+            # print(split[:5],'{:.3f} {:.3f} '.format(np.mean(y_eval),np.std(y_eval)))
 
-        #     # print('Using mean of train values, has error of {} and std of {}'.format(l1_loss(y_mean,y_train,std=True)[0],l1_loss(y_mean,y_train,std=True)[1]))
-        #     print()
+            y_ridge = ridge.predict(X_eval)
+            y_svr = svr.predict(X_eval)
+            y_mlp = mlp.predict(X_eval)
 
-        # print('TOTAL:                       ridge     svr      mlp  ')
-        # print('mean of split stds          {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
-        # print('std of all errors           {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
-        # print('mean of split stds overest. {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits_over[0]),np.mean(stds_of_splits_over[1]),np.mean(stds_of_splits_over[2])))
-        # print('std of all errors overest.  {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors_over[0]),np.std(all_errors_over[1]),np.std(all_errors_over[2])))
-        # # END regression task
+            ridge_err,ridge_std = l1_loss(y_ridge,y_eval, std = True)
+            svr_err, svr_std  = l1_loss(y_svr,y_eval,std = True)
+            mlp_err, mlp_std = l1_loss(y_mlp,y_eval,std = True)
+
+            ridge_err_over,ridge_std_over = l1_loss_overestimation(y_ridge,y_eval, std = True)
+            svr_err_over, svr_std_over  = l1_loss_overestimation(y_svr,y_eval,std = True)
+            mlp_err_over, mlp_std_over = l1_loss_overestimation(y_mlp,y_eval,std = True)
+
+            l1_loss_bins(y_svr,y_eval,split)
+
+            for i,std in enumerate([ridge_std,svr_std,mlp_std]):
+                stds_of_splits[i].append(std)
+            for i,std in enumerate([ridge_std_over,svr_std_over,mlp_std_over]):
+                stds_of_splits_over[i].append(std)
+            for i,errors in enumerate([get_l1_losses(y_ridge,y_eval),get_l1_losses(y_svr,y_eval),get_l1_losses(y_mlp,y_eval)]):
+                for err in errors:  
+                    all_errors[i].append(err)
+            for i in range(3):
+                all_errors_over[i] = [max(err,0) for err in all_errors[i]]
+
+            #a vector that predicts the mean value of y_train, is a baseline
+            # y_mean = np.mean(y_train)*np.ones(np.shape(y_eval))
+            print('{}    :        ridge               svr             mlp  '.format(split))
+            print(u"error          {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err,ridge_std,svr_err,svr_std,mlp_err,mlp_std))
+            print(u"error overest. {:.3f} \u00B1 {:.3f},   {:.3f} \u00B1 {:.3f},  {:.3f} \u00B1 {:.3f}".format(ridge_err_over,ridge_std_over,svr_err_over,svr_std_over,mlp_err_over,mlp_std_over))
+
+            # print('Using mean of train values, has error of {} and std of {}'.format(l1_loss(y_mean,y_train,std=True)[0],l1_loss(y_mean,y_train,std=True)[1]))
+            print()
+
+        print('TOTAL:                       ridge     svr      mlp  ')
+        print('mean of split stds          {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits[0]),np.mean(stds_of_splits[1]),np.mean(stds_of_splits[2])))
+        print('std of all errors           {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors[0]),np.std(all_errors[1]),np.std(all_errors[2])))
+        print('mean of split stds overest. {:.3f},   {:.3f},  {:.3f}'.format(np.mean(stds_of_splits_over[0]),np.mean(stds_of_splits_over[1]),np.mean(stds_of_splits_over[2])))
+        print('std of all errors overest.  {:.3f},   {:.3f},  {:.3f}'.format(np.std(all_errors_over[0]),np.std(all_errors_over[1]),np.std(all_errors_over[2])))
+        # END regression task
 
 if __name__ == "__main__":
     #(SET all params, depending on desired train procedurey)
-    main([0,1,2],preprocessing=True,train_density=False,feature_extraction=True,extract_dice_scores=True,model_train=True)
+    main([0,1,2,3],preprocessing=False,train_density=False,feature_extraction=False,extract_dice_scores=False,model_train=True)
 
 # for dices : copies: img:  Task100_RadiopediaTrain_0009 pred:  Task740_ChallengeTrainF4'
 # for int mode : not lung tissue: img : Task200_MosmedTrain_0033 pred : Task740_ChallengeTrainF4'
