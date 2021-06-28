@@ -4,7 +4,6 @@
 # ------------------------------------------------------------------------------
 
 # Imports
-import torch
 import torchio as tio
 
 # Perfom augmentation on dataset

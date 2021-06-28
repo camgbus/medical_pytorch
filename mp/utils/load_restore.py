@@ -64,7 +64,7 @@ def load_json(path, name):
     with open(os.path.join(path, name), 'r') as json_file:
         return json.load(json_file)
 
-def save_json_beautiful(data, path, name, sort):
+def save_json_beautiful(data, path, name, sort=True):
     r"""This function saves a dictionary as a json file at the specified path with indention."""
     if not os.path.exists(path):
         os.makedirs(path)

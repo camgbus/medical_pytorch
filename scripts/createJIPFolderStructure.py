@@ -205,3 +205,4 @@ if __name__ == '__main__':
     datasetDirectory = du.get_original_data_path(datasetName)
     JIPDirectory = input_dir # --> JIP_dir/data_dirs/input (use predefined environment for this)
     createJIPFolderStructure(datasetName, datasetDirectory, JIPDirectory)
+    

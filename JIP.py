@@ -168,7 +168,7 @@ if __name__ == "__main__":
     #       {'exp_decay', 'step_decay', 'mstep_decay', 'plat_decay'}, whereas decay_rate represents gamma in all of these decays except
     #       plat_decay. --> lr will normally always updated with lr = lr * decay_rate, so consider this when setting decay_rate.
     config = {'device': cuda, 'input_shape': (1, 60, 299, 299), 'augmentation': True, 'mode': mode,
-              'data_type': data_type, 'lr': 1e-3, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 150, 'decay_type': 'plat_decay',
+              'data_type': data_type, 'lr': 1e-3, 'batch_size': 64, 'num_intensities': 5, 'nr_epochs': 250, 'decay_type': 'plat_decay',
               'noise': noise, 'weight_decay': 7e-3, 'save_interval': 100, 'msg_bot': msg_bot, 'lr_decay': True, 'decay_rate': 0.9,
               'bot_msg_interval': 10, 'nr_images': 25, 'val_ratio': 0.2, 'test_ratio': 0.2, 'augment_strat': 'none',
               'train_on': 'mixed', 'data_augmented': True, 'restore': restore, 'store_data': store_data}
@@ -216,7 +216,6 @@ if __name__ == "__main__":
                     if msg_bot:
                         bot.send_msg('Data could not be preprocessed. The following error occured: {}.'.format(error))
     
-
     # -------------------------
     # Train
     # -------------------------

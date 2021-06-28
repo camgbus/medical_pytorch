@@ -222,9 +222,11 @@ class JIPDataset(CNNDataset):
 
         if 'test' in dtype:
             # Foldernames are patient_id based on dtype
-            if dtype == 'testID':
+            if dtype == 'testID':   # Split testID in seperate cases --> FRA, GC and Decathlon to split it in table...
+                #study_names = [x for x in os.listdir(self.test_dataset_path) if 'DS_Store' not in x and '._' not in x\
+                #               and 'GC' in x and '.json' not in x]
                 study_names = [x for x in os.listdir(self.test_dataset_path) if 'DS_Store' not in x and '._' not in x\
-                               and ('FRA' in x or 'GC' in x or 'Decathlon' in x)]   # Use same data classes as trained on
+                               and ('FRA' in x or 'GC' in x or 'Decathlon' in x)  and '.json' not in x]   # Use same data classes as trained on
             if dtype == 'testOOD':
                 study_names = [x for x in os.listdir(self.test_dataset_path) if 'DS_Store' not in x and '._' not in x\
                                and 'FRA' not in x and 'GC' not in x and 'Decathlon' not in x and '.json' not in x]   # Use all other data classes as trained on
