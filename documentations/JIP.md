@@ -109,36 +109,48 @@ Let's look at some use cases:
 ## Training classifiers
 When training classifiers from the beginning, one can simply execute the following command with respect to the possible arguments: 
 ```bash
-<your_anaconda_env> $ python JIP.py --mode train --device <GPU_ID> --datatype train --noise_type <artifact> [--store_data --try_catch_repeat <nr> --idle_time <time_in_sec> --use_telegram_bot --restore]
+<your_anaconda_env> $ python JIP.py --mode train --device <GPU_ID>
+				    --datatype train --noise_type <artifact>
+				    [--store_data --try_catch_repeat <nr>
+				    --idle_time <time_in_sec> --use_telegram_bot --restore]
 ```
 Again, the restore flag can be used in case of an errorenous termination of the code before the actual termination of the training to continue with the training from the last checkpoint.
-In the [JIP.py](../JIP.py) file is a config dictionary that can be modified by the programmer as well, in which one can specify if the dataset needs to be augmented or not. Note, that the augmentation is only implemented for the [Grand Challenge](https://covid-segmentation.grand-challenge.org) and [Decathlon Lung Dataset](http://medicaldecathlon.com), since the labels for the transformed files need to be generated based on the manually created labels. For now, if the programmer wants to perform augmentation on a new dataset, this needs to be changed/added in the code, for instance, the [`dataset_JIP_cnn.py`](../mp/data/datasets/dataset_JIP_cnn.py) needs to be updated. If no augmentation is necessary, only the provided data will be used, ie. the code does not have to be modified at all for this.
+In the [JIP.py](../JIP.py) file is a config dictionary that can be modified by the programmer as well, in which one can specify if the dataset needs to be augmented or not. Note, that the augmentation is only implemented for the [Grand Challenge](https://covid-segmentation.grand-challenge.org) and [Decathlon Lung Dataset](http://medicaldecathlon.com), since the labels for the transformed files need to be generated based on the manually created labels. For now, if the programmer wants to perform augmentation on a new dataset, this needs to be changed/added in the code, for instance, the [dataset_JIP_cnn.py](../mp/data/datasets/dataset_JIP_cnn.py) needs to be updated. If no augmentation is necessary, only the provided data will be used, ie. the code does not have to be modified at all for this.
 
 ## Retraining classifiers
 The retraining of classifiers is used for retraining already trained classifiers with new data. This is mainly used by institutes that are provided with pre-trained classifiers and then can retrain them with their own in-house dataset. Those pre-trained classifiers are trained on a mixed dataset including one in-house, the [Grand Challenge](https://covid-segmentation.grand-challenge.org) and [Decathlon Lung Dataset](http://medicaldecathlon.com) dataset whereas data augmentation has been performed on those datasets as well to ensure equally distributed data among all intensity classes during training. To run such a retrain, obviously the corresponding classifier needs to exist and the own in-house data needs to be stored under `JIP/train_dirs/input` and preprocessed as well. The training can then be started using the following command:
 ```bash
-<your_anaconda_env> $ python JIP.py --mode retrain --device <GPU_ID> --datatype train --noise_type <artifact> [--store_data --try_catch_repeat <nr> --idle_time <time_in_sec> --use_telegram_bot --restore]
+<your_anaconda_env> $ python JIP.py --mode retrain --device <GPU_ID>
+				    --datatype train --noise_type <artifact>
+				    [--store_data --try_catch_repeat <nr>
+				    --idle_time <time_in_sec> --use_telegram_bot --restore]
 ```
 
 ## Testing classifiers
-Testing the performance and accuracy of all classifiers can be performed in two ways. An In-Distribution (ID) test as well as an Out-Of_Distribution (OOD) test can be performed. Both tests are based on the dataset names that are used during training, so if new data is used, ie. different datasets, the ID and OOD test needs to be adapted since the selection of the data for the test is based on the dataset name. Since this varies from use case to use case, this needs to be adapted by the programmer in [`dataset_JIP_cnn.py`](../mp/data/datasets/dataset_JIP_cnn.py) as well when this is desired to use. Notebooks are provided in the [`notebooks folder`](../notebooks) and can be reloaded after a test is performed. Every Notebook automatically loads the data and performs the corresponding calculations once the paths is set in those Notebooks. So the user only needs to change the path in the Notebooks. In those Notebooks, the accuracy will be calculated, but also confusion matrices will be extracted from the stored data as well.
+Testing the performance and accuracy of all classifiers can be performed in two ways. An In-Distribution (ID) test as well as an Out-Of_Distribution (OOD) test can be performed. Both tests are based on the dataset names that are used during training, so if new data is used, ie. different datasets, the ID and OOD test needs to be adapted since the selection of the data for the test is based on the dataset name. Since this varies from use case to use case, this needs to be adapted by the programmer in [dataset_JIP_cnn.py](../mp/data/datasets/dataset_JIP_cnn.py) as well when this is desired to use. Notebooks are provided in the [notebooks folder](../notebooks) and can be reloaded after a test is performed. Every Notebook automatically loads the data and performs the corresponding calculations once the paths is set in those Notebooks. So the user only needs to change the path in the Notebooks. In those Notebooks, the accuracy will be calculated, but also confusion matrices will be extracted from the stored data as well.
 
 ### Test In Distribution
 For performing an ID-test, the following command can be used:
 ```bash
-<your_anaconda_env> $ python JIP.py --mode testID --device <GPU_ID> --datatype test --noise_type <artifact> [--use_telegram_bot --store_data]
+<your_anaconda_env> $ python JIP.py --mode testID --device <GPU_ID>
+				    --datatype test --noise_type <artifact>
+				    [--use_telegram_bot --store_data]
 ```
 
 ### Test Out Of Distribution
 For performing an OOD-test, the following command can be used:
 ```bash
-<your_anaconda_env> $ python JIP.py --mode testOOD --device <GPU_ID> --datatype test --noise_type <artifact> [--store_data --use_telegram_bot]
+<your_anaconda_env> $ python JIP.py --mode testOOD --device <GPU_ID>
+				    --datatype test --noise_type <artifact>
+				    [--store_data --use_telegram_bot]
 ```
 
 ### Test In and Out Of Distribution
 For performing an ID-test followed by an OOD-test without executing both commands, the following command can be used:
 ```bash
-<your_anaconda_env> $ python JIP.py --mode testIOOD --device <GPU_ID> --datatype test --noise_type <artifact> [--use_telegram_bot --store_data]
+<your_anaconda_env> $ python JIP.py --mode testIOOD --device <GPU_ID>
+				    --datatype test --noise_type <artifact>
+				    [--use_telegram_bot --store_data]
 ```
 
 Note: If the Notebooks are used, remember to set the `--store_data` flag when performing any test, since this stored data is crucial for the calculations performed in the Notebooks.
@@ -146,7 +158,8 @@ Note: If the Notebooks are used, remember to set the `--store_data` flag when pe
 ## Performing inference
 Performing inference on data is very straight-forward. It is important that all 6 artifact classifiers are trained and do exist in `JIP/data_dirs/persistent`. The provided preprocessed data from `JIP/data_dirs/input` will then be used and the results for every scan per classifier will be stored in a metrics file, `metrics.json`. After the sucessfull termination the file will be located at `JIP/data_dirs/output`. To start the inference, the following command needs to be executed:
 ```bash
-<your_anaconda_env> $ python JIP.py --mode inference --device <GPU_ID> [--use_telegram_bot]
+<your_anaconda_env> $ python JIP.py --mode inference --device <GPU_ID>
+				   [--use_telegram_bot]
 ```
 
 After sucessfull termination, the `metrics.json` file is generated and has the following structure:
